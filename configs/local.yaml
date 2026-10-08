@@ -1,0 +1,37 @@
+dataset:
+  root: /home/diego/agriKhaos/enfermedadeshoja_v1.0/EnfermedadesHoja_v1.0
+  allow_test_as_client: false
+  num_clients: 2
+  client_split_seed: 42
+
+model:
+  family: timm
+  name: vit_tiny_patch16_224
+  num_classes: 9
+  pretrained: false
+  device: cpu
+  img_size: 224
+
+parameter_gate:
+  max_update_norm: 100.0
+  enforce_finite: true
+  enforce_structural_match: true
+  reject_anomalies: true
+
+federation:
+  rounds: 5
+  min_clients: 2
+  min_fit_clients: 2
+  min_evaluate_clients: 2
+  local_epochs: 1
+  batch_size: 16
+  learning_rate: 0.001
+  prox_mu: 0.01
+  seed: 42
+
+quality:
+  min_baseline_accuracy: 0.0
+  max_baseline_loss: 50.0
+  run_pre_fl_baseline: true
+  evaluate_global_every_round: true
+
