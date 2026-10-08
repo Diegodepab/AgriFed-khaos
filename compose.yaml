@@ -1,0 +1,21 @@
+services:
+  agrifed:
+    build:
+      context: .
+      args:
+        PROJECT_EXTRAS: ${AGRIFED_PROJECT_EXTRAS:-vision,fl,dev}
+    image: agrifed-khaos:latest
+    working_dir: /workspace
+    shm_size: 2gb
+    user: "${AGRIFED_UID:-1000}:${AGRIFED_GID:-1000}"
+    tty: true
+    stdin_open: true
+    environment:
+      AGRIFED_CONFIG_PATH: /workspace/configs/federated.yaml
+      HOME: /tmp/agrifed-home
+      XDG_CACHE_HOME: /tmp/agrifed-cache
+      PYTHONPATH: /workspace/src
+    volumes:
+      - .:/workspace
+      - ${AGRIFED_DATASET_ROOT:-../enfermedadeshoja_v1.0/EnfermedadesHoja_v1.0}:/data/EnfermedadesHoja_v1.0:ro
+    command: ["sleep", "infinity"]
