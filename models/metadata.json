@@ -1,0 +1,18 @@
+{
+  "architecture": "resnet18",
+  "num_classes": 9,
+  "classes": [
+    "aculus_olearius",
+    "antracnosis",
+    "cochinilla_tizne",
+    "deficiencia_nutricional",
+    "fumagina",
+    "repilo",
+    "sano",
+    "tuberculosis",
+    "virosis"
+  ],
+  "img_size": 224,
+  "weights_file": "models/base_model.pt",
+  "created_at": "2026-10-13 09:32:19"
+}

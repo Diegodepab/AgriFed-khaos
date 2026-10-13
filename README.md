@@ -10,6 +10,23 @@
 
 ---
 
+## 📚 Documentación del Proyecto
+
+El repositorio cuenta con una jerarquía de documentación especializada para diferentes perfiles:
+
+1. [**`docs/architecture.md`**](docs/architecture.md) — **Arquitectura y Especificación Técnica:**
+   - Principios SOLID y Agnosticismo de Dominio.
+   - Patrón Adaptador ([`BaseFLWrapper`](src/agrifed_khaos/wrappers.py#L119)) y regularización FedProx ($\mu$).
+   - Puerta de seguridad ([`ParameterValidator`](src/agrifed_khaos/wrappers.py#L48)), Privacidad Diferencial (DP-SGD) y linaje criptográfico SHA-256.
+2. [**`docs/user_guide.md`**](docs/user_guide.md) — **Manual Operativo Paso a Paso (100% Agnóstico de Dominio):**
+   - Cómo usar el repo con **cualquier dataset de imágenes** (olivos, mangos, manzanas, piezas industriales).
+   - Comandos directos: Entrenamiento base, cliente on-premise (cero fuga de datos), agregación, evaluación y despliegue de la API REST (`POST /predict` y `/predict/batch`).
+3. [**`docs/workflow.md`**](docs/workflow.md) — **Caso de Estudio Empírico de Referencia:**
+   - Validación empírica real de extremo a extremo sobre el dataset de patología foliar (*Olea europaea*).
+   - Evolución cuantificada del modelo ($T_0: 74.44\% \rightarrow T_1: 82.56\%$), matrices de confusión y mapas de atención Grad-CAM.
+
+---
+
 ## 1. System Architecture
 
 AgriFed-KHAOS decouples vision architectures from the federated runtime through the **Adapter Pattern** and enforces parameter security via a **Sanitized FedProx Strategy**.
@@ -50,20 +67,20 @@ flowchart TD
 
 ### A. Model Adapter Pattern (`BaseFLWrapper`)
 Flower communicates through serialized lists of NumPy arrays (`list[np.ndarray]`). Deep learning frameworks (Ultralytics, Timm, PyTorch) represent weights as internal module parameters and state dictionaries.
-* [`BaseFLWrapper`](file:///home/diego/agriKhaos/AgriFed-khaos/src/agrifed_khaos/wrappers.py): Abstract base class defining `get_parameters()`, `set_parameters()`, `train_local_epoch()`, and `evaluate()`.
-* [`TimmClassificationWrapper`](file:///home/diego/agriKhaos/AgriFed-khaos/src/agrifed_khaos/wrappers.py): Specialized adapter for Vision Transformers (ViT) and CNNs built via `timm`.
-* [`YOLOv8Wrapper`](file:///home/diego/agriKhaos/AgriFed-khaos/src/agrifed_khaos/wrappers.py): Specialized adapter for Ultralytics YOLOv8+ object detection models.
-* [`TorchModuleWrapper`](file:///home/diego/agriKhaos/AgriFed-khaos/src/agrifed_khaos/wrappers.py): Generic PyTorch module adapter that isolates trainable parameters (`requires_grad`) from BatchNorm buffers, preventing runtime crashes in proximal loss calculations.
+* [`BaseFLWrapper`](src/agrifed_khaos/wrappers.py): Abstract base class defining `get_parameters()`, `set_parameters()`, `train_local_epoch()`, and `evaluate()`.
+* [`TimmClassificationWrapper`](src/agrifed_khaos/wrappers.py): Specialized adapter for Vision Transformers (ViT) and CNNs built via `timm`.
+* [`YOLOv8Wrapper`](src/agrifed_khaos/wrappers.py): Specialized adapter for Ultralytics YOLOv8+ object detection models.
+* [`TorchModuleWrapper`](src/agrifed_khaos/wrappers.py): Generic PyTorch module adapter that isolates trainable parameters (`requires_grad`) from BatchNorm buffers, preventing runtime crashes in proximal loss calculations.
 
 ### B. Sanitized FedProx & Parameter Gating
 In federated agricultural networks, clients may suffer from noisy updates, unstable local learning rates, or data poisoning.
-* [`ParameterValidator`](file:///home/diego/agriKhaos/AgriFed-khaos/src/agrifed_khaos/wrappers.py):
+* [`ParameterValidator`](src/agrifed_khaos/wrappers.py):
   1. **Structural Check:** Verifies exact tensor count, dimensions, and data types match the global model.
   2. **Numerical Finiteness:** Enforces that all values are finite (zero tolerance for `NaN` or `Inf`).
   3. **Divergence Norm ($\Delta W$):** Calculates the L2 distance of the parameter update:
      $$\Delta W = \| W_{client} - W_{global} \|_2 = \sqrt{\sum_{i} \| w_i^{client} - w_i^{global} \|_F^2}$$
      If $\Delta W > \Delta_{max}$ (`max_update_norm`), the update is flagged as an anomaly.
-* [`SanitizedFedProx`](file:///home/diego/agriKhaos/AgriFed-khaos/src/agrifed_khaos/federated.py): Subclasses Flower's native `FedProx`. Intercepts `aggregate_fit` and excludes non-compliant clients before delegating to weighted parameter averaging.
+* [`SanitizedFedProx`](src/agrifed_khaos/federated.py): Subclasses Flower's native `FedProx`. Intercepts `aggregate_fit` and excludes non-compliant clients before delegating to weighted parameter averaging.
 
 ### C. Zero-Leakage Data Contract
 > [!IMPORTANT]

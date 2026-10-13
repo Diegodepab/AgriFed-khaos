@@ -62,6 +62,7 @@ class ParameterValidator:
         self,
         candidate_parameters: Sequence[np.ndarray],
         reference_parameters: Sequence[np.ndarray] | None = None,
+        check_delta_norm: bool = True,
     ) -> ParameterValidationResult:
         """Inspect shapes, finite values, and L2 distance from global reference."""
         issues: list[str] = []
@@ -102,7 +103,7 @@ class ParameterValidator:
                 squared_sum += float(np.sum(diff**2))
             delta_norm = float(np.sqrt(squared_sum))
 
-            if delta_norm > self.max_update_norm:
+            if check_delta_norm and delta_norm > self.max_update_norm:
                 issues.append(
                     f"parameter update divergence norm ({delta_norm:.4f}) "
                     f"exceeds tolerance ({self.max_update_norm:.4f})"
@@ -152,12 +153,15 @@ class BaseFLWrapper(ABC):
         self,
         parameters: Sequence[np.ndarray],
         reference_parameters: Sequence[np.ndarray] | None = None,
+        check_delta_norm: bool = True,
     ) -> ParameterValidationResult:
         """Validate candidate parameters against model reference."""
         reference = (
             reference_parameters if reference_parameters is not None else self.get_parameters()
         )
-        return self.validator.validate(parameters, reference)
+        return self.validator.validate(
+            parameters, reference, check_delta_norm=check_delta_norm
+        )
 
 
 class TorchModuleWrapper(BaseFLWrapper):
@@ -201,7 +205,7 @@ class TorchModuleWrapper(BaseFLWrapper):
     def set_parameters(self, parameters: Sequence[np.ndarray]) -> None:
         """Inject parameters directly into trainable layers."""
         torch = self._require_torch()
-        validation = self.validate_parameters(parameters)
+        validation = self.validate_parameters(parameters, check_delta_norm=False)
         if not validation.valid:
             raise ValueError(f"Invalid parameters rejected: {'; '.join(validation.issues)}")
 
@@ -375,7 +379,7 @@ class YOLOv8Wrapper(BaseFLWrapper):
         except ImportError as exc:
             raise RuntimeError("PyTorch is required for YOLOv8Wrapper") from exc
 
-        validation = self.validate_parameters(parameters)
+        validation = self.validate_parameters(parameters, check_delta_norm=False)
         if not validation.valid:
             raise ValueError(f"Invalid parameters rejected: {'; '.join(validation.issues)}")
 

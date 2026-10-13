@@ -1,5 +1,5 @@
 dataset:
-  root: /home/diego/agriKhaos/enfermedadeshoja_v1.0/EnfermedadesHoja_v1.0
+  root: ../enfermedadeshoja_v1.0/EnfermedadesHoja_v1.0
   allow_test_as_client: false
   num_clients: 2
   client_split_seed: 42
