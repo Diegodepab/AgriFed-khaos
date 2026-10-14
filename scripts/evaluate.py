@@ -85,6 +85,18 @@ def parse_args() -> argparse.Namespace:
         help="Exit with non-zero status code if a CRITICAL canary alarm is triggered",
     )
     parser.add_argument(
+        "--calibrate-threshold",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Compute calibrated decision thresholds (optimal F1 and Youden's J)",
+    )
+    parser.add_argument(
+        "--eval-threshold",
+        type=float,
+        default=None,
+        help="Explicit decision threshold for binary classification (default: argmax/0.50)",
+    )
+    parser.add_argument(
         "--arch",
         type=str,
         default=None,
@@ -157,6 +169,133 @@ class GradCAM:
         cam = cam - cam.min()
         cam = cam / (cam.max() + 1e-8)
         return cam[0, 0].detach().cpu().numpy(), class_idx, float(probs[0, class_idx].item())
+
+
+def calibrate_binary_thresholds(
+    y_true: list[int],
+    y_probs: list[list[float]],
+    positive_class_idx: int = 1,
+) -> dict[str, Any]:
+    """Sweep decision thresholds for binary classification to optimize F1 and Youden's J."""
+    y_arr = np.array(y_true, dtype=int)
+    probs_arr = np.array(y_probs, dtype=float)
+    p_pos = probs_arr[:, positive_class_idx]
+
+    thresholds = np.linspace(0.05, 0.95, 91)
+    best_f1 = -1.0
+    best_tau_f1 = 0.50
+    best_youden = -2.0
+    best_tau_youden = 0.50
+
+    nominal_tau = 0.50
+    nominal_preds = (p_pos >= nominal_tau).astype(int)
+    nom_p, nom_r, nom_f1, _ = precision_recall_fscore_support(
+        y_arr, nominal_preds, average="binary", pos_label=positive_class_idx, zero_division=0
+    )
+    nom_acc = float(np.mean(nominal_preds == y_arr))
+
+    sweep_records = []
+    for tau in thresholds:
+        preds = (p_pos >= tau).astype(int)
+        prec, rec, f1, _ = precision_recall_fscore_support(
+            y_arr, preds, average="binary", pos_label=positive_class_idx, zero_division=0
+        )
+        tpr = float(rec)
+        tn = int(np.sum((preds == 0) & (y_arr == 0)))
+        actual_neg = int(np.sum(y_arr == 0))
+        tnr = float(tn / max(actual_neg, 1))
+        youden_j = tpr + tnr - 1.0
+
+        if f1 > best_f1:
+            best_f1 = float(f1)
+            best_tau_f1 = float(tau)
+        if youden_j > best_youden:
+            best_youden = float(youden_j)
+            best_tau_youden = float(tau)
+
+        sweep_records.append(
+            {
+                "threshold": round(float(tau), 4),
+                "precision": round(float(prec), 4),
+                "recall": round(float(rec), 4),
+                "f1": round(float(f1), 4),
+                "youden_j": round(float(youden_j), 4),
+            }
+        )
+
+    cal_preds_f1 = (p_pos >= best_tau_f1).astype(int)
+    cal_p, cal_r, cal_f1, _ = precision_recall_fscore_support(
+        y_arr, cal_preds_f1, average="binary", pos_label=positive_class_idx, zero_division=0
+    )
+    cal_acc = float(np.mean(cal_preds_f1 == y_arr))
+
+    return {
+        "nominal": {
+            "threshold": nominal_tau,
+            "accuracy": round(nom_acc, 4),
+            "precision": round(float(nom_p), 4),
+            "recall": round(float(nom_r), 4),
+            "f1_score": round(float(nom_f1), 4),
+        },
+        "calibrated_f1": {
+            "optimal_threshold": round(best_tau_f1, 4),
+            "accuracy": round(cal_acc, 4),
+            "precision": round(float(cal_p), 4),
+            "recall": round(float(cal_r), 4),
+            "f1_score": round(float(cal_f1), 4),
+        },
+        "calibrated_youden": {
+            "optimal_threshold": round(best_tau_youden, 4),
+            "youden_j": round(best_youden, 4),
+        },
+        "sweep": sweep_records,
+    }
+
+
+def calibrate_multiclass_ovr_thresholds(
+    y_true: list[int],
+    y_probs: list[list[float]],
+    class_names: list[str],
+) -> dict[str, Any]:
+    """Perform One-vs-Rest (OvR) decision threshold sweep per class."""
+    y_arr = np.array(y_true, dtype=int)
+    probs_arr = np.array(y_probs, dtype=float)
+    thresholds = np.linspace(0.05, 0.95, 91)
+    results: dict[str, Any] = {}
+
+    for c_idx, c_name in enumerate(class_names):
+        p_c = probs_arr[:, c_idx]
+        y_c = (y_arr == c_idx).astype(int)
+
+        best_f1 = -1.0
+        best_tau = 0.50
+        for tau in thresholds:
+            preds_c = (p_c >= tau).astype(int)
+            _, _, f1, _ = precision_recall_fscore_support(
+                y_c, preds_c, average="binary", zero_division=0
+            )
+            if f1 > best_f1:
+                best_f1 = float(f1)
+                best_tau = float(tau)
+
+        nom_preds = (p_c >= 0.50).astype(int)
+        nom_p, nom_r, nom_f1, _ = precision_recall_fscore_support(
+            y_c, nom_preds, average="binary", zero_division=0
+        )
+        cal_preds = (p_c >= best_tau).astype(int)
+        cal_p, cal_r, cal_f1, _ = precision_recall_fscore_support(
+            y_c, cal_preds, average="binary", zero_division=0
+        )
+
+        results[c_name] = {
+            "nominal_threshold": 0.50,
+            "nominal_f1": round(float(nom_f1), 4),
+            "optimal_threshold": round(best_tau, 4),
+            "calibrated_f1": round(float(cal_f1), 4),
+            "calibrated_precision": round(float(cal_p), 4),
+            "calibrated_recall": round(float(cal_r), 4),
+        }
+    return results
 
 
 def main() -> None:
@@ -257,6 +396,7 @@ def main() -> None:
         total = 0
         y_true: list[int] = []
         y_pred: list[int] = []
+        y_probs: list[list[float]] = []
         criterion = nn.CrossEntropyLoss()
 
         with torch.no_grad():
@@ -265,11 +405,16 @@ def main() -> None:
                 out = model(x)
                 loss = criterion(out, y)
                 total_loss += loss.item() * x.size(0)
-                preds = out.argmax(dim=1)
+                probs = F.softmax(out, dim=1)
+                if args.eval_threshold is not None and out.shape[1] == 2:
+                    preds = (probs[:, 1] >= args.eval_threshold).long()
+                else:
+                    preds = out.argmax(dim=1)
                 correct += (preds == y).sum().item()
                 total += x.size(0)
                 y_true.extend(y.cpu().tolist())
                 y_pred.extend(preds.cpu().tolist())
+                y_probs.extend(probs.cpu().tolist())
 
         avg_loss = total_loss / max(total, 1)
         acc = (correct / max(total, 1)) * 100
@@ -392,7 +537,146 @@ def main() -> None:
         plt.close()
         print(f"[*] Confusion matrix plot saved: {cm_file}")
 
-        # 3. Export Comprehensive JSON Evaluation Report
+        # 3. Decision Threshold Calibration (Optimal F1 & Youden's J)
+        calibration_results: dict[str, Any] | None = None
+        if args.calibrate_threshold and len(class_names) == 2:
+            calibration_results = calibrate_binary_thresholds(y_true, y_probs, positive_class_idx=1)
+            nom = calibration_results["nominal"]
+            cal_f1 = calibration_results["calibrated_f1"]
+            cal_j = calibration_results["calibrated_youden"]
+
+            try:
+                from rich.console import Console
+                from rich.table import Table
+
+                console = Console()
+                cal_table = Table(
+                    title="CALIBRACIÓN DE UMBRAL DE DECISIÓN (OPTIMIZACIÓN F1 & YOUDEN'S J)",
+                    show_header=True,
+                    header_style="bold magenta",
+                )
+                cal_table.add_column("Régimen de Decisión", style="bold")
+                cal_table.add_column("Umbral (τ)", justify="right")
+                cal_table.add_column("Accuracy", justify="right")
+                cal_table.add_column("Precision", justify="right")
+                cal_table.add_column("Recall", justify="right")
+                cal_table.add_column("F1-Score", justify="right", style="bold green")
+
+                cal_table.add_row(
+                    "Nominal (Default Argmax)",
+                    f"{nom['threshold']:.2f}",
+                    f"{nom['accuracy'] * 100:.2f}%",
+                    f"{nom['precision'] * 100:.2f}%",
+                    f"{nom['recall'] * 100:.2f}%",
+                    f"{nom['f1_score'] * 100:.2f}%",
+                )
+                cal_table.add_row(
+                    "Calibrado (Óptimo F1)",
+                    f"{cal_f1['optimal_threshold']:.2f}",
+                    f"{cal_f1['accuracy'] * 100:.2f}%",
+                    f"{cal_f1['precision'] * 100:.2f}%",
+                    f"{cal_f1['recall'] * 100:.2f}%",
+                    f"{cal_f1['f1_score'] * 100:.2f}%",
+                    style="bold yellow",
+                )
+                cal_table.add_row(
+                    "Calibrado (Óptimo Youden's J)",
+                    f"{cal_j['optimal_threshold']:.2f}",
+                    "-",
+                    "-",
+                    "-",
+                    f"J = {cal_j['youden_j']:.3f}",
+                    style="dim cyan",
+                )
+                console.print(cal_table)
+            except ImportError:
+                print(
+                    f"[*] Calibrated Threshold: Nominal F1={nom['f1_score']*100:.2f}% (τ=0.50) -> "
+                    f"Calibrated F1={cal_f1['f1_score']*100:.2f}% "
+                    f"(τ={cal_f1['optimal_threshold']:.2f})"
+                )
+
+            # Generate Threshold Calibration Sweep Plot
+            sweep = calibration_results["sweep"]
+            th_vals = [s["threshold"] for s in sweep]
+            f1_vals = [s["f1"] for s in sweep]
+            p_vals = [s["precision"] for s in sweep]
+            r_vals = [s["recall"] for s in sweep]
+            j_vals = [s["youden_j"] for s in sweep]
+
+            plt.figure(figsize=(10, 5.5))
+            plt.plot(th_vals, f1_vals, label="F1-Score", color="green", linewidth=2.5)
+            plt.plot(
+                th_vals, p_vals, label="Precision", color="blue", linestyle="--", linewidth=1.5
+            )
+            plt.plot(
+                th_vals,
+                r_vals,
+                label="Recall (Sensitivity)",
+                color="orange",
+                linestyle="--",
+                linewidth=1.5,
+            )
+            plt.plot(
+                th_vals,
+                j_vals,
+                label="Youden's J Index",
+                color="purple",
+                linestyle=":",
+                linewidth=2,
+            )
+            plt.axvline(0.50, color="gray", linestyle="-.", label="Nominal (τ=0.50)")
+            plt.axvline(
+                cal_f1["optimal_threshold"],
+                color="red",
+                linestyle="-",
+                label=f"Óptimo F1 (τ={cal_f1['optimal_threshold']:.2f})",
+            )
+            plt.xlabel("Umbral de Decisión (τ)", fontweight="bold")
+            plt.ylabel("Métrica", fontweight="bold")
+            plt.title(
+                f"Curva de Calibración de Umbral de Decisión ({data_path.name})", fontweight="bold"
+            )
+            plt.grid(True, alpha=0.3)
+            plt.legend(loc="lower left")
+            plt.tight_layout()
+            curve_file = out_dir / "threshold_calibration_curve.png"
+            plt.savefig(curve_file, dpi=180, bbox_inches="tight")
+            plt.close()
+            print(f"[*] Threshold calibration curve saved: {curve_file}")
+
+        elif args.calibrate_threshold and len(class_names) > 2:
+            calibration_results = calibrate_multiclass_ovr_thresholds(y_true, y_probs, class_names)
+            try:
+                from rich.console import Console
+                from rich.table import Table
+
+                console = Console()
+                cal_table = Table(
+                    title="CALIBRACIÓN MULTICLASE ONE-VS-REST (ÓPTIMO F1 POR CLASE)",
+                    show_header=True,
+                    header_style="bold magenta",
+                )
+                cal_table.add_column("Clase", style="bold")
+                cal_table.add_column("Nominal F1 (τ=0.50)", justify="right")
+                cal_table.add_column("Umbral Óptimo (τ*)", justify="right", style="bold yellow")
+                cal_table.add_column("Calibrated F1", justify="right", style="bold green")
+
+                for c_name, c_res in calibration_results.items():
+                    cal_table.add_row(
+                        c_name,
+                        f"{c_res['nominal_f1'] * 100:.2f}%",
+                        f"{c_res['optimal_threshold']:.2f}",
+                        f"{c_res['calibrated_f1'] * 100:.2f}%",
+                    )
+                console.print(cal_table)
+            except ImportError:
+                print(
+                    f"[*] Multiclass OvR Threshold Calibration computed for "
+                    f"{len(class_names)} classes."
+                )
+
+        # 4. Export Comprehensive JSON Evaluation Report
         report_data: dict[str, Any] = {
             "dataset_evaluated": str(data_path),
             "total_samples": total,
@@ -418,6 +702,7 @@ def main() -> None:
                 for i, cname in enumerate(class_names)
             },
             "confusion_matrix_raw": cm_raw.tolist(),
+            "calibration": calibration_results,
         }
 
         # 4. Canary Telemetry Watchdog & Incident Alarm Check

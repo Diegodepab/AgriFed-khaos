@@ -16,7 +16,7 @@ from typing import Any
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
 from agrifed_khaos.crypto import compute_sha256
@@ -51,6 +51,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate (default: 1e-3)")
     parser.add_argument(
         "--max-samples", type=int, default=1800, help="Max balanced samples to train on CPU"
+    )
+    parser.add_argument(
+        "--balanced-loss",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Use inverse-frequency class weighting in CrossEntropyLoss to counter class skew",
     )
     parser.add_argument(
         "--threads", type=int, default=8, help="PyTorch CPU intra-op threads (default: 8)"
@@ -147,9 +153,13 @@ def main() -> None:
     # Subsample if max_samples is set for manageable CPU runtime
     train_ds: Any = dataset
     if args.max_samples and args.max_samples < total_samples:
-        indices = torch.randperm(total_samples)[: args.max_samples].tolist()
-        train_ds = Subset(dataset, indices)
-        print(f"[*] Training on {len(train_ds)} samples across {num_classes} classes")
+        from agrifed_khaos.data import create_stratified_subset
+
+        train_ds = create_stratified_subset(dataset, args.max_samples, seed=42)
+        print(
+            f"[*] Stratified subsampling active: {len(train_ds)} samples "
+            f"across {num_classes} classes"
+        )
 
     loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=0)
 
@@ -178,7 +188,19 @@ def main() -> None:
 
     optimizer = torch.optim.AdamW(param_groups, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(args.epochs, 1))
-    criterion = nn.CrossEntropyLoss()
+
+    if args.balanced_loss:
+        from agrifed_khaos.data import compute_class_weights
+
+        class_weights = compute_class_weights(train_ds, num_classes=num_classes).to(device)
+        criterion = nn.CrossEntropyLoss(weight=class_weights)
+        print(
+            f"[*] Balanced Class-Weighted Loss Active: "
+            f"weights={[round(w, 3) for w in class_weights.tolist()]}"
+        )
+    else:
+        criterion = nn.CrossEntropyLoss()
+        print("[*] Unweighted CrossEntropyLoss Active")
 
     # 4. Training Loop
     model.train()

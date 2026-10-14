@@ -210,3 +210,170 @@ def create_torch_dataloader(
 
     dataset = datasets.ImageFolder(root=str(root_dir), transform=transform)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=0)
+
+
+def get_dataset_targets(dataset: Any) -> list[int]:
+    """Extract integer target labels from an ImageFolder, Subset, or generic dataset."""
+    if hasattr(dataset, "targets") and isinstance(dataset.targets, (list, tuple)):
+        return [int(t) for t in dataset.targets]
+    if hasattr(dataset, "targets") and hasattr(dataset.targets, "tolist"):
+        return [int(t) for t in dataset.targets.tolist()]
+    if hasattr(dataset, "samples") and isinstance(dataset.samples, (list, tuple)):
+        return [int(s[1]) for s in dataset.samples]
+    if hasattr(dataset, "indices") and hasattr(dataset, "dataset"):
+        parent_targets = get_dataset_targets(dataset.dataset)
+        return [parent_targets[idx] for idx in dataset.indices]
+    raise ValueError(
+        f"Unable to extract class targets from dataset of type {type(dataset).__name__}: "
+        "missing 'targets' or 'samples' attribute."
+    )
+
+
+def create_stratified_subset(
+    dataset: Any,
+    max_samples: int,
+    seed: int = 42,
+) -> Any:
+    """Create a stratified subset of dataset preserving class proportions.
+
+    Uses the Largest Remainder (Hamilton-Hare) apportionment method to assign
+    quotas per class, guaranteeing that all classes present receive at least 1 sample
+    (when max_samples >= number of distinct classes) and that empirical class ratios
+    are preserved without distortion.
+
+    Args:
+        dataset: PyTorch Dataset (e.g. ImageFolder or Subset) containing targets.
+        max_samples: Maximum number of samples to select. If max_samples >= len(dataset),
+            the original dataset is returned.
+        seed: Random seed for deterministic intra-class index shuffling.
+
+    Returns:
+        torch.utils.data.Subset wrapping dataset with the stratified indices.
+    """
+    import numpy as np
+    from torch.utils.data import Subset
+
+    n_total = len(dataset)
+    if max_samples >= n_total:
+        return dataset
+
+    if max_samples <= 0:
+        raise ValueError("max_samples must be positive")
+
+    targets = get_dataset_targets(dataset)
+    class_indices: dict[int, list[int]] = {}
+    for idx, target in enumerate(targets):
+        class_indices.setdefault(target, []).append(idx)
+
+    num_classes = len(class_indices)
+    rng = np.random.default_rng(seed)
+
+    sorted_classes = sorted(class_indices.keys())
+    # Exact Hare quota on total max_samples
+    exact_shares = {c: (len(class_indices[c]) / n_total) * max_samples for c in sorted_classes}
+    allocated = {c: int(np.floor(exact_shares[c])) for c in sorted_classes}
+
+    # If max_samples >= num_classes, guarantee min 1 sample per present class
+    if max_samples >= num_classes:
+        for c in sorted_classes:
+            if allocated[c] == 0:
+                allocated[c] = 1
+
+    current_total = sum(allocated.values())
+    if current_total < max_samples:
+        remainder = max_samples - current_total
+        fractionals = [(exact_shares[c] - np.floor(exact_shares[c]), c) for c in sorted_classes]
+        fractionals.sort(key=lambda item: (-item[0], item[1]))
+        for i in range(remainder):
+            c = fractionals[i][1]
+            allocated[c] += 1
+    elif current_total > max_samples:
+        excess = current_total - max_samples
+        fractionals = [(exact_shares[c] - np.floor(exact_shares[c]), c) for c in sorted_classes]
+        fractionals.sort(key=lambda item: (item[0], item[1]))
+        for _, c in fractionals:
+            if excess <= 0:
+                break
+            if allocated[c] > 1:
+                allocated[c] -= 1
+                excess -= 1
+
+    selected_indices: list[int] = []
+    for c in sorted_classes:
+        quota = min(allocated[c], len(class_indices[c]))
+        class_idx_list = class_indices[c].copy()
+        rng.shuffle(class_idx_list)
+        selected_indices.extend(class_idx_list[:quota])
+
+    selected_indices.sort()
+    return Subset(dataset, selected_indices)
+
+
+def compute_class_weights(
+    dataset_or_targets: Any,
+    num_classes: int | None = None,
+    smoothing: float = 0.0,
+) -> Any:
+    """Compute balanced class weights using inverse class frequency.
+
+    Formula:
+        w_c = N / (C_present * N_c)
+    Normalized such that sum(w_c) == C (mean weight = 1.0).
+    Classes with zero samples are assigned weight 1.0.
+
+    Args:
+        dataset_or_targets: Either a list/tuple/Tensor of integer class labels,
+            or a PyTorch dataset from which targets can be extracted.
+        num_classes: Total number of classes. If None, inferred as max(targets) + 1.
+        smoothing: Additive label smoothing factor (default: 0.0).
+
+    Returns:
+        torch.FloatTensor of shape (num_classes,) containing balanced weights.
+    """
+    import numpy as np
+    import torch
+
+    if isinstance(dataset_or_targets, (list, tuple)):
+        targets = [int(t) for t in dataset_or_targets]
+    elif hasattr(dataset_or_targets, "tolist") and not hasattr(dataset_or_targets, "dataset"):
+        targets = [int(t) for t in dataset_or_targets.tolist()]
+    else:
+        targets = get_dataset_targets(dataset_or_targets)
+
+    if not targets:
+        if num_classes is not None and num_classes > 0:
+            return torch.ones(num_classes, dtype=torch.float32)
+        raise ValueError("Cannot compute class weights on empty dataset.")
+
+    inferred_num_classes = max(targets) + 1 if targets else 0
+    c_count = max(num_classes or inferred_num_classes, inferred_num_classes, 1)
+
+    counts = np.zeros(c_count, dtype=np.float64)
+    for t in targets:
+        if 0 <= t < c_count:
+            counts[t] += 1.0
+
+    n_samples = float(len(targets))
+    weights = np.ones(c_count, dtype=np.float32)
+
+    active_mask = counts > 0
+    n_active = float(np.sum(active_mask))
+
+    if n_active > 0:
+        if smoothing > 0.0:
+            smoothed_counts = counts + smoothing
+            smoothed_n = n_samples + smoothing * c_count
+            weights = (smoothed_n / (c_count * smoothed_counts)).astype(np.float32)
+        else:
+            for c in range(c_count):
+                if counts[c] > 0:
+                    weights[c] = float(n_samples / (n_active * counts[c]))
+                else:
+                    weights[c] = 1.0
+
+        active_weights = weights[active_mask]
+        if len(active_weights) > 0 and float(np.mean(active_weights)) > 0:
+            weights[active_mask] = weights[active_mask] / float(np.mean(active_weights))
+
+    return torch.tensor(weights, dtype=torch.float32)
+

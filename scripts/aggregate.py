@@ -23,6 +23,9 @@ from agrifed_khaos.crypto import compute_manifest_hmac, compute_sha256
 from agrifed_khaos.quality import audit_regression_guardrail
 from agrifed_khaos.wrappers import EvaluationStats, ParameterValidator
 
+HEAD_PREFIXES = ("fc.", "classifier.", "head.", "model.head.")
+BN_BUFFER_SUFFIXES = (".running_mean", ".running_var", ".num_batches_tracked")
+
 
 def resolve_meta_path(client_file: Path, explicit_meta: str | None = None) -> Path:
     """Resolve the .meta.json manifest path corresponding to a client parameter file."""
@@ -87,6 +90,18 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--eta", type=float, default=0.6, help="Aggregation learning rate / weight (default: 0.6)"
+    )
+    parser.add_argument(
+        "--server-momentum",
+        type=float,
+        default=0.0,
+        help="Server momentum factor beta in [0, 1) for FedAvgM (default: 0.0, disabled)",
+    )
+    parser.add_argument(
+        "--momentum-buffer",
+        type=str,
+        default=None,
+        help="Path to save/load server momentum buffer (default: <output_dir>/server_momentum.pt)",
     )
     parser.add_argument(
         "--max-norm", type=float, default=150.0, help="Max perturbation norm (default: 150.0)"
@@ -242,8 +257,6 @@ def main() -> None:
     base_state = torch.load(str(base_path), map_location=device, weights_only=True)
     actual_base_sha = compute_sha256(base_path)
 
-    HEAD_PREFIXES = ("fc.", "classifier.", "head.", "model.head.")
-    BN_BUFFER_SUFFIXES = (".running_mean", ".running_var", ".num_batches_tracked")
     base_keys = set(base_state.keys())
     base_clean_keys = {k for k in base_keys if "num_batches_tracked" not in k}
     base_head_keys = {k for k in base_clean_keys if k.startswith(HEAD_PREFIXES)}
@@ -671,11 +684,60 @@ def main() -> None:
         # Free memory immediately to prevent O(K) checkpoint RAM buildup
         c.state_dict = None
 
+    # Server momentum (FedAvgM) handling
+    momentum_buffer_path: Path | None = None
+    prev_momentum: dict[str, torch.Tensor] = {}
+    new_momentum_buffer: dict[str, torch.Tensor] = {}
+
+    if args.server_momentum > 0.0:
+        if not 0.0 <= args.server_momentum < 1.0:
+            print(
+                f"[!] Error: --server-momentum must be in [0.0, 1.0), got {args.server_momentum}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        momentum_buffer_path = (
+            Path(args.momentum_buffer)
+            if args.momentum_buffer
+            else Path(args.output).parent / "server_momentum.pt"
+        )
+        if momentum_buffer_path.is_file():
+            try:
+                prev_momentum = torch.load(
+                    str(momentum_buffer_path), map_location=device, weights_only=True
+                )
+                print(
+                    f"[*] Loaded server momentum buffer from {momentum_buffer_path} "
+                    f"(FedAvgM beta={args.server_momentum:.2f})"
+                )
+            except Exception as e:
+                print(
+                    f"[!] Warning: Failed to load server momentum buffer ({e}), initializing fresh."
+                )
+                prev_momentum = {}
+        else:
+            print(
+                f"[*] Initialized fresh server momentum velocity buffer "
+                f"(FedAvgM beta={args.server_momentum:.2f})"
+            )
+
     for k in round_trainable_keys:
         if base_state[k].dtype.is_floating_point:
-            new_state[k] = base_state[k] + args.eta * delta_fed_accum[k]
+            delta_k = delta_fed_accum[k]
+            if args.server_momentum > 0.0:
+                v_prev = prev_momentum.get(k, torch.zeros_like(delta_k))
+                v_t = args.server_momentum * v_prev.to(device) + delta_k
+                new_momentum_buffer[k] = v_t.cpu()
+                new_state[k] = base_state[k] + args.eta * v_t
+            else:
+                new_state[k] = base_state[k] + args.eta * delta_k
         else:
             new_state[k] = base_state[k]
+
+    if args.server_momentum > 0.0 and momentum_buffer_path is not None:
+        momentum_buffer_path.parent.mkdir(parents=True, exist_ok=True)
+        torch.save(new_momentum_buffer, str(momentum_buffer_path))
+        print(f"[*] Persisted updated server momentum buffer to {momentum_buffer_path}")
 
     # Compute aggregated delta norm ||ΔW_fed||_2 and relative norm
     agg_delta_sq = 0.0
@@ -796,6 +858,7 @@ def main() -> None:
         "delta_norm": round(aggregated_delta_norm, 4),
         "relative_norm": round(aggregated_relative_norm, 4),
         "eta": args.eta,
+        "server_momentum": args.server_momentum,
         "scope": round_scope,
         "num_clients": len(validated_clients),
         "total_samples": total_samples,
