@@ -17,7 +17,7 @@ El repositorio cuenta con una jerarquía de documentación especializada para di
 1. [**`docs/architecture.md`**](docs/architecture.md) — **Arquitectura y Especificación Técnica:**
    - Principios SOLID y Agnosticismo de Dominio.
    - Patrón Adaptador ([`BaseFLWrapper`](src/agrifed_khaos/wrappers.py#L119)) y regularización FedProx ($\mu$).
-   - Puerta de seguridad ([`ParameterValidator`](src/agrifed_khaos/wrappers.py#L48)), Privacidad Diferencial (DP-SGD) y linaje criptográfico SHA-256.
+   - Puerta de seguridad ([`ParameterValidator`](src/agrifed_khaos/wrappers.py#L48)), perturbación estocástica de parámetros y linaje criptográfico SHA-256.
 2. [**`docs/user_guide.md`**](docs/user_guide.md) — **Manual Operativo Paso a Paso (100% Agnóstico de Dominio):**
    - Cómo usar el repo con **cualquier dataset de imágenes** (olivos, mangos, manzanas, piezas industriales).
    - Comandos directos: Entrenamiento base, cliente on-premise (cero fuga de datos), agregación, evaluación y despliegue de la API REST (`POST /predict` y `/predict/batch`).
@@ -145,8 +145,8 @@ dataset:
   client_split_seed: 42
 
 model:
-  family: timm             # timm | ultralytics | torch
-  name: vit_tiny_patch16_224
+  family: torch             # torch | timm | ultralytics
+  name: resnet18
   num_classes: 9
   pretrained: false
   device: cpu              # cpu | cuda

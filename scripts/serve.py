@@ -12,15 +12,14 @@ import hashlib
 import io
 import json
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from PIL import Image
-from torchvision import models, transforms
+from torchvision import transforms
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,16 +34,22 @@ def parse_args() -> argparse.Namespace:
         "--host", type=str, default="0.0.0.0", help="Listen host (default: 0.0.0.0)"
     )
     parser.add_argument("--port", type=int, default=8000, help="Listen port (default: 8000)")
+    parser.add_argument(
+        "--arch",
+        type=str,
+        default=None,
+        help="Model architecture (default: resolved from metadata.json or 'resnet18')",
+    )
     return parser.parse_args()
 
 
-def get_model(num_classes: int) -> nn.Module:
-    model = models.resnet18(weights=None)
-    model.fc = nn.Linear(model.fc.in_features, num_classes)
-    return cast(nn.Module, model)
+def create_app(
+    model_path: str,
+    metadata_path: str,
+    architecture: str | None = None,
+) -> FastAPI:
+    from agrifed_khaos.models import build_model
 
-
-def create_app(model_path: str, metadata_path: str) -> FastAPI:
     app = FastAPI(
         title="AgriFed-KHAOS Inference API",
         description="Zero-dependency REST service for vision model inference & diagnosis",
@@ -54,12 +59,16 @@ def create_app(model_path: str, metadata_path: str) -> FastAPI:
     device = torch.device("cpu")
     meta_p = Path(metadata_path)
     classes: list[str] = []
+    arch = architecture
     if meta_p.is_file():
         meta = json.loads(meta_p.read_text(encoding="utf-8"))
         classes = meta.get("classes", [])
+        if not arch:
+            arch = meta.get("architecture")
 
     num_classes = len(classes) if classes else 9
-    net = get_model(num_classes=num_classes).to(device)
+    arch = arch or "resnet18"
+    net = build_model(architecture=arch, num_classes=num_classes).to(device)
     model_p = Path(model_path)
     model_sha256 = ""
     if model_p.is_file():
@@ -152,7 +161,7 @@ def create_app(model_path: str, metadata_path: str) -> FastAPI:
 
 def main() -> None:
     args = parse_args()
-    app = create_app(args.model, args.metadata)
+    app = create_app(args.model, args.metadata, architecture=args.arch)
     print(f"[*] Starting AgriFed REST Inference Server on {args.host}:{args.port}")
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 

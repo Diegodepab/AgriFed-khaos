@@ -5,8 +5,8 @@ dataset:
   client_split_seed: 42
 
 model:
-  family: timm
-  name: vit_tiny_patch16_224
+  family: torch
+  name: resnet18
   num_classes: 9
   pretrained: false
   device: cpu

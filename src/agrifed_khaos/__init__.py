@@ -9,6 +9,10 @@ from .config import (
     QualityConfig,
     RuntimeSettings,
 )
+from .crypto import (
+    compute_manifest_hmac,
+    compute_sha256,
+)
 from .data import (
     DatasetInventory,
     DatasetRecord,
@@ -25,11 +29,28 @@ from .federated import (
     build_server_evaluate_fn,
     validate_client_update,
 )
+from .hardware import (
+    HardwareProfile,
+    ModelCandidate,
+    ModelSelector,
+)
+from .models import (
+    build_model,
+    get_cam_target_layer,
+)
 from .quality import (
     BaselineQualityReport,
+    CanaryAlarmLevel,
+    CanaryAlarmReport,
+    CanaryRoundRecord,
+    RegressionGuardrailReport,
     SplitIntegrityReport,
+    audit_canary_telemetry,
+    audit_regression_guardrail,
     audit_split_integrity,
     evaluate_pre_fl_baseline,
+    load_canary_history,
+    save_canary_history,
 )
 from .wrappers import (
     BaseFLWrapper,
@@ -40,6 +61,8 @@ from .wrappers import (
     TorchModuleWrapper,
     TrainingStats,
     YOLOv8Wrapper,
+    apply_adaptive_rms_noise,
+    freeze_bn_stats,
 )
 
 __all__ = [
@@ -47,17 +70,24 @@ __all__ = [
     "AppConfig",
     "BaseFLWrapper",
     "BaselineQualityReport",
+    "CanaryAlarmLevel",
+    "CanaryAlarmReport",
+    "CanaryRoundRecord",
     "ClientResult",
     "DatasetConfig",
     "DatasetInventory",
     "DatasetRecord",
     "EvaluationStats",
     "FederationConfig",
+    "HardwareProfile",
+    "ModelCandidate",
     "ModelConfig",
+    "ModelSelector",
     "ParameterGateConfig",
     "ParameterValidationResult",
     "ParameterValidator",
     "QualityConfig",
+    "RegressionGuardrailReport",
     "RuntimeSettings",
     "SanitizedFedProx",
     "SplitIntegrityReport",
@@ -66,12 +96,22 @@ __all__ = [
     "TrainingStats",
     "YOLOv8Wrapper",
     "aggregate_weighted_metrics",
+    "apply_adaptive_rms_noise",
+    "audit_canary_telemetry",
+    "audit_regression_guardrail",
     "audit_split_integrity",
+    "build_model",
     "build_server_evaluate_fn",
+    "compute_manifest_hmac",
+    "compute_sha256",
     "create_torch_dataloader",
     "evaluate_pre_fl_baseline",
+    "freeze_bn_stats",
+    "get_cam_target_layer",
+    "load_canary_history",
     "load_inventory",
     "load_records",
     "partition_train_records",
+    "save_canary_history",
     "validate_client_update",
 ]

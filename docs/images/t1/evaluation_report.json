@@ -1,0 +1,40 @@
+{
+  "dataset_evaluated": "/home/diego/agriKhaos/olivefruit_v1.1/classification/test",
+  "total_samples": 800,
+  "overall_accuracy": 63.0,
+  "cross_entropy_loss": 0.6185,
+  "macro_avg": {
+    "precision": 0.691,
+    "recall": 0.63,
+    "f1_score": 0.5979
+  },
+  "weighted_avg": {
+    "precision": 0.691,
+    "recall": 0.63,
+    "f1_score": 0.5979
+  },
+  "per_class": {
+    "defectuosa": {
+      "precision": 0.5831,
+      "recall": 0.9125,
+      "f1_score": 0.7115,
+      "support": 400
+    },
+    "sana": {
+      "precision": 0.7989,
+      "recall": 0.3475,
+      "f1_score": 0.4843,
+      "support": 400
+    }
+  },
+  "confusion_matrix_raw": [
+    [
+      365,
+      35
+    ],
+    [
+      261,
+      139
+    ]
+  ]
+}

@@ -24,6 +24,7 @@ class ParameterValidationResult:
     valid: bool
     issues: list[str] = field(default_factory=list)
     delta_norm: float | None = None
+    relative_norm: float | None = None
 
 
 @dataclass(slots=True)
@@ -53,10 +54,12 @@ class ParameterValidator:
         max_update_norm: float = 100.0,
         enforce_finite: bool = True,
         enforce_structural_match: bool = True,
+        max_relative_norm: float | None = None,
     ) -> None:
         self.max_update_norm = max_update_norm
         self.enforce_finite = enforce_finite
         self.enforce_structural_match = enforce_structural_match
+        self.max_relative_norm = max_relative_norm
 
     def validate(
         self,
@@ -94,26 +97,96 @@ class ParameterValidator:
                 issues.append(f"tensor {index} contains non-finite values (NaN or Inf)")
 
         delta_norm: float | None = None
+        relative_norm: float | None = None
         if reference_parameters is not None and not issues:
             squared_sum = 0.0
+            base_squared_sum = 0.0
             for candidate, reference in zip(
                 candidate_parameters, reference_parameters, strict=True
             ):
-                diff = np.asarray(candidate) - np.asarray(reference)
+                cand_arr = np.asarray(candidate)
+                ref_arr = np.asarray(reference)
+                diff = cand_arr - ref_arr
                 squared_sum += float(np.sum(diff**2))
+                base_squared_sum += float(np.sum(ref_arr**2))
             delta_norm = float(np.sqrt(squared_sum))
+            base_l2_norm = float(np.sqrt(base_squared_sum))
+            relative_norm = delta_norm / max(base_l2_norm, 1e-8)
 
             if check_delta_norm and delta_norm > self.max_update_norm:
                 issues.append(
                     f"parameter update divergence norm ({delta_norm:.4f}) "
                     f"exceeds tolerance ({self.max_update_norm:.4f})"
                 )
+            if (
+                check_delta_norm
+                and self.max_relative_norm is not None
+                and relative_norm > self.max_relative_norm
+            ):
+                issues.append(
+                    f"parameter update relative norm ({relative_norm:.4f}) "
+                    f"exceeds relative tolerance ({self.max_relative_norm:.4f})"
+                )
 
         return ParameterValidationResult(
             valid=len(issues) == 0,
             issues=issues,
             delta_norm=delta_norm,
+            relative_norm=relative_norm,
         )
+
+
+def freeze_bn_stats(model: Any) -> None:
+    """Freeze running statistics (running_mean, running_var) of all BatchNorm layers.
+
+    Puts all BatchNorm layers into eval() mode so that they use pre-computed global
+    normalization statistics from the base model and do not accumulate local batch statistics
+    during client training rounds. Crucially, affine parameters (weight and bias) remain
+    trainable (requires_grad=True).
+    """
+    try:
+        from torch.nn.modules.batchnorm import _BatchNorm
+    except ImportError:
+        return
+
+    for m in model.modules():
+        if isinstance(m, _BatchNorm):
+            m.eval()
+
+
+def apply_adaptive_rms_noise(
+    parameters: Sequence[Any],
+    noise_std: float,
+    min_rms: float = 1e-4,
+) -> None:
+    """Apply layer-wise RMS-scaled Gaussian parameter noise perturbation.
+
+    Scales injected noise relative to the root-mean-square magnitude of each
+    trainable tensor:
+        rms(p) = max(||p||_2 / sqrt(p.numel()), min_rms)
+        noise = N(0, I) * noise_std * rms(p)
+
+    Acts as a uniform signal-to-noise ratio per layer, preventing destruction
+    of low-magnitude tensors while preserving privacy across varied layers.
+    """
+    if noise_std <= 0.0:
+        return
+    try:
+        import torch
+    except ImportError:
+        return
+
+    with torch.no_grad():
+        for p in parameters:
+            tensor = p.data if hasattr(p, "data") else p
+            if not isinstance(tensor, torch.Tensor):
+                continue
+            p_float = tensor.float()
+            p_norm = float(torch.linalg.norm(p_float).item())
+            numel = max(tensor.numel(), 1)
+            rms = max(p_norm / (numel**0.5), min_rms)
+            noise = torch.randn_like(tensor) * (noise_std * rms)
+            tensor.add_(noise)
 
 
 class BaseFLWrapper(ABC):
@@ -140,6 +213,7 @@ class BaseFLWrapper(ABC):
         epochs: int,
         prox_mu: float = 0.0,
         reference_parameters: Sequence[np.ndarray] | None = None,
+        max_grad_norm: float | None = 1.0,
     ) -> TrainingStats:
         """Run local optimization round with optional FedProx proximal penalty."""
         raise NotImplementedError
@@ -221,11 +295,11 @@ class TorchModuleWrapper(BaseFLWrapper):
         epochs: int,
         prox_mu: float = 0.0,
         reference_parameters: Sequence[np.ndarray] | None = None,
+        max_grad_norm: float | None = 1.0,
     ) -> TrainingStats:
-        """Train local epochs with exact FedProx proximal regularization."""
+        """Train local epochs with exact FedProx proximal regularization and gradient clipping."""
         torch = self._require_torch()
         self.module.to(self.device)
-        self.module.train()
 
         trainable_params = [p for p in self.module.parameters() if p.requires_grad]
         ref_tensors: list[Any] | None = None
@@ -240,6 +314,8 @@ class TorchModuleWrapper(BaseFLWrapper):
         total_loss = 0.0
 
         for _ in range(epochs):
+            self.module.train()
+            freeze_bn_stats(self.module)
             for batch in train_data:
                 batches += 1
                 inputs, targets = batch
@@ -257,17 +333,19 @@ class TorchModuleWrapper(BaseFLWrapper):
                     loss = loss + 0.5 * prox_mu * prox_penalty
 
                 loss.backward()
+                if max_grad_norm is not None and max_grad_norm > 0.0:
+                    torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=max_grad_norm)
                 self.optimizer.step()
 
                 batch_size = int(inputs.shape[0]) if hasattr(inputs, "shape") else 1
                 examples += batch_size
-                total_loss += float(loss.detach().cpu().item())
+                total_loss += float(loss.detach().cpu().item()) * batch_size
 
-        avg_loss = total_loss / max(batches, 1)
+        avg_loss = total_loss / max(examples, 1)
         return TrainingStats(examples=examples, batches=batches, loss=avg_loss)
 
     def evaluate(self, eval_data: Any) -> EvaluationStats:
-        """Evaluate accuracy and loss on evaluation dataset."""
+        """Evaluate accuracy and loss on evaluation dataset with exact sample weighting."""
         torch = self._require_torch()
         self.module.to(self.device)
         self.module.eval()
@@ -275,25 +353,23 @@ class TorchModuleWrapper(BaseFLWrapper):
         total_loss = 0.0
         correct = 0
         examples = 0
-        batches = 0
 
         with torch.no_grad():
             for batch in eval_data:
-                batches += 1
                 inputs, targets = batch
                 inputs = inputs.to(self.device)
                 targets = targets.to(self.device)
 
                 outputs = self.module(inputs)
                 loss = self.criterion(outputs, targets)
-                total_loss += float(loss.detach().cpu().item())
 
                 preds = torch.argmax(outputs, dim=1)
                 correct += int(torch.sum(preds == targets).item())
                 batch_size = int(inputs.shape[0]) if hasattr(inputs, "shape") else 1
                 examples += batch_size
+                total_loss += float(loss.detach().cpu().item()) * batch_size
 
-        avg_loss = total_loss / max(batches, 1)
+        avg_loss = total_loss / max(examples, 1)
         accuracy = float(correct / max(examples, 1))
         return EvaluationStats(
             examples=examples,
@@ -396,8 +472,15 @@ class YOLOv8Wrapper(BaseFLWrapper):
         epochs: int,
         prox_mu: float = 0.0,
         reference_parameters: Sequence[np.ndarray] | None = None,
+        max_grad_norm: float | None = 1.0,
     ) -> TrainingStats:
         """Local fine-tuning execution."""
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "YOLOv8Wrapper.train_local_epoch called: local fine-tuning for Ultralytics YOLO models "
+            "requires ultralytics training engine. Checkpoint weights were not modified."
+        )
         return TrainingStats(examples=0, batches=0, loss=0.0)
 
     def evaluate(self, eval_data: Any) -> EvaluationStats:

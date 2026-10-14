@@ -45,13 +45,15 @@ docker compose exec agrifed bash
 
 ## 3. Guía Paso a Paso del Ciclo Federado
 
-### Paso 1: Entrenar el Modelo Base Oficial (Servidor Maestro)
+### Paso 1: Entrenar el Modelo Base Oficial con Auto-FL (Servidor Maestro)
 
-El servidor central entrena una primera versión de referencia utilizando un dataset inicial.
+El servidor central entrena una primera versión de referencia seleccionando automáticamente la arquitectura adecuada según el perfil de los clientes periféricos y las dimensiones del dataset:
 
 ```bash
 python scripts/train_base.py \
   --data-dir /ruta/a/mi_dataset/train \
+  --arch auto \
+  --target-client-tier cpu-high \
   --output models/base_model.pt \
   --metadata models/metadata.json \
   --epochs 3 \
@@ -59,15 +61,22 @@ python scripts/train_base.py \
   --lr 0.001
 ```
 
+#### Opciones Clave de Auto-FL:
+* `--arch auto` *(Defecto)*: Utiliza [`ModelSelector`](../src/agrifed_khaos/hardware.py) para auditar el hardware objetivo de los clientes periféricos y el tamaño del dataset, seleccionando entre `mobilenetv4`, `resnet18` o `convnext`.
+* `--target-client-tier {cpu-low, cpu-high, gpu}`:
+  - `cpu-low`: Cooperativas con CPUs modestas $\rightarrow$ `mobilenetv4_conv_small`.
+  - `cpu-high`: Servidores locales en cooperativas $\rightarrow$ `resnet18`.
+  - `gpu`: Estaciones de trabajo dedicadas $\rightarrow$ `convnext_tiny`.
+
 **Artefactos Generados:**
 * `models/base_model.pt`: Checkpoint de pesos iniciales de PyTorch.
-* `models/metadata.json`: Manifiesto con la arquitectura, lista de clases, huella criptográfica SHA-256 e hiperparámetros.
+* `models/metadata.json`: Manifiesto con la arquitectura seleccionada, clases descubiertas, huella criptográfica SHA-256 e hiperparámetros.
 
 ---
 
 ### Paso 2: Servir el Modelo como API REST (Inferencia para Cliente 1)
 
-El servidor maestro expone el modelo mediante una API REST HTTP para que clientes externos (agrónomos, aplicaciones móviles o sistemas de clasificación) puedan evaluar imágenes **sin instalar PyTorch ni clonar el repositorio**.
+El servidor maestro expone el modelo mediante una API REST HTTP para que clientes externos puedan evaluar imágenes **sin instalar PyTorch ni clonar el repositorio**:
 
 ```bash
 python scripts/serve.py \
@@ -113,82 +122,83 @@ python scripts/serve.py \
   }
   ```
 
-* **Diagnosticar un lote de imágenes (Batch Inference):**
-  ```bash
-  curl -X POST http://localhost:8000/predict/batch \
-    -F "files=@foto_1.jpg" \
-    -F "files=@foto_2.jpg"
-  ```
-
 ---
 
-### Paso 3: Entrenamiento Local On-Premise (Cliente 2 - Cero Fuga de Datos)
+### Paso 3: Entrenamiento Local On-Premise (Clientes Colaboradores - Cero Fuga de Datos)
 
-Un cliente colaborador posee imágenes privadas en sus instalaciones y desea contribuir a mejorar el modelo global **sin compartir sus imágenes**.
-
-1. El Cliente 2 recibe únicamente el archivo `models/base_model.pt` y `models/metadata.json`.
-2. Ejecuta el entrenamiento local en su máquina utilizando `client_trainer.py`:
+Un cliente colaborador posee imágenes privadas y entrena localmente:
 
 ```bash
+# Modo Transfer Learning Federado (Recomendado: ultra-rápido, ~18 KB de transferencia)
 python scripts/client_trainer.py \
   --data-dir /ruta/a/datos_privados_cliente \
   --weights-in models/base_model.pt \
   --weights-out models/client_parameters.pt \
   --metadata models/metadata.json \
-  --epochs 2 \
-  --mu 0.01 \
-  --dp-noise 0.0
+  --head-only \
+  --noise-std 0.01 \
+  --client-id coop_sevilla
 ```
 
 #### Parámetros Clave:
 * `--data-dir` *(Requerido)*: Carpeta local con las imágenes privadas del cliente.
-* `--mu` *(Opcional, defecto 0.01)*: Parámetro proximal de FedProx que previene que los pesos locales diverjan excesivamente del modelo base.
-* `--dp-noise` *(Opcional, defecto 0.0)*: Desviación estándar de ruido gaussiano para **Privacidad Diferencial** (evita ataques de reconstrucción de imágenes por inversión de gradiente).
+* `--head-only` *(Opcional, altamente recomendado)*: Congela el extractor de características y entrena únicamente la capa clasificadora final (~18 KB de transferencia frente a 42 MB).
+* `--noise-std` *(Opcional, alias `--param-noise`)*: Aplica **ruido gaussiano adaptativo escalado por RMS por capa**, garantizando privacidad sin destruir capas de baja magnitud (`bias`).
+* `--client-id`: Identificador de la cooperativa en el manifiesto y firma criptográfica.
 
-**Garantía de Privacidad:**
-* **0 bytes de imágenes abandonan el host del cliente.**
-* El cliente genera exclusivamente `models/client_parameters.pt` (tensores numéricos) y `models/client_parameters.meta.json` (firma SHA-256).
+**Garantía de Privacidad y Cumplimiento Normativo:**
+* **0 bytes de imágenes abandonan el host perimetral.**
+* Se genera `models/client_parameters.pt` (tensores numéricos) y `models/client_parameters.meta.json` (linaje, recuento `num_samples` y firma HMAC).
 
 ---
 
-### Paso 4: Auditoría e Incorporación de Parámetros (Servidor Maestro)
+### Paso 4: Auditoría e Incorporación Multi-Cliente (Servidor Maestro)
 
-El servidor central recibe el archivo `client_parameters.pt` y ejecuta la puerta de seguridad antes de agregarlo:
+El servidor central recibe las actualizaciones de uno o varios clientes y ejecuta la agregación ponderada simultánea:
 
 ```bash
 python scripts/aggregate.py \
   --base-model models/base_model.pt \
-  --client-weights models/client_parameters.pt \
+  --client-weights models/client_coop1.pt models/client_coop2.pt \
   --output models/global_model.pt \
   --metadata models/metadata.json \
-  --eta 0.6 \
-  --max-norm 150.0
+  --max-norm 150.0 \
+  --max-relative-norm 1.0 \
+  --skip-invalid-clients
 ```
 
-#### ¿Qué ocurre en este paso?
-1. [`ParameterValidator`](../src/agrifed_khaos/wrappers.py#L48) verifica:
-   - Que coincidan exactamente la cantidad de tensores y sus dimensiones.
-   - Que no existan valores `NaN` o `Inf`.
-   - Que la distancia euclidiana $\|\Delta W\|_2 \le 150.0$.
-2. Si la validación pasa, aplica la agregación ponderada:
-   $$W_{\text{global}} = W_{\text{base}} + \eta \cdot (W_{\text{cliente}} - W_{\text{base}})$$
-3. Genera el checkpoint actualizado `models/global_model.pt` y actualiza el historial en `metadata.json`.
+#### ¿Qué ocurre automáticamente en este paso?
+1. **Compuerta de Linaje e Integridad Criptográfica:**
+   - Comprueba que los hashes de modelo base coincidan exactamente (`base_model_sha256`).
+   - Verifica la firma HMAC autenticando que `num_samples` no haya sido manipulado.
+2. **Compuerta Estructural y Esquema Cerrado:**
+   - Valida compatibilidad con `head_only` o `full` sin tolerar claves espurias.
+3. **Compuerta de Divergencia Absoluta y Relativa ([`ParameterValidator`](../src/agrifed_khaos/wrappers.py)):**
+   - Comprueba finitud numérica (sin `NaN` ni `Inf`).
+   - Audita cota absoluta $\|\Delta W\|_2 \le 150.0$.
+   - Audita cota relativa $\|\Delta W\|_2 / \|W_{\text{base}}\|_2 \le 1.0$ (protección ideal para `--head-only`).
+   - `--skip-invalid-clients`: Descarta nodos corruptos o anómalos sin detener la agregación de los válidos.
+4. **Agregación Multi-Cliente Ponderada por Muestras (`FedOpt`):**
+   $$\Delta W_{\text{fed}} = \sum_{k=1}^K \frac{n_k}{N} (W_k - W_{\text{base}})$$
+   $$W_{\text{global}} = W_{\text{base}} + \eta \cdot \Delta W_{\text{fed}}$$
+5. **Frozen BatchNorm:** Preserva 100% invariantes las medias y varianzas de normalización del modelo base.
+6. Actualiza el historial `aggregation_history` en `metadata.json` y guarda `models/global_model.pt`.
 
 ---
 
 ### Paso 5: Evaluación y Diagnóstico Visual (Servidor o Cliente 1)
 
-Permite evaluar cuantitativamente el modelo sobre un conjunto de prueba y generar mapas de atención Grad-CAM:
-
-* **Evaluación completa de un split de prueba (Matriz de Confusión):**
+* **Evaluación completa de un split de prueba con Canario de Observabilidad:**
   ```bash
   python scripts/evaluate.py \
     --model models/global_model.pt \
     --metadata models/metadata.json \
     --data-dir /ruta/a/mi_dataset/test \
+    --canary-history docs/canary_history.json \
+    --warn-drop 0.08 \
+    --critical-drop 0.20 \
     --out-dir docs/images
   ```
-  Genera el reporte de exactitud, precisión, recall y el gráfico `docs/images/confusion_matrix.png`.
 
 * **Inferencia explicable sobre una imagen individual (Grad-CAM):**
   ```bash
@@ -198,37 +208,3 @@ Permite evaluar cuantitativamente el modelo sobre un conjunto de prueba y genera
     --image /ruta/a/muestra.jpg \
     --out-dir docs/images
   ```
-  Genera `docs/images/inference_sample.png` con la predicción, nivel de confianza y el mapa de calor que resalta las regiones determinantes para la red neuronal.
-
----
-
-## 4. Simulación Rápida de Todo el Ciclo en un Solo Comando
-
-Para validar el flujo completo en un entorno de desarrollo o integración continua:
-
-```bash
-python scripts/simulate_federated_nodes.py \
-  --dataset-root /ruta/a/mi_dataset \
-  --model resnet18 \
-  --train-samples-client2 64
-```
-
-Este script simula en memoria los 3 nodos (Master, Cliente 1 Tester y Cliente 2 On-Premise Trainer), ejecutando la evaluación $T_0$, el entrenamiento local con FedProx, la auditoría del Parameter Gate y la re-evaluación en $T_1$.
-
----
-
-## 5. Control de Calidad y Pruebas Automatizadas
-
-Antes de subir cambios al repositorio o desplegar en producción:
-
-```bash
-# 1. Comprobación estricta de estilo (Ruff)
-docker compose exec agrifed ruff check .
-
-# 2. Comprobación estricta de tipado estático (MyPy)
-docker compose exec agrifed mypy src/
-
-# 3. Ejecución de la suite completa de pruebas (Pytest)
-docker compose exec agrifed pytest
-```
-

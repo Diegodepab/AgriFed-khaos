@@ -11,7 +11,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,7 +25,16 @@ from sklearn.metrics import (  # type: ignore[import-untyped]
     precision_recall_fscore_support,
 )
 from torch.utils.data import DataLoader
-from torchvision import datasets, models, transforms
+from torchvision import datasets, transforms
+
+from agrifed_khaos.quality import (
+    CanaryAlarmLevel,
+    CanaryAlarmReport,
+    CanaryRoundRecord,
+    audit_canary_telemetry,
+    load_canary_history,
+    save_canary_history,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -46,13 +55,42 @@ def parse_args() -> argparse.Namespace:
         "--out-dir", type=str, default="docs/images", help="Output directory for plots"
     )
     parser.add_argument("--batch-size", type=int, default=32, help="Evaluation batch size")
+    parser.add_argument(
+        "--canary-history",
+        type=str,
+        default=None,
+        help="Path to JSON file tracking historical round telemetry for canary alarm monitoring",
+    )
+    parser.add_argument(
+        "--round-id",
+        type=str,
+        default=None,
+        help="Identifier for this federated round (e.g. round_0, round_1, round_11)",
+    )
+    parser.add_argument(
+        "--warn-drop",
+        type=float,
+        default=0.08,
+        help="Accuracy drop threshold to trigger WARNING alarm (default: 0.08 = 8%%)",
+    )
+    parser.add_argument(
+        "--critical-drop",
+        type=float,
+        default=0.20,
+        help="Accuracy drop threshold to trigger CRITICAL incident alarm (default: 0.20 = 20%%)",
+    )
+    parser.add_argument(
+        "--fail-on-alarm",
+        action="store_true",
+        help="Exit with non-zero status code if a CRITICAL canary alarm is triggered",
+    )
+    parser.add_argument(
+        "--arch",
+        type=str,
+        default=None,
+        help="Model architecture (default: resolved from metadata.json or 'resnet18')",
+    )
     return parser.parse_args()
-
-
-def get_model(num_classes: int) -> nn.Module:
-    model = models.resnet18(weights=None)
-    model.fc = nn.Linear(model.fc.in_features, num_classes)
-    return cast(nn.Module, model)
 
 
 def get_transforms() -> transforms.Compose:
@@ -111,18 +149,24 @@ def main() -> None:
         print(f"[!] Error: Model file not found: {model_path}", file=sys.stderr)
         sys.exit(1)
 
-    # 1. Resolve classes from metadata or dataset
+    # 1. Resolve classes and architecture from metadata or dataset
+    from agrifed_khaos.models import build_model, get_cam_target_layer
+
     classes: list[str] = []
+    arch = args.arch
     meta_path = Path(args.metadata)
     if meta_path.is_file():
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
         classes = meta.get("classes", [])
+        if not arch:
+            arch = meta.get("architecture")
 
     if not classes and args.data_dir:
         classes = sorted([d.name for d in Path(args.data_dir).iterdir() if d.is_dir()])
 
     num_classes = len(classes) if classes else 9
-    model = get_model(num_classes=num_classes).to(device)
+    arch = arch or "resnet18"
+    model = build_model(architecture=arch, num_classes=num_classes).to(device)
     state = torch.load(str(model_path), map_location=device, weights_only=True)
     model.load_state_dict(state)
     model.eval()
@@ -134,7 +178,7 @@ def main() -> None:
     print("=" * 65)
     print("AGRIFED-KHAOS: MODEL EVALUATION & INFERENCE")
     print("=" * 65)
-    print(f"[*] Model: {model_path} ({num_classes} classes)")
+    print(f"[*] Model: {model_path} ({arch}, {num_classes} classes)")
 
     # Mode A: Evaluate Single Image
     if args.image:
@@ -146,7 +190,7 @@ def main() -> None:
         raw_img = Image.open(str(img_path)).convert("RGB")
         tensor = eval_tf(raw_img).unsqueeze(0).to(device)
 
-        target_layer = cast(nn.Module, cast(Any, model).layer4[-1])
+        target_layer = get_cam_target_layer(model, architecture=arch)
         cam = GradCAM(model, target_layer)
         mask, pred_idx, conf = cam.generate(tensor)
         pred_label = (
@@ -210,40 +254,241 @@ def main() -> None:
 
         avg_loss = total_loss / max(total, 1)
         acc = (correct / max(total, 1)) * 100
-        prec, rec, f1, _ = precision_recall_fscore_support(
+        class_names = dataset.classes
+
+        # Macro metrics
+        macro_prec, macro_rec, macro_f1, _ = precision_recall_fscore_support(
             y_true, y_pred, average="macro", zero_division=0
         )
+        weighted_prec, weighted_rec, weighted_f1, _ = precision_recall_fscore_support(
+            y_true, y_pred, average="weighted", zero_division=0
+        )
 
-        print(f"\n[*] Evaluated {total} samples in {data_path}")
-        print(f"  • Accuracy:        {acc:.2f}%")
-        print(f"  • Cross-Ent Loss:  {avg_loss:.4f}")
-        print(f"  • Macro F1-Score:  {f1 * 100:.2f}%")
-        print(f"  • Macro Precision: {prec * 100:.2f}%")
-        print(f"  • Macro Recall:    {rec * 100:.2f}%")
+        # Per-class metrics
+        class_prec, class_rec, class_f1, class_supp = precision_recall_fscore_support(
+            y_true, y_pred, average=None, labels=list(range(len(class_names))), zero_division=0
+        )
 
-        # Confusion matrix plot
-        class_names = dataset.classes
-        cm = confusion_matrix(y_true, y_pred, labels=list(range(len(class_names))))
-        fig, ax = plt.subplots(figsize=(9, 7))
+        # 1. Rich Table Display for Supreme Readability
+        try:
+            from rich.console import Console
+            from rich.table import Table
+
+            console = Console()
+            table = Table(
+                title=f"EVALUACIÓN DETALLADA POR CLASE ({data_path.name.upper()})",
+                show_header=True,
+                header_style="bold cyan",
+            )
+            table.add_column("Índice", justify="right", style="dim")
+            table.add_column("Clase / Patología", style="bold")
+            table.add_column("Precision", justify="right")
+            table.add_column("Recall", justify="right")
+            table.add_column("F1-Score", justify="right")
+            table.add_column("Muestras", justify="right", style="green")
+
+            for i, cname in enumerate(class_names):
+                table.add_row(
+                    str(i),
+                    cname,
+                    f"{class_prec[i] * 100:.2f}%",
+                    f"{class_rec[i] * 100:.2f}%",
+                    f"{class_f1[i] * 100:.2f}%",
+                    str(class_supp[i]),
+                )
+
+            table.add_section()
+            table.add_row(
+                "-",
+                "PROMEDIO MACRO",
+                f"{macro_prec * 100:.2f}%",
+                f"{macro_rec * 100:.2f}%",
+                f"{macro_f1 * 100:.2f}%",
+                str(total),
+                style="bold yellow",
+            )
+            table.add_row(
+                "-",
+                "PROMEDIO PONDERADO",
+                f"{weighted_prec * 100:.2f}%",
+                f"{weighted_rec * 100:.2f}%",
+                f"{weighted_f1 * 100:.2f}%",
+                str(total),
+                style="bold green",
+            )
+            console.print(table)
+        except ImportError:
+            print(f"\n[*] Evaluated {total} samples in {data_path}")
+            print(f"  • Accuracy:        {acc:.2f}%")
+            print(f"  • Cross-Ent Loss:  {avg_loss:.4f}")
+            print(f"  • Macro F1-Score:  {macro_f1 * 100:.2f}%")
+            print(f"  • Macro Precision: {macro_prec * 100:.2f}%")
+            print(f"  • Macro Recall:    {macro_rec * 100:.2f}%")
+
+        # 2. Dual Confusion Matrix Plot (Raw Counts + Row-Normalized %)
+        cm_raw = confusion_matrix(y_true, y_pred, labels=list(range(len(class_names))))
+        with np.errstate(divide="ignore", invalid="ignore"):
+            cm_norm = cm_raw.astype(float) / cm_raw.sum(axis=1)[:, np.newaxis]
+            cm_norm = np.nan_to_num(cm_norm)
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 7.5))
+
         sns.heatmap(
-            cm,
+            cm_raw,
             annot=True,
             fmt="d",
             cmap="Blues",
             xticklabels=class_names,
             yticklabels=class_names,
-            ax=ax,
+            ax=ax1,
         )
-        ax.set_xlabel("Clase Predicha", fontweight="bold")
-        ax.set_ylabel("Clase Real (Ground Truth)", fontweight="bold")
-        ax.set_title("Matriz de Confusión - Evaluación Test Set", fontweight="bold")
-        plt.xticks(rotation=45, ha="right")
+        ax1.set_xlabel("Clase Predicha", fontweight="bold")
+        ax1.set_ylabel("Clase Real (Ground Truth)", fontweight="bold")
+        ax1.set_title(f"Conteos Absolutos (Acc: {acc:.2f}%)", fontweight="bold")
+        ax1.tick_params(axis="x", rotation=45)
+
+        sns.heatmap(
+            cm_norm,
+            annot=True,
+            fmt=".2f",
+            cmap="Greens",
+            xticklabels=class_names,
+            yticklabels=class_names,
+            ax=ax2,
+        )
+        ax2.set_xlabel("Clase Predicha", fontweight="bold")
+        ax2.set_ylabel("Clase Real (Ground Truth)", fontweight="bold")
+        ax2.set_title("Normalizada por Fila (% Recall por Clase)", fontweight="bold")
+        ax2.tick_params(axis="x", rotation=45)
+
+        plt.suptitle(
+            f"Matriz de Confusión Dual - Evaluación ({data_path.name})",
+            fontsize=14,
+            fontweight="bold",
+        )
         plt.tight_layout()
 
         cm_file = out_dir / "confusion_matrix.png"
         plt.savefig(cm_file, dpi=180, bbox_inches="tight")
         plt.close()
-        print(f"[*] Confusion matrix saved: {cm_file}")
+        print(f"[*] Confusion matrix plot saved: {cm_file}")
+
+        # 3. Export Comprehensive JSON Evaluation Report
+        report_data: dict[str, Any] = {
+            "dataset_evaluated": str(data_path),
+            "total_samples": total,
+            "overall_accuracy": round(acc, 4),
+            "cross_entropy_loss": round(avg_loss, 4),
+            "macro_avg": {
+                "precision": round(float(macro_prec), 4),
+                "recall": round(float(macro_rec), 4),
+                "f1_score": round(float(macro_f1), 4),
+            },
+            "weighted_avg": {
+                "precision": round(float(weighted_prec), 4),
+                "recall": round(float(weighted_rec), 4),
+                "f1_score": round(float(weighted_f1), 4),
+            },
+            "per_class": {
+                cname: {
+                    "precision": round(float(class_prec[i]), 4),
+                    "recall": round(float(class_rec[i]), 4),
+                    "f1_score": round(float(class_f1[i]), 4),
+                    "support": int(class_supp[i]),
+                }
+                for i, cname in enumerate(class_names)
+            },
+            "confusion_matrix_raw": cm_raw.tolist(),
+        }
+
+        # 4. Canary Telemetry Watchdog & Incident Alarm Check
+        canary_report_dict: dict[str, Any] | None = None
+        critical_alarm_fired = False
+        if args.canary_history:
+            history_path = Path(args.canary_history)
+            history = load_canary_history(history_path)
+            round_id = args.round_id or f"round_{len(history)}"
+
+            current_record = CanaryRoundRecord(
+                round_id=round_id,
+                accuracy=acc / 100.0,
+                loss=avg_loss,
+                macro_f1=float(macro_f1),
+                per_class_f1={cname: float(class_f1[i]) for i, cname in enumerate(class_names)},
+            )
+
+            canary_report: CanaryAlarmReport = audit_canary_telemetry(
+                current_record=current_record,
+                history=history,
+                warn_drop_threshold=args.warn_drop,
+                critical_drop_threshold=args.critical_drop,
+            )
+
+            history.append(current_record)
+            save_canary_history(history_path, history)
+            canary_report_dict = canary_report.model_dump()
+            report_data["canary_alarm_status"] = canary_report_dict
+
+            try:
+                from rich.console import Console
+                from rich.panel import Panel
+
+                c = Console()
+                curr_p = canary_report.current_accuracy * 100.0
+                peak_p = canary_report.peak_accuracy * 100.0
+                drop_p = canary_report.drop_from_previous * 100.0
+
+                if canary_report.level == CanaryAlarmLevel.CRITICAL:
+                    critical_alarm_fired = True
+                    alarm_text = "\n".join(f"• {a}" for a in canary_report.alarms)
+                    c.print(
+                        Panel(
+                            f"[bold white]{alarm_text}[/bold white]\n\n"
+                            f"[bold yellow]Acc Actual:[/bold yellow] {curr_p:.2f}% | "
+                            f"[bold yellow]Pico Histórico:[/bold yellow] {peak_p:.2f}% | "
+                            f"[bold yellow]Caída:[/bold yellow] -{drop_p:.2f}%",
+                            title="[bold red]🚨 ALERTA CRÍTICA: REGRESIÓN EN CANARIO[/bold red]",
+                            border_style="bold red",
+                        )
+                    )
+                elif canary_report.level == CanaryAlarmLevel.WARNING:
+                    alarm_text = "\n".join(f"• {a}" for a in canary_report.alarms)
+                    c.print(
+                        Panel(
+                            f"[bold yellow]{alarm_text}[/bold yellow]\n\n"
+                            f"[bold white]Acc Actual:[/bold white] {curr_p:.2f}% | "
+                            f"[bold white]Pico Histórico:[/bold white] {peak_p:.2f}% | "
+                            f"[bold white]Caída:[/bold white] -{drop_p:.2f}%",
+                            title="[bold yellow]⚠️ AVISO: DEGRADACIÓN EN TEST CANARIO[/bold yellow]",
+                            border_style="yellow",
+                        )
+                    )
+                else:
+                    c.print(
+                        Panel(
+                            f"[green]✓ Nominal ({current_record.round_id}).\n"
+                            f"Acc: {curr_p:.2f}% (Pico: {peak_p:.2f}%)[/green]",
+                            title="[bold green]CANARIO DE OBSERVABILIDAD: NOMINAL[/bold green]",
+                            border_style="green",
+                        )
+                    )
+            except ImportError:
+                if canary_report.level != CanaryAlarmLevel.OK:
+                    print(f"\n[!] CANARY ALARM TRIGGERED [{canary_report.level}]:")
+                    for a in canary_report.alarms:
+                        print(f"    - {a}")
+                else:
+                    print(
+                        f"\n[*] Canary Nominal: {canary_report.current_accuracy * 100:.2f}%"
+                    )
+
+        report_file = out_dir / "evaluation_report.json"
+        report_file.write_text(json.dumps(report_data, indent=2), encoding="utf-8")
+        print(f"[*] Full structured evaluation report saved: {report_file}")
+
+        if args.fail_on_alarm and critical_alarm_fired:
+            print("[!] Halting execution due to CRITICAL canary alarm regression.", file=sys.stderr)
+            sys.exit(2)
 
     print("=" * 65)
 

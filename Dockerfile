@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-ARG PROJECT_EXTRAS=vision,fl,dev
+ARG PROJECT_EXTRAS=vision,fl,dev,serve,eval
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

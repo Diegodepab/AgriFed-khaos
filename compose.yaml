@@ -3,11 +3,11 @@ services:
     build:
       context: .
       args:
-        PROJECT_EXTRAS: ${AGRIFED_PROJECT_EXTRAS:-vision,fl,dev}
+        PROJECT_EXTRAS: ${AGRIFED_PROJECT_EXTRAS:-vision,fl,dev,serve,eval}
     image: agrifed-khaos:latest
     working_dir: /workspace
     shm_size: 2gb
-    user: "${AGRIFED_UID:-1000}:${AGRIFED_GID:-1000}"
+    user: "${AGRIFED_UID:-1001}:${AGRIFED_GID:-1001}"
     tty: true
     stdin_open: true
     environment:
@@ -15,6 +15,9 @@ services:
       HOME: /tmp/agrifed-home
       XDG_CACHE_HOME: /tmp/agrifed-cache
       PYTHONPATH: /workspace/src
+      RUFF_CACHE_DIR: /tmp/ruff_cache
+      MYPY_CACHE_DIR: /tmp/mypy_cache
+      PYTEST_ADDOPTS: "-o cache_dir=/tmp/pytest_cache"
     volumes:
       - .:/workspace
       - ${AGRIFED_DATASET_ROOT:-../enfermedadeshoja_v1.0/EnfermedadesHoja_v1.0}:/data/EnfermedadesHoja_v1.0:ro
