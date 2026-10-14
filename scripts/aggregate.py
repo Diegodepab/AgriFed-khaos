@@ -50,7 +50,7 @@ class ClientUpdate:
         delta_norm: float,
         relative_norm: float,
         scope: str,
-        state_dict: dict[str, torch.Tensor],
+        state_dict: dict[str, torch.Tensor] | None,
         target_keys: list[str],
     ) -> None:
         self.path = path
@@ -652,14 +652,28 @@ def main() -> None:
     ]
 
     new_state: dict[str, Any] = {k: v.clone() for k, v in base_state.items()}
+    delta_fed_accum: dict[str, torch.Tensor] = {
+        k: torch.zeros_like(base_state[k], dtype=torch.float32)
+        for k in round_trainable_keys
+        if base_state[k].dtype.is_floating_point
+    }
+
+    for c in validated_clients:
+        weight_k = c.num_samples / total_samples
+        c_state = (
+            c.state_dict
+            if c.state_dict is not None
+            else torch.load(str(c.path), map_location=device, weights_only=True)
+        )
+        for k in round_trainable_keys:
+            if k in c_state and k in delta_fed_accum:
+                delta_fed_accum[k] += weight_k * (c_state[k].float() - base_state[k].float())
+        # Free memory immediately to prevent O(K) checkpoint RAM buildup
+        c.state_dict = None
+
     for k in round_trainable_keys:
         if base_state[k].dtype.is_floating_point:
-            delta_fed = torch.zeros_like(base_state[k], dtype=torch.float32)
-            for c in validated_clients:
-                weight_k = c.num_samples / total_samples
-                if k in c.state_dict:
-                    delta_fed += weight_k * (c.state_dict[k].float() - base_state[k].float())
-            new_state[k] = base_state[k] + args.eta * delta_fed
+            new_state[k] = base_state[k] + args.eta * delta_fed_accum[k]
         else:
             new_state[k] = base_state[k]
 

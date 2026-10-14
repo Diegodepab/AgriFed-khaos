@@ -132,9 +132,28 @@ class GradCAM:
         assert self.gradients is not None
         assert self.activations is not None
 
-        weights = torch.mean(self.gradients, dim=(2, 3), keepdim=True)
-        cam = torch.relu(torch.sum(weights * self.activations, dim=1, keepdim=True))
-        cam = F.interpolate(cam, size=x.shape[2:], mode="bilinear", align_corners=False)
+        act = self.activations
+        grad = self.gradients
+
+        if act.dim() == 4:
+            weights = torch.mean(grad, dim=(2, 3), keepdim=True)
+            cam = torch.relu(torch.sum(weights * act, dim=1, keepdim=True))
+            cam = F.interpolate(cam, size=x.shape[2:], mode="bilinear", align_corners=False)
+        elif act.dim() == 3:
+            # Transformer tokens: [B, N, D] (e.g. 197 = 1 CLS token + 14x14 patches)
+            tokens = act[:, 1:, :] if act.shape[1] > 1 else act
+            t_grad = grad[:, 1:, :] if grad.shape[1] > 1 else grad
+            weights = torch.mean(t_grad, dim=1, keepdim=True)
+            cam_tokens = torch.relu(torch.sum(weights * tokens, dim=-1))
+            grid_size = int(round(cam_tokens.shape[1] ** 0.5))
+            if grid_size * grid_size == cam_tokens.shape[1]:
+                cam_2d = cam_tokens.reshape(cam_tokens.shape[0], 1, grid_size, grid_size)
+                cam = F.interpolate(cam_2d, size=x.shape[2:], mode="bilinear", align_corners=False)
+            else:
+                cam = torch.ones((1, 1, x.shape[2], x.shape[3]), device=x.device)
+        else:
+            cam = torch.ones((1, 1, x.shape[2], x.shape[3]), device=x.device)
+
         cam = cam - cam.min()
         cam = cam / (cam.max() + 1e-8)
         return cam[0, 0].detach().cpu().numpy(), class_idx, float(probs[0, class_idx].item())

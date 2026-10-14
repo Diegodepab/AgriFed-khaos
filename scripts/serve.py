@@ -18,8 +18,15 @@ import torch
 import torch.nn.functional as F
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 from torchvision import transforms
+
+# Defend against Decompression Bomb Denial-of-Service attacks (CWE-400)
+Image.MAX_IMAGE_PIXELS = 25_000_000  # Max 25 megapixels (~5000x5000)
+MAX_UPLOAD_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB limit per image
+
+
 
 
 def parse_args() -> argparse.Namespace:
@@ -54,6 +61,13 @@ def create_app(
         title="AgriFed-KHAOS Inference API",
         description="Zero-dependency REST service for vision model inference & diagnosis",
         version="1.0.0",
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     device = torch.device("cpu")
@@ -90,7 +104,19 @@ def create_app(
     )
 
     def _infer_single(img_bytes: bytes, filename: str | None) -> dict[str, Any]:
-        img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        try:
+            img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        except Image.DecompressionBombError as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Decompression bomb detected: image exceeds pixel limit ({e})",
+            ) from e
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid image format or corrupted payload: {e}",
+            ) from e
+
         tensor = transform(img).unsqueeze(0).to(device)
 
         with torch.no_grad():
@@ -129,11 +155,17 @@ def create_app(
         if not file.content_type or not file.content_type.startswith("image/"):
             raise HTTPException(status_code=400, detail="Uploaded file must be an image")
 
-        try:
-            content = await file.read()
-            return _infer_single(content, file.filename)
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Inference error: {exc}") from exc
+        content = await file.read(MAX_UPLOAD_SIZE_BYTES + 1)
+        if len(content) > MAX_UPLOAD_SIZE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    f"Uploaded image exceeds maximum allowed limit of "
+                    f"{MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB"
+                ),
+            )
+
+        return _infer_single(content, file.filename)
 
     @app.post("/predict/batch")
     async def predict_batch(files: list[UploadFile] = File(...)) -> dict[str, Any]:  # noqa: B008
@@ -145,9 +177,20 @@ def create_app(
             if not file.content_type or not file.content_type.startswith("image/"):
                 predictions.append({"filename": file.filename, "error": "Not an image"})
                 continue
+            content = await file.read(MAX_UPLOAD_SIZE_BYTES + 1)
+            if len(content) > MAX_UPLOAD_SIZE_BYTES:
+                predictions.append({
+                    "filename": file.filename,
+                    "error": (
+                        f"Image exceeds limit of "
+                        f"{MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)} MB"
+                    ),
+                })
+                continue
             try:
-                content = await file.read()
                 predictions.append(_infer_single(content, file.filename))
+            except HTTPException as exc:
+                predictions.append({"filename": file.filename, "error": exc.detail})
             except Exception as exc:
                 predictions.append({"filename": file.filename, "error": str(exc)})
 

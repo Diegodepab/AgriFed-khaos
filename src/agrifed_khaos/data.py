@@ -126,20 +126,65 @@ def partition_train_records(
     records: list[DatasetRecord],
     client_index: int,
     client_count: int,
+    alpha: float | None = None,
+    seed: int = 42,
 ) -> list[DatasetRecord]:
-    """Deterministically shard train records across private clients without data leakage."""
+    """Deterministically partition train records across private clients without data leakage.
+
+    Supports:
+    1. Uniform deterministic hash partitioning (alpha=None, default):
+       Uniform distribution across clients via SHA-256(filename).
+    2. Non-IID Dirichlet distribution (alpha > 0.0):
+       Partitions label distributions across clients according to Dir(alpha),
+       accurately modeling severe real-world agricultural label skew.
+    """
     if client_count < 1:
         raise ValueError("client_count must be positive")
     if not 0 <= client_index < client_count:
         raise ValueError("client_index must be within client_count")
 
-    selected: list[DatasetRecord] = []
+    if alpha is None:
+        selected: list[DatasetRecord] = []
+        for record in records:
+            key = hashlib.sha256(record.filename.encode("utf-8")).hexdigest()
+            shard = int(key[:8], 16) % client_count
+            if shard == client_index:
+                selected.append(record)
+        return selected
+
+    if alpha <= 0.0:
+        raise ValueError("Dirichlet concentration alpha must be positive (e.g. 0.1 or 0.5)")
+
+    import numpy as np
+
+    # Group records deterministically by class/disease
+    class_groups: dict[str, list[DatasetRecord]] = {}
     for record in records:
-        key = hashlib.sha256(record.filename.encode("utf-8")).hexdigest()
-        shard = int(key[:8], 16) % client_count
-        if shard == client_index:
-            selected.append(record)
-    return selected
+        class_groups.setdefault(record.disease, []).append(record)
+
+    client_records: list[DatasetRecord] = []
+    rng = np.random.default_rng(seed)
+
+    for _disease_name, group in sorted(class_groups.items()):
+        sorted_group = sorted(group, key=lambda r: r.filename)
+        n_samples = len(sorted_group)
+
+        # Draw proportions from Dirichlet(alpha * 1_K)
+        proportions = rng.dirichlet(np.repeat(alpha, client_count))
+
+        # Convert proportions to counts ensuring exact sum
+        counts = np.floor(proportions * n_samples).astype(int)
+        remainder = n_samples - int(np.sum(counts))
+        fractional = (proportions * n_samples) - counts
+        for top_idx in np.argsort(-fractional)[:remainder]:
+            counts[top_idx] += 1
+
+        cum_counts = np.cumsum(counts)
+        start_idx = 0 if client_index == 0 else int(cum_counts[client_index - 1])
+        end_idx = int(cum_counts[client_index])
+        client_records.extend(sorted_group[start_idx:end_idx])
+
+    return client_records
 
 
 def create_torch_dataloader(

@@ -130,8 +130,10 @@ def main() -> None:
     print(f"[*] Architecture: {arch} ({num_classes} classes)")
     print(f"[*] Loaded base weights from {weights_in_path}")
 
+    HEAD_PREFIXES = ("fc.", "classifier.", "head.", "model.head.")
+
     def is_head_param(param_name: str) -> bool:
-        return any(k in param_name for k in ("fc.", "classifier.", "head."))
+        return param_name.startswith(HEAD_PREFIXES)
 
     head_only = args.head_only
     if not head_only and meta_path.is_file():

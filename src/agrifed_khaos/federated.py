@@ -141,10 +141,13 @@ class AgrifedFlowerClient(fl.client.NumPyClient if _FLWR_AVAILABLE else object):
 
 
 class SanitizedFedProx(FedProx):  # type: ignore[misc]
-    """FedProx strategy with structural, numerical, and divergence parameter gating.
+    """FedProx strategy with structural, numerical, divergence, and regression gating.
 
-    Intercepts client updates before aggregation. Dropped or corrupted updates
-    (containing NaNs, mismatched shapes, or exceeding max_update_norm) are excluded.
+    Intercepts client updates before aggregation:
+    1. Excludes corrupt/divergent updates (NaNs, shape mismatch, exceeding max_update_norm).
+    2. Enforces Byzantine sample inflation cap (max_samples_per_client).
+    3. Evaluates optional regression guardrail on validation data before applying
+       global model update.
     """
 
     def __init__(
@@ -152,6 +155,9 @@ class SanitizedFedProx(FedProx):  # type: ignore[misc]
         validator: ParameterValidator,
         global_model_wrapper: BaseFLWrapper | None = None,
         proximal_mu: float = 0.01,
+        max_samples_per_client: int | None = None,
+        val_data: Any | None = None,
+        max_allowed_acc_drop: float = 0.03,
         **kwargs: Any,
     ) -> None:
         if not _FLWR_AVAILABLE:
@@ -159,6 +165,9 @@ class SanitizedFedProx(FedProx):  # type: ignore[misc]
         super().__init__(proximal_mu=proximal_mu, **kwargs)
         self.validator = validator
         self.global_model_wrapper = global_model_wrapper
+        self.max_samples_per_client = max_samples_per_client
+        self.val_data = val_data
+        self.max_allowed_acc_drop = max_allowed_acc_drop
         self.rejection_history: list[dict[str, Any]] = []
 
     def aggregate_fit(
@@ -194,6 +203,20 @@ class SanitizedFedProx(FedProx):  # type: ignore[misc]
                 )
                 continue
 
+            # Defense against Byzantine Sample Inflation
+            if (
+                self.max_samples_per_client is not None
+                and fit_res.num_examples > self.max_samples_per_client
+            ):
+                logger.warning(
+                    "Round %d: Client %s claimed %d samples; capped to max %d",
+                    server_round,
+                    client_proxy.cid,
+                    fit_res.num_examples,
+                    self.max_samples_per_client,
+                )
+                fit_res.num_examples = self.max_samples_per_client
+
             sanitized_results.append((client_proxy, fit_res))
 
         if not sanitized_results:
@@ -211,7 +234,45 @@ class SanitizedFedProx(FedProx):  # type: ignore[misc]
             failures,
         )
 
-        if aggregated_parameters is not None and self.global_model_wrapper is not None:
+        # Post-Aggregation Regression Guardrail Verification
+        if (
+            aggregated_parameters is not None
+            and self.global_model_wrapper is not None
+            and self.val_data is not None
+        ):
+            from .quality import audit_regression_guardrail
+
+            base_eval = self.global_model_wrapper.evaluate(self.val_data)
+            updated_ndarrays = parameters_to_ndarrays(aggregated_parameters)
+
+            # Test candidate parameters on global wrapper
+            self.global_model_wrapper.set_parameters(updated_ndarrays)
+            candidate_eval = self.global_model_wrapper.evaluate(self.val_data)
+
+            guardrail = audit_regression_guardrail(
+                base_eval, candidate_eval, max_allowed_acc_drop=self.max_allowed_acc_drop
+            )
+            if not guardrail.approved:
+                logger.error(
+                    "Round %d: Post-aggregation Regression Guardrail REJECTED candidate weights! "
+                    "Rollback triggered: %s",
+                    server_round,
+                    "; ".join(guardrail.reasons),
+                )
+                # Rollback to baseline parameters
+                if reference_params is not None:
+                    self.global_model_wrapper.set_parameters(reference_params)
+                    return ndarrays_to_parameters(reference_params), {
+                        "guardrail_status": "REJECTED_ROLLBACK"
+                    }
+            else:
+                logger.info(
+                    "Round %d: Regression Guardrail PASSED (Acc: %.2f%% -> %.2f%%)",
+                    server_round,
+                    base_eval.metrics.get("accuracy", 0.0) * 100,
+                    candidate_eval.metrics.get("accuracy", 0.0) * 100,
+                )
+        elif aggregated_parameters is not None and self.global_model_wrapper is not None:
             updated_ndarrays = parameters_to_ndarrays(aggregated_parameters)
             self.global_model_wrapper.set_parameters(updated_ndarrays)
 

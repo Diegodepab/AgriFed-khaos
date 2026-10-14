@@ -170,3 +170,120 @@ def test_byzantine_sample_inflation_cap(tmp_path: Path) -> None:
     assert res.returncode == 0
     assert "capped to --max-samples-per-client" in res.stderr
     assert "Total Samples: 1000" in res.stdout
+
+
+def test_dirichlet_non_iid_partitioning() -> None:
+    from agrifed_khaos.data import DatasetRecord, partition_train_records
+
+    records: list[DatasetRecord] = []
+    # 3 classes, 100 samples each = 300 total
+    for i in range(100):
+        records.append(
+            DatasetRecord(
+                filename=f"healthy_{i:03d}.jpg",
+                split="train",
+                disease="healthy",
+                condition="good",
+                task="classification",
+                source_dataset="test",
+                source_url="test",
+            )
+        )
+        records.append(
+            DatasetRecord(
+                filename=f"repilo_{i:03d}.jpg",
+                split="train",
+                disease="repilo",
+                condition="sick",
+                task="classification",
+                source_dataset="test",
+                source_url="test",
+            )
+        )
+        records.append(
+            DatasetRecord(
+                filename=f"fumagina_{i:03d}.jpg",
+                split="train",
+                disease="fumagina",
+                condition="sick",
+                task="classification",
+                source_dataset="test",
+                source_url="test",
+            )
+        )
+
+    # Test Dirichlet partitioning with K=3 clients
+    client_0 = partition_train_records(records, client_index=0, client_count=3, alpha=0.5, seed=42)
+    client_1 = partition_train_records(records, client_index=1, client_count=3, alpha=0.5, seed=42)
+    client_2 = partition_train_records(records, client_index=2, client_count=3, alpha=0.5, seed=42)
+
+    total_sharded = len(client_0) + len(client_1) + len(client_2)
+    assert total_sharded == 300, f"Expected 300 samples, got {total_sharded}"
+
+    # Verify zero leakage (disjoint partitions)
+    files_0 = {r.filename for r in client_0}
+    files_1 = {r.filename for r in client_1}
+    files_2 = {r.filename for r in client_2}
+    assert len(files_0.intersection(files_1)) == 0
+    assert len(files_0.intersection(files_2)) == 0
+    assert len(files_1.intersection(files_2)) == 0
+
+
+def test_rest_serve_security_limits_and_cors(tmp_path: Path) -> None:
+    from fastapi.testclient import TestClient
+
+    from agrifed_khaos.models import build_model
+    from scripts.serve import MAX_UPLOAD_SIZE_BYTES, create_app
+
+    model_pt = tmp_path / "model.pt"
+    meta_json = tmp_path / "metadata.json"
+    net = build_model("resnet18", num_classes=2)
+    torch.save(net.state_dict(), str(model_pt))
+    meta_json.write_text(json.dumps({"classes": ["sano", "enfermo"], "architecture": "resnet18"}))
+
+    app = create_app(str(model_pt), str(meta_json))
+    client = TestClient(app)
+
+    # 1. Health check returns 200
+    res_health = client.get("/health")
+    assert res_health.status_code == 200
+
+    # 2. Reject non-image mime-type
+    res_bad_mime = client.post("/predict", files={"file": ("test.txt", b"text data", "text/plain")})
+    assert res_bad_mime.status_code == 400
+
+    # 3. Reject oversized payload (> 15 MB limit)
+    oversized_data = b"0" * (MAX_UPLOAD_SIZE_BYTES + 50)
+    res_oversized = client.post(
+        "/predict", files={"file": ("large.jpg", oversized_data, "image/jpeg")}
+    )
+    assert res_oversized.status_code == 413
+
+
+def test_gradcam_3d_transformer_support() -> None:
+    from scripts.evaluate import GradCAM
+
+    class DummyViT(nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            # Simulates a transformer block outputting 3D tokens: [B, N=197, D=192]
+            self.block = nn.Linear(192, 192)
+            self.head = nn.Linear(192, 2)
+
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            # x shape: [B, 3, 224, 224]
+            b = x.shape[0]
+            tokens = torch.randn(b, 197, 192, requires_grad=True)
+            out_tokens = self.block(tokens)
+            cls_token = out_tokens[:, 0, :]
+            return self.head(cls_token)
+
+    model = DummyViT()
+    cam = GradCAM(model, model.block)
+    dummy_input = torch.randn(1, 3, 224, 224)
+
+    # Generate Grad-CAM without throwing dimension IndexError
+    heatmap, pred_idx, conf = cam.generate(dummy_input)
+    assert heatmap.shape == (224, 224)
+    assert 0.0 <= conf <= 1.0
+
