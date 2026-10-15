@@ -78,6 +78,19 @@ docker compose exec agrifed bash
 
 > **GPU Acceleration:** If NVIDIA GPUs are available, run: `docker compose -f compose.yaml -f compose.gpu.yaml up -d`.
 
+<details>
+<summary><strong>Where should images be placed so Docker can find them?</strong></summary>
+
+Docker mounts only the project root directory (`.:/workspace`):
+* **Recommended:** Place your dataset directory inside the repository, e.g., in `./dataset` or `./my_dataset`.
+* **Verification:** Ensure category subfolders exist (`ls dataset/train`).
+* **Inside Docker:** Run `python scripts/train_base.py --data-dir dataset/train`.
+* **If your data is located elsewhere on the host:** Copy it into the project before entering Docker:
+  ```bash
+  cp -r /path/to/my_data ./dataset
+  ```
+</details>
+
 ---
 
 ## Streamlined Workflow

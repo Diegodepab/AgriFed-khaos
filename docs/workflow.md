@@ -58,23 +58,65 @@ flowchart LR
 
 ## 3. Ejecución Paso a Paso
 
-### Paso Previo: Preparación del Dataset Oficial
+<details open>
+<summary><strong>Paso 0: Preparación desde Cero (Clonar Repositorio, Dataset Oficial y Docker)</strong></summary>
 
-Tras descargar el archivo oficial `EnfermedadesHoja_v1.0.zip` desde el portal de datos de KHAOS:
+Para garantizar la reproducibilidad exacta en cualquier equipo o servidor físico:
 
+#### 1. Clonar el repositorio y configurar el contenedor:
 ```bash
-# 1. Descomprimir el archivo en su entorno de trabajo:
-unzip enfermedadeshoja_v1.0.zip
-
-# 2. Enlazar la carpeta dataset al directorio raíz del proyecto:
-ln -s EnfermedadesHoja_v1.0/dataset dataset
+# En el host (fuera del contenedor):
+git clone https://github.com/Diegodepab/AgriFed-khaos.git
+cd AgriFed-khaos
+cp .env.example .env
+make up
 ```
 
-*Esto deja disponibles de inmediato las particiones locales `dataset/train`, `dataset/val` y `dataset/test`.*
+#### 2. Colocar el dataset oficial en el repositorio:
+Docker monta únicamente el directorio de trabajo local (`.:/workspace`). Por tanto, la carpeta `dataset/` debe residir dentro de `AgriFed-khaos/` para que los scripts puedan acceder a ella.
 
----
+<details>
+<summary><strong>Opción A: Si descarga el archivo ZIP oficial directamente</strong></summary>
 
-### Fase A: En la Máquina 1 (Servidor Maestro - Modelo Base y Servicio T0)
+```bash
+# En el host, dentro de la carpeta AgriFed-khaos:
+# Descargar o mover el archivo EnfermedadesHoja_v1.0.zip
+unzip EnfermedadesHoja_v1.0.zip
+# Mover la subcarpeta dataset a la raíz del proyecto:
+mv EnfermedadesHoja_v1.0/dataset ./dataset
+```
+</details>
+
+<details>
+<summary><strong>Opción B: Si ya tiene el dataset en una carpeta externa (ej: <code>../enfermedadeshoja_v1.0</code>)</strong></summary>
+
+```bash
+# En el host, dentro de la carpeta AgriFed-khaos:
+# Copiar las imágenes dentro del proyecto para que Docker pueda verlas:
+cp -r ../enfermedadeshoja_v1.0/EnfermedadesHoja_v1.0 ./dataset
+```
+*(Nota: No utilice enlaces simbólicos relativos como `ln -s ../...` porque dentro de Docker las rutas externas a `/workspace` no son alcanzables).*
+</details>
+
+#### 3. Comprobar la estructura de particiones:
+Asegúrese de que el directorio `dataset/` contiene las tres particiones:
+```bash
+ls -l dataset/
+# Debe mostrar exactamente:
+# train/  (9.809 fotos, 9 clases) -> Asignado a Máquina 1 (Servidor Maestro)
+# val/    (1.178 fotos, 9 clases) -> Asignado a Máquina 2 (Cooperativa On-Premise)
+# test/   (1.170 fotos, 9 clases) -> Asignado a Auditoría de Consumidor
+```
+
+#### 4. Entrar al contenedor Docker:
+```bash
+docker compose exec agrifed bash
+# Ahora la sesión se ejecuta en /workspace con todas las librerías y datos disponibles.
+```
+</details>
+
+<details open>
+<summary><strong>Fase A: En la Máquina 1 (Servidor Maestro - Modelo Base y Servicio T0)</strong></summary>
 
 1. **Entrenar el Modelo Base:**
    El maestro entrena únicamente sobre su partición local `train/`:
@@ -82,6 +124,14 @@ ln -s EnfermedadesHoja_v1.0/dataset dataset
    python scripts/train_base.py --data-dir dataset/train
    ```
    *Auto-FL selecciona `resnet18` (~42.7 MB) y genera el bundle autocontenido `models/base_model.pt`.*
+
+   <details>
+   <summary>Ver opciones y comportamiento de Auto-FL</summary>
+
+   - `--arch {auto, resnet18, resnet50, mobilenetv4_conv_small}`: Fuerza una arquitectura concreta (defecto: `auto`).
+   - `--epochs <int>`: Épocas de entrenamiento inicial (defecto: 3).
+   - Registra el linaje inmutable en `models/metadata.json` con el digest SHA-256 oficial del modelo.
+   </details>
 
 2. **Calibración Inicial One-vs-Rest (T0):**
    Para optimizar la frontera de decisión frente al desbalance de clases antes de exponer el servicio, el maestro calibra los umbrales $\tau_c^*$:
@@ -98,10 +148,10 @@ ln -s EnfermedadesHoja_v1.0/dataset dataset
    python scripts/serve.py
    ```
    *Queda escuchando en `http://0.0.0.0:8000` con recarga dinámica automática, endpoints para inferencia (`/predict`), descarga pública de pesos (`/download-model`) y recepción de actualizaciones (`/submit-update`).*
+</details>
 
----
-
-### Fase B: Cliente Consumidor (Inferencia Pre-Federada en T0)
+<details open>
+<summary><strong>Fase B: Cliente Consumidor (Inferencia Pre-Federada en T0)</strong></summary>
 
 El técnico de campo selecciona una muestra real de hoja con síntomas de repilo (`dataset/test/repilo/`):
 
@@ -128,28 +178,39 @@ curl -X POST http://<IP_MAQUINA_1>:8000/predict -F "file=@$MUESTRA"
 }
 ```
 *Diagnóstico correcto pero con una confianza del 79.62%, mostrando cierta confusión con tejido sano y antracnosis.*
+</details>
 
----
-
-### Fase C: En la Máquina 2 (Cooperativa On-Premise - Flujo Completo desde Cero)
+<details open>
+<summary><strong>Fase C: En la Máquina 2 (Cooperativa On-Premise - Flujo Completo desde Cero)</strong></summary>
 
 La cooperativa colaboradora parte de una máquina física sin código previo y entrena sobre sus 1.178 fotos privadas de `val/`:
 
-1. **Clonar el repositorio oficial e instalar dependencias:**
-   ```bash
-   git clone https://github.com/Diegodepab/AgriFed-khaos.git
-   cd AgriFed-khaos
-   pip install -e .
-   ```
+<details>
+<summary><strong>Instrucciones para configurar la Máquina 2 desde cero</strong></summary>
 
-2. **Descargar el modelo base oficial:**
+```bash
+# 1. Clonar el repositorio oficial e inicializar Docker:
+git clone https://github.com/Diegodepab/AgriFed-khaos.git
+cd AgriFed-khaos
+cp .env.example .env
+make up
+
+# 2. Copiar sus imágenes privadas a dataset/val dentro de la carpeta clonada
+# (en este caso de estudio, la partición val/ con 1.178 imágenes privadas)
+
+# 3. Entrar al contenedor:
+docker compose exec agrifed bash
+```
+</details>
+
+1. **Descargar el modelo base oficial:**
    Obtiene los pesos base publicados por el servidor maestro vía HTTP:
    ```bash
    mkdir -p models
    curl -o models/base_model.pt http://<IP_MAQUINA_1>:8000/download-model
    ```
 
-3. **Ejecutar el entrenamiento local (`--head-only`):**
+2. **Ejecutar el entrenamiento local (`--head-only`):**
    ```bash
    python scripts/client_trainer.py \
      --data-dir dataset/val \
@@ -160,15 +221,15 @@ La cooperativa colaboradora parte de una máquina física sin código previo y e
      --client-id coop_sevilla
    ```
 
-4. **Garantía Técnica de Cero Fuga y Payload Reducido:**
+3. **Garantía Técnica de Cero Fuga y Payload Reducido:**
    - **Estrategia Head-Only:** El extractor convolucional (`resnet18`) permanece congelado y se ajusta únicamente la matriz de pesos del clasificador lineal final (`fc.weight`, `fc.bias`).
    - **Payload Ultraligero:** El tensor exportado pesa apenas **~18 KB** (frente a los ~42.7 MB del modelo convolucional completo).
    - **Entrega Automatizada:** El argumento `--server-url` transmite el archivo numérico y su firma criptográfica HMAC directamente al endpoint `/submit-update` del servidor maestro. (En redes aisladas o *air-gapped*, se transfiere manualmente el archivo `models/client_parameters.pt` por canal seguro SFTP).
    - **0 bytes de imágenes abandonaron la Máquina 2.**
+</details>
 
----
-
-### Fase D: En la Máquina 1 (Auditoría de Seguridad, Agregación Head-Only y Re-calibración T1)
+<details open>
+<summary><strong>Fase D: En la Máquina 1 (Auditoría de Seguridad, Agregación Head-Only y Re-calibración T1)</strong></summary>
 
 El servidor maestro recibe `coop_sevilla_parameters.pt`, valida las compuertas de seguridad, aplica momento `FedAvgM` y re-calibra los umbrales:
 
@@ -198,10 +259,10 @@ El servidor maestro recibe `coop_sevilla_parameters.pt`, valida las compuertas d
 
 3. **Recarga Dinámica en el Servicio de Inferencia:**
    El servicio REST en `scripts/serve.py` detecta automáticamente que `models/global_model.pt` ha sido creado o actualizado en disco y recarga los pesos y umbrales calibrados en la siguiente petición (también puede forzarse manualmente con `curl -X POST http://localhost:8000/reload-model` o reiniciando el servicio). Ahora el indicador `"threshold_applied": "calibrated"` refleja la calibración matemática sobre el modelo global actualizado.
+</details>
 
----
-
-### Fase E: Cliente Consumidor (Re-evaluación en T1)
+<details open>
+<summary><strong>Fase E: Cliente Consumidor (Re-evaluación en T1)</strong></summary>
 
 El técnico vuelve a enviar la misma fotografía a la API:
 
@@ -224,6 +285,7 @@ curl -X POST http://<IP_MAQUINA_1>:8000/predict -F "file=@$MUESTRA"
 }
 ```
 *La confianza se incrementa en **+17.25%** (del 79.62% al 96.87%), disipando la incertidumbre gracias al aprendizaje colaborativo.*
+</details>
 
 ---
 

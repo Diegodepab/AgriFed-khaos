@@ -78,6 +78,19 @@ docker compose exec agrifed bash
 
 > **Aceleración GPU:** Si dispone de GPU NVIDIA, ejecute: `docker compose -f compose.yaml -f compose.gpu.yaml up -d`.
 
+<details>
+<summary><strong>¿Dónde colocar las imágenes para que Docker las encuentre?</strong></summary>
+
+Docker monta únicamente el directorio del proyecto (`.:/workspace`):
+* **Recomendado:** Coloca la carpeta de datos dentro del repositorio, por ejemplo en `./dataset` o `./mi_dataset`.
+* **Comprobación:** Asegúrate de que las subcarpetas existen (`ls dataset/train`).
+* **Dentro de Docker:** Ejecuta directamente `python scripts/train_base.py --data-dir dataset/train`.
+* **Si tienes los datos fuera en el host:** Cópialos dentro antes de entrar a Docker con:
+  ```bash
+  cp -r /ruta/a/mis_datos ./dataset
+  ```
+</details>
+
 ---
 
 ## Flujo Operativo Esencial

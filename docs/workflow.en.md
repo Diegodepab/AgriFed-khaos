@@ -58,23 +58,65 @@ flowchart LR
 
 ## 3. Step-by-Step Execution
 
-### Preliminary Step: Official Dataset Setup
+<details open>
+<summary><strong>Step 0: Setup from Scratch (Repository, Official Dataset & Docker)</strong></summary>
 
-After downloading the official archive `enfermedadeshoja_v1.0.zip` from the KHAOS open data portal:
+To guarantee deterministic reproducibility on any clean machine or physical server:
 
+#### 1. Clone the repository and configure Docker:
 ```bash
-# 1. Unzip the dataset in your workspace:
-unzip enfermedadeshoja_v1.0.zip
-
-# 2. Symlink the dataset/ directory to the project root:
-ln -s EnfermedadesHoja_v1.0/dataset dataset
+# On the host system (outside container):
+git clone https://github.com/Diegodepab/AgriFed-khaos.git
+cd AgriFed-khaos
+cp .env.example .env
+make up
 ```
 
-*This immediately exposes local partitions `dataset/train`, `dataset/val`, and `dataset/test`.*
+#### 2. Position the official dataset within the repository:
+Docker mounts only the project directory (`.:/workspace`). Therefore, the `dataset/` directory must reside inside `AgriFed-khaos/` so scripts inside the container can locate the files.
 
----
+<details>
+<summary><strong>Option A: If downloading the official ZIP archive directly</strong></summary>
 
-### Phase A: On Machine 1 (Master Server - Baseline Model & T0 Service)
+```bash
+# On the host, inside AgriFed-khaos:
+# Download or place EnfermedadesHoja_v1.0.zip
+unzip EnfermedadesHoja_v1.0.zip
+# Move the inner dataset folder to the project root:
+mv EnfermedadesHoja_v1.0/dataset ./dataset
+```
+</details>
+
+<details>
+<summary><strong>Option B: If you already have the dataset unzipped in an external directory (e.g., <code>../enfermedadeshoja_v1.0</code>)</strong></summary>
+
+```bash
+# On the host, inside AgriFed-khaos:
+# Copy the dataset directory so it is included within the Docker volume:
+cp -r ../enfermedadeshoja_v1.0/EnfermedadesHoja_v1.0 ./dataset
+```
+*(Note: Do not use relative symlinks pointing to `../` because Docker cannot resolve external host paths from within `/workspace`).*
+</details>
+
+#### 3. Verify directory partitions:
+Verify that `dataset/` contains all three standard partitions:
+```bash
+ls -l dataset/
+# Must display:
+# train/  (9,809 photos across class subdirectories) -> Assigned to Machine 1 (Master)
+# val/    (1,178 photos across class subdirectories) -> Assigned to Machine 2 (Edge Silo)
+# test/   (1,170 photos across class subdirectories) -> Assigned to Independent Auditing
+```
+
+#### 4. Enter the Docker container:
+```bash
+docker compose exec agrifed bash
+# Your shell is now inside /workspace with PyTorch, dependencies, and datasets ready.
+```
+</details>
+
+<details open>
+<summary><strong>Phase A: On Machine 1 (Master Server - Baseline Model & T0 Service)</strong></summary>
 
 1. **Train the Baseline Model:**
    The master trains exclusively on its local `train/` partition:
@@ -82,6 +124,14 @@ ln -s EnfermedadesHoja_v1.0/dataset dataset
    python scripts/train_base.py --data-dir dataset/train
    ```
    *Auto-FL selects `resnet18` (~42.7 MB) and serializes the self-contained bundle `models/base_model.pt`.*
+
+   <details>
+   <summary>View Auto-FL options and behavior</summary>
+
+   - `--arch {auto, resnet18, resnet50, mobilenetv4_conv_small}`: Force a specific architecture (default: `auto`).
+   - `--epochs <int>`: Initial training epochs (default: 3).
+   - Generates immutable lineage in `models/metadata.json` with the official SHA-256 digest.
+   </details>
 
 2. **Initial One-vs-Rest Threshold Calibration (T0):**
    To optimize the decision boundary against class imbalance prior to serving predictions, the orchestrator computes operating thresholds $\tau_c^*$:
@@ -98,10 +148,10 @@ ln -s EnfermedadesHoja_v1.0/dataset dataset
    python scripts/serve.py
    ```
    *Listens on `http://0.0.0.0:8000` with automatic dynamic model reloading, endpoints for inference (`/predict`), public model weights distribution (`/download-model`), and secure parameter ingestion (`/submit-update`).*
+</details>
 
----
-
-### Phase B: Consumer Client (Pre-Federated Inference at T0)
+<details open>
+<summary><strong>Phase B: Consumer Client (Pre-Federated Inference at T0)</strong></summary>
 
 The field technician selects a genuine leaf sample exhibiting peacock spot symptoms (`dataset/test/repilo/`):
 
@@ -128,28 +178,39 @@ curl -X POST http://<MACHINE_1_IP>:8000/predict -F "file=@$SAMPLE"
 }
 ```
 *Diagnosis is correct but displays moderate confidence (79.62%) with residual probability allocated to healthy tissue and anthracnose.*
+</details>
 
----
-
-### Phase C: On Machine 2 (Edge Cooperative - Full From-Scratch Workflow)
+<details open>
+<summary><strong>Phase C: On Machine 2 (Edge Cooperative - Full From-Scratch Workflow)</strong></summary>
 
 The collaborating cooperative starts on a clean workstation without previous code and trains over its 1,178 private photos in `val/`:
 
-1. **Clone Official Repository and Install Dependencies:**
-   ```bash
-   git clone https://github.com/Diegodepab/AgriFed-khaos.git
-   cd AgriFed-khaos
-   pip install -e .
-   ```
+<details>
+<summary><strong>Machine 2 setup instructions from scratch</strong></summary>
 
-2. **Download Official Baseline Model Weights:**
+```bash
+# 1. Clone official repository and initialize Docker:
+git clone https://github.com/Diegodepab/AgriFed-khaos.git
+cd AgriFed-khaos
+cp .env.example .env
+make up
+
+# 2. Place private local photos into dataset/val inside the cloned directory:
+# (in this empirical study, the 1,178 val/ images)
+
+# 3. Enter container:
+docker compose exec agrifed bash
+```
+</details>
+
+1. **Download Official Baseline Model Weights:**
    Retrieves the baseline bundle published by the master server via HTTP:
    ```bash
    mkdir -p models
    curl -o models/base_model.pt http://<MACHINE_1_IP>:8000/download-model
    ```
 
-3. **Execute Local Private Training (`--head-only`):**
+2. **Execute Local Private Training (`--head-only`):**
    ```bash
    python scripts/client_trainer.py \
      --data-dir dataset/val \
@@ -160,15 +221,15 @@ The collaborating cooperative starts on a clean workstation without previous cod
      --client-id coop_sevilla
    ```
 
-4. **Technical Privacy & Bandwidth Guarantees:**
+3. **Technical Privacy & Bandwidth Guarantees:**
    - **Head-Only Fine-Tuning:** The convolutional feature backbone (`resnet18`) remains completely frozen; only the final linear classifier parameters (`fc.weight`, `fc.bias`) are updated.
    - **Ultra-Lightweight Payload:** The exported numerical tensor bundle weighs **~18 KB** (in contrast to the ~42.7 MB full convolutional model).
    - **Automated Delivery:** `--server-url` transmits the numerical bundle and HMAC signature directly to the orchestrator's `/submit-update` endpoint. (In air-gapped networks, `models/client_parameters.pt` can be transferred via secure SFTP).
    - **0 bytes of imagery leave Machine 2.**
+</details>
 
----
-
-### Phase D: On Machine 1 (Security Auditing, Head-Only Aggregation & T1 Re-Calibration)
+<details open>
+<summary><strong>Phase D: On Machine 1 (Security Auditing, Head-Only Aggregation & T1 Re-Calibration)</strong></summary>
 
 The master server receives `coop_sevilla_parameters.pt`, validates security gates, applies `FedAvgM` server momentum, and re-calibrates decision thresholds:
 
@@ -198,10 +259,10 @@ The master server receives `coop_sevilla_parameters.pt`, validates security gate
 
 3. **Dynamic Hot-Reload in REST Service:**
    The service in `scripts/serve.py` automatically detects when `models/global_model.pt` is created or updated on disk and hot-reloads the weights and calibrated thresholds on the next incoming request (or triggered manually via `curl -X POST http://localhost:8000/reload-model`). The indicator `"threshold_applied": "calibrated"` now reflects genuine calibrated probabilities on the updated model.
+</details>
 
----
-
-### Phase E: Consumer Client (Post-Federation Inference at T1)
+<details open>
+<summary><strong>Phase E: Consumer Client (Post-Federation Inference at T1)</strong></summary>
 
 The field technician queries the API with the identical sample image:
 
@@ -224,6 +285,7 @@ curl -X POST http://<MACHINE_1_IP>:8000/predict -F "file=@$SAMPLE"
 }
 ```
 *Confidence increases by **+17.25%** (from 79.62% to 96.87%), resolving uncertainty through collaborative edge training.*
+</details>
 
 ---
 

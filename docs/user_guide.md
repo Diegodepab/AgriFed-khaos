@@ -24,6 +24,22 @@ mi_dataset/
 
 *Los nombres de las subcarpetas definen automáticamente las clases. El sistema infiere el número de clases y adapta las resoluciones dinámicamente.*
 
+<details>
+<summary><strong>Cómo ubicar tus carpetas para trabajar con Docker o Python local</strong></summary>
+
+En despliegues basados en Docker, el contenedor monta el directorio actual del repositorio en `/workspace`:
+* **Recomendado:** Coloca la carpeta de datos directamente dentro del proyecto, por ejemplo en `dataset/` o `mi_dataset/`. Así, dentro del contenedor la ruta será inmediatamente `dataset/train` o `mi_dataset/train`.
+* **Si tus datos están fuera del proyecto (ej. <code>/home/usuario/mis_imagenes/</code>):**
+  - *Opción A (Copiar dentro del proyecto):* `cp -r /home/usuario/mis_imagenes ./dataset`
+  - *Opción B (Montar como volumen externo):* En `compose.yaml` puedes mapear la ruta externa al contenedor:
+    ```yaml
+    volumes:
+      - .:/workspace
+      - /home/usuario/mis_imagenes:/data:ro
+    ```
+    Y dentro del contenedor indicarás `--data-dir /data/train`.
+</details>
+
 ---
 
 ## 2. Rol 1: Administrador del Sistema (Servidor Maestro)
@@ -138,9 +154,41 @@ El Colaborador posee imágenes privadas tomadas en sus explotaciones agrícolas.
 Colabora en el entrenamiento federado mediante un agente local automatizado que intercambia únicamente parámetros matemáticos.
 
 ### ¿Cómo opera el Colaborador en la práctica?
-1. Recibe o descarga el archivo del modelo base (`models/base_model.pt`).
-2. Mantiene sus imágenes en su disco privado local (ej. `/mis_fotos/`).
-3. Ejecuta el entrenamiento local conectando automáticamente con el servidor para reportar sus parámetros.
+
+<details open>
+<summary><strong>Guía Paso a Paso para la Cooperativa desde Cero</strong></summary>
+
+Si tu cooperativa se une a la red de colaboración federada desde una máquina limpia:
+
+1. **Clonar el proyecto y preparar el entorno:**
+   ```bash
+   git clone https://github.com/Diegodepab/AgriFed-khaos.git
+   cd AgriFed-khaos
+   cp .env.example .env
+   make up
+   docker compose exec agrifed bash
+   ```
+
+2. **Descargar los pesos del modelo base oficial:**
+   El Administrador del Servidor Maestro publica el modelo base vía HTTP. Descárgalo directamente a la carpeta `models/`:
+   ```bash
+   mkdir -p models
+   curl -o models/base_model.pt http://<IP_SERVIDOR_MAESTRO>:8000/download-model
+   ```
+
+3. **Ejecutar el entrenamiento privado local y enviar parámetros:**
+   Indica la ruta de tus fotos locales (ej. `mis_fotos_privadas/` o `dataset/val/`):
+   ```bash
+   python scripts/client_trainer.py \
+     --data-dir mis_fotos_privadas/ \
+     --weights-in models/base_model.pt \
+     --head-only \
+     --client-id coop_mi_zona \
+     --server-url http://<IP_SERVIDOR_MAESTRO>:8000
+   ```
+
+*El proceso tarda menos de 1 minuto, actualiza únicamente la capa clasificadora (~18 KB), y envía el paquete con firma HMAC al servidor central sin que ninguna foto salga de tus instalaciones.*
+</details>
 
 #### Ejecución Automatizada con Docker (Recomendado):
 El contenedor corre de forma desatendida, entrena sobre los datos privados locales y transmite los parámetros por streaming HTTP al servidor central:

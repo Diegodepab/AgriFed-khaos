@@ -24,6 +24,22 @@ my_dataset/
 
 *Subdirectory names automatically define the ground-truth classes. The system resolves the number of classes and adapts input resolutions dynamically.*
 
+<details>
+<summary><strong>How to organize your directories for Docker vs Local Python</strong></summary>
+
+In Docker-based environments, the container mounts the project repository into `/workspace`:
+* **Recommended:** Place your dataset directory directly inside the cloned repository, e.g., in `dataset/` or `my_dataset/`. Inside the container, the path is immediately `dataset/train` or `my_dataset/train`.
+* **If your data resides in an external host folder (e.g., <code>/home/user/my_images/</code>):**
+  - *Option A (Copy inside project):* `cp -r /home/user/my_images ./dataset`
+  - *Option B (Mount as external volume):* In `compose.yaml`, map the external directory into the container:
+    ```yaml
+    volumes:
+      - .:/workspace
+      - /home/user/my_images:/data:ro
+    ```
+    Then inside the container, specify `--data-dir /data/train`.
+</details>
+
 ---
 
 ## 2. Role 1: System Administrator (Master Server)
@@ -138,9 +154,41 @@ The Collaborator possesses private field images captured across its agricultural
 The collaborator participates in federated training through an automated local agent that exchanges mathematical parameter tensors only.
 
 ### How Does the Collaborator Operate in Practice?
-1. Receives or downloads the official baseline model bundle (`models/base_model.pt`).
-2. Keeps all raw imagery in a local private directory (e.g., `/my_photos/`).
-3. Executes local training, automatically streaming parameter tensors to the central server upon completion.
+
+<details open>
+<summary><strong>Step-by-Step Guide for Collaborators from Scratch</strong></summary>
+
+If your cooperative joins the federated collaboration network on a clean machine:
+
+1. **Clone the repository and prepare the environment:**
+   ```bash
+   git clone https://github.com/Diegodepab/AgriFed-khaos.git
+   cd AgriFed-khaos
+   cp .env.example .env
+   make up
+   docker compose exec agrifed bash
+   ```
+
+2. **Download official baseline model weights:**
+   The master server publishes the baseline model via HTTP. Download it directly into `models/`:
+   ```bash
+   mkdir -p models
+   curl -o models/base_model.pt http://<MASTER_SERVER_IP>:8000/download-model
+   ```
+
+3. **Execute local private training and transmit parameters:**
+   Specify your local photos directory (e.g., `my_private_photos/` or `dataset/val/`):
+   ```bash
+   python scripts/client_trainer.py \
+     --data-dir my_private_photos/ \
+     --weights-in models/base_model.pt \
+     --head-only \
+     --client-id coop_my_region \
+     --server-url http://<MASTER_SERVER_IP>:8000
+   ```
+
+*The process runs in under 1 minute, updates only the classifier head (~18 KB), and transmits the HMAC-signed bundle to the central server without a single photo leaving your facility.*
+</details>
 
 #### Automated Execution with Docker (Recommended):
 The container runs unattended, trains over local private data, and streams parameters via HTTP to the orchestrator:
