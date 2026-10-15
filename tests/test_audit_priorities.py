@@ -448,6 +448,11 @@ def test_serve_multiclass_calibrated_scoring_4_classes(tmp_path: Path) -> None:
     assert data["predicted_class"] == "sana"
     assert data["threshold_applied"] == "calibrated"
 
+    # Verify edge client model download endpoint
+    dl_resp = client.get("/download-model")
+    assert dl_resp.status_code == 200
+    assert len(dl_resp.content) > 0
+
 
 def test_formal_dp_gaussian_mechanism() -> None:
     """Verify formal DP: static L2 clipping bound C and independent Gaussian noise."""

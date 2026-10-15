@@ -19,6 +19,7 @@ import torch.nn.functional as F
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from PIL import Image
 from torchvision import transforms
 
@@ -293,6 +294,17 @@ def create_app(
             "batch_size": len(files),
             "predictions": predictions,
         }
+
+    @app.get("/download-model")
+    def download_model() -> FileResponse:
+        """Endpoint to allow collaborative edge clients to download the model checkpoint bundle."""
+        if not model_p.is_file():
+            raise HTTPException(status_code=404, detail="Model file not found on server")
+        return FileResponse(
+            path=str(model_p),
+            filename=model_p.name,
+            media_type="application/octet-stream",
+        )
 
     @app.post("/submit-update")
     async def submit_update(

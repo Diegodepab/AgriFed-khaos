@@ -9,24 +9,26 @@ Demuestra cómo una cooperativa agrícola entrena sobre sus datos privados en su
 
 ## 1. Escenario de Negocio y Reparto Físico de Datos
 
-El experimento se distribuye entre **dos máquinas físicamente independientes** y un técnico de campo:
+En un despliegue de producción real, cada entidad u organización colaboradora opera de forma totalmente aislada con su propia recolección de imágenes en sus instalaciones locales (distintas fincas, cámaras y servidores perimetrales), mientras que el servidor central dispone de sus propios datos históricos.
+
+Para garantizar la **reproducibilidad determinista inmediata** de este tutorial sin exigir el acceso a múltiples bases de datos externas privadas, se divide el conjunto abierto oficial `EnfermedadesHoja_v1.0` (ISIDROS-OpenData / Khaos, Universidad de Málaga) simulando dicho ecosistema en dos máquinas físicas o entornos independientes:
 
 ```text
 Dataset Oficial EnfermedadesHoja_v1.0 (12.157 imágenes, 9 clases)
-├── train/ (9.809 fotos) ──► Asignado exclusivamente a Máquina 1 (Servidor Maestro)
-├── val/   (1.178 fotos) ──► Asignado exclusivamente a Máquina 2 (Cooperativa On-Premise)
-└── test/  (1.170 fotos) ──► Reservado para Cliente Consumidor (Auditoría de Inferencia)
+├── train/ (9.809 fotos) ──► Asignado a Máquina 1 (Servidor Maestro: Modelo Base y Calibración)
+├── val/   (1.178 fotos) ──► Asignado a Máquina 2 (Simulación del Silo Privado de la Cooperativa)
+└── test/  (1.170 fotos) ──► Reservado para Cliente Consumidor (Auditoría Independiente T0 vs T1)
 ```
 
 1. **Máquina 1 (Servidor Maestro):**
-   - Dispone únicamente de las imágenes de `train/`.
-   - Entrena el modelo base inicial y aloja el microservicio de inferencia HTTP.
+   - Dispone localmente de las imágenes de `train/`.
+   - Entrena el modelo base inicial, calibra los umbrales de decisión y aloja el microservicio REST.
    - Jamás tiene acceso físico ni de red a las fotos de la Máquina 2.
 2. **Máquina 2 (Cliente Colaborador / Cooperativa Perimetral):**
    - Dispone en su disco local únicamente de las imágenes de `val/`, actuando como su repositorio privado y confidencial.
    - Jamás tiene acceso a las fotos de `train/`.
    - Por normativas de privacidad (RGPD) y secreto comercial, **no permite la salida de ninguna imagen**.
-3. **Cliente Consumidor (Técnico de Campo):**
+3. **Cliente Consumidor (Técnico de Campo / App Móvil):**
    - Dispone de fotos de campo dudosas de `test/`.
    - Realiza diagnósticos remotos vía HTTP antes ($T_0$) y después ($T_1$) de la colaboración federada.
 
@@ -61,13 +63,23 @@ flowchart LR
    ```bash
    python scripts/train_base.py --data-dir dataset/train
    ```
-   *Auto-FL selecciona `resnet18` (~42.7 MB) y genera el bundle `models/base_model.pt`.*
+   *Auto-FL selecciona `resnet18` (~42.7 MB) y genera el bundle autocontenido `models/base_model.pt`.*
 
-2. **Levantar el Servicio de Diagnóstico REST:**
+2. **Calibración Inicial One-vs-Rest (T0):**
+   Para optimizar la frontera de decisión frente al desbalance de clases antes de exponer el servicio, el maestro calibra los umbrales $\tau_c^*$:
    ```bash
-   python scripts/serve.py
+   python scripts/evaluate.py \
+     --model models/base_model.pt \
+     --data-dir dataset/train \
+     --calibrate-threshold
    ```
-   *Queda escuchando en `http://0.0.0.0:8000` listo para atender peticiones.*
+   *Inyecta los umbrales óptimos dentro de `metadata["calibrated_thresholds"]` en el propio archivo `.pt`.*
+
+3. **Levantar el Servicio de Diagnóstico REST:**
+   ```bash
+   python scripts/serve.py --model models/base_model.pt
+   ```
+   *Queda escuchando en `http://0.0.0.0:8000` con endpoints para inferencia (`/predict`), descarga pública de pesos (`/download-model`) y recepción segura de actualizaciones (`/submit-update`).*
 
 ---
 
@@ -89,7 +101,7 @@ curl -X POST http://<IP_MAQUINA_1>:8000/predict -F "file=@muestra_campo.jpg"
     "sano": 0.1245,
     "antracnosis": 0.0793
   },
-  "calibrated": true,
+  "threshold_applied": "calibrated",
   "filename": "muestra_campo.jpg"
 }
 ```
@@ -97,38 +109,73 @@ curl -X POST http://<IP_MAQUINA_1>:8000/predict -F "file=@muestra_campo.jpg"
 
 ---
 
-### Fase C: En la Máquina 2 (Cooperativa On-Premise - Entrenamiento Privado)
+### Fase C: En la Máquina 2 (Cooperativa On-Premise - Flujo Completo desde Cero)
 
-La cooperativa colaboradora entrena en su propia máquina física sobre sus 1.178 fotos privadas de `val/`:
+La cooperativa colaboradora parte de una máquina física sin código previo y entrena sobre sus 1.178 fotos privadas de `val/`:
 
-1. **Descargar los pesos públicos:**
-   Obtiene el archivo `models/base_model.pt` del maestro.
-
-2. **Ejecutar el entrenamiento local:**
+1. **Clonar el repositorio oficial e instalar dependencias:**
    ```bash
-   python scripts/client_trainer.py --data-dir dataset/val
+   git clone https://github.com/Diegodepab/AgriFed-khaos.git
+   cd AgriFed-khaos
+   pip install -e .
    ```
 
-3. **Garantía Técnica de Cero Fuga de Datos:**
-   - Se genera únicamente el archivo numérico `models/client_parameters.pt` (~18 KB en modo clasificador).
-   - La cooperativa envía **únicamente** ese archivo `.pt` a la Máquina 1.
+2. **Descargar el modelo base oficial:**
+   Obtiene los pesos base publicados por el servidor maestro vía HTTP:
+   ```bash
+   mkdir -p models
+   curl -o models/base_model.pt http://<IP_MAQUINA_1>:8000/download-model
+   ```
+
+3. **Ejecutar el entrenamiento local (`--head-only`):**
+   ```bash
+   python scripts/client_trainer.py \
+     --data-dir dataset/val \
+     --weights-in models/base_model.pt \
+     --weights-out models/client_parameters.pt \
+     --head-only \
+     --server-url http://<IP_MAQUINA_1>:8000 \
+     --client-id coop_sevilla
+   ```
+
+4. **Garantía Técnica de Cero Fuga y Payload Reducido:**
+   - **Estrategia Head-Only:** El extractor convolucional (`resnet18`) permanece congelado y se ajusta únicamente la matriz de pesos del clasificador lineal final (`fc.weight`, `fc.bias`).
+   - **Payload Ultraligero:** El tensor exportado pesa apenas **~18 KB** (frente a los ~42.7 MB del modelo convolucional completo).
+   - **Entrega Automatizada:** El argumento `--server-url` transmite el archivo numérico y su firma criptográfica HMAC directamente al endpoint `/submit-update` del servidor maestro. (En redes aisladas o *air-gapped*, se transfiere manualmente el archivo `models/client_parameters.pt` por canal seguro SFTP).
    - **0 bytes de imágenes abandonaron la Máquina 2.**
 
 ---
 
-### Fase D: En la Máquina 1 (Auditoría de Seguridad y Agregación Federada)
+### Fase D: En la Máquina 1 (Auditoría de Seguridad, Agregación Head-Only y Re-calibración T1)
 
-El servidor maestro recibe `client_parameters.pt`, valida las compuertas de seguridad y aplica momento FedAvgM:
+El servidor maestro recibe `coop_sevilla_parameters.pt`, valida las compuertas de seguridad, aplica momento `FedAvgM` y re-calibra los umbrales:
 
-```bash
-python scripts/aggregate.py --client-weights models/client_parameters.pt
-```
+1. **Agregación Federada Segura con Momento FedAvgM:**
+   ```bash
+   python scripts/aggregate.py \
+     --base-model models/base_model.pt \
+     --client-weights models/client_updates/coop_sevilla_parameters.pt \
+     --output models/global_model.pt
+   ```
 
-*Qué realiza internamente:*
-1. **Compuerta de Linaje:** Verifica la firma SHA-256 del modelo base.
-2. **Compuerta ParameterValidator:** Comprueba ausencia de NaNs/Infs y cota L2 ($\|\Delta W\|_2 = 12.00 \le 150.0$).
-3. **Agregación con Momento:** Aplica $\Delta W_{\text{fed}}$ preservando invariantes los buffers de normalización del modelo base.
-4. **Actualización:** Guarda `models/global_model.pt`. La API REST recarga el modelo actualizado automáticamente.
+   *Qué realiza internamente:*
+   - **Compuerta de Linaje:** Comprueba que el hash `base_model_sha256` coincida exactamente con el modelo base original.
+   - **Compuerta ParameterValidator (`head_only`):** Valida que el archivo contenga **estricta y exclusivamente los tensores del clasificador** (`fc.*`), sin claves convolucionales espurias ni faltantes, auditando ausencia de `NaN`/`Inf` y cota de divergencia ($\|\Delta W_{\text{head}}\|_2 = 12.00 \le 150.0$).
+   - **Momento FedAvgM Focalizado:** El momento del servidor ($\beta = 0.9$) se calcula y aplica **únicamente sobre los pesos de la capa clasificadora recibida**.
+   - **Invarianza del Extractor y BatchNorm:** Todas las capas convolucionales del backbone extractor y los buffers de normalización (`BatchNorm.running_mean` y `running_var`) se mantienen **100% intactos e idénticos al modelo base original**, evitando distorsiones por el sesgo local del cliente.
+
+2. **Re-calibración Rápida One-vs-Rest (Post-Agregación):**
+   Al modificarse los pesos del clasificador en $T_1$, el espacio de logits se desplaza. Para que las decisiones en producción sigan siendo óptimas, el servidor maestro ejecuta una re-calibración rápida sobre su partición:
+   ```bash
+   python scripts/evaluate.py \
+     --model models/global_model.pt \
+     --data-dir dataset/train \
+     --calibrate-threshold
+   ```
+   *Calcula los nuevos umbrales óptimos $\tau_c^*$ sobre la nueva superficie de decisión y los actualiza directamente en el bundle `models/global_model.pt`.*
+
+3. **Recarga en el Servicio de Inferencia:**
+   El servicio REST en `scripts/serve.py` recarga `models/global_model.pt`. Ahora el indicador `"threshold_applied": "calibrated"` refleja una calibración empírica y matemáticamente exacta sobre el modelo global actualizado.
 
 ---
 
@@ -150,7 +197,7 @@ curl -X POST http://<IP_MAQUINA_1>:8000/predict -F "file=@muestra_campo.jpg"
     "sano": 0.0211,
     "antracnosis": 0.0102
   },
-  "calibrated": true,
+  "threshold_applied": "calibrated",
   "filename": "muestra_campo.jpg"
 }
 ```
@@ -169,7 +216,7 @@ Evaluación global ejecutada sobre el conjunto de test independiente (1.170 imá
 | **Macro F1-Score** | `64.15%` | **`70.60%`** | **`+6.45%`** | Separabilidad Incrementada |
 | **Confianza en Muestra de Campo (Repilo)** | `79.62%` | **`96.87%`** | **`+17.25%`** | Certidumbre Diagnóstica Alta |
 | **Datos de Imágenes Transferidos por Cooperativa** | `0 bytes` | `0 bytes` | **`0 B`** | Privacidad Total (Cero Fuga) |
-| **Norma de Perturbación ($\|\Delta W\|_2$)** | — | `12.0091` | (Límite $\le 150.0$) | Aprobado por Compuerta |
+| **Norma de Perturbación ($\|\Delta W_{\text{head}}\|_2$)** | — | `12.0091` | (Límite $\le 150.0$) | Aprobado por Compuerta |
 
 ---
 
