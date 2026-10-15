@@ -40,15 +40,15 @@ flowchart TD
     end
 
     C1_Data --> C1_Curl
-    C1_Curl -->|1. Inferencia remota POST /predict| REST_API
-    REST_API -->|Diagnóstico + Confianza| C1_Curl
+    C1_Curl -->|"1. Inferencia remota POST /predict"| REST_API
+    REST_API -->|"Diagnóstico + Confianza"| C1_Curl
 
-    W_Base -->|2. Descarga de pesos base iniciales| CK_Trainer
+    W_Base -->|"2. Descarga de pesos base iniciales"| CK_Trainer
     CK_PrivateData --> CK_Trainer
     CK_Trainer --> CK_Params
-    CK_Params -->|3. Entrega simultánea de tensores numéricos| Gate
+    CK_Params -->|"3. Entrega simultánea de tensores numéricos"| Gate
 
-    Gate -->|4. Clientes validados (o filtrados con --skip-invalid-clients)| Aggregator
+    Gate -->|"4. Clientes validados y filtrados"| Aggregator
     Aggregator --> W_Global
     Aggregator --> Metadata
     W_Global --> REST_API
