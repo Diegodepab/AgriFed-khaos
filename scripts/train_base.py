@@ -230,24 +230,24 @@ def main() -> None:
     elapsed = time.time() - t0
     print(f"[*] Base training completed in {elapsed:.2f}s ({elapsed / args.epochs:.2f}s per epoch)")
 
-    # 5. Save Model & Metadata
+    # 5. Save Model Checkpoint Bundle & Auditable Metadata Mirror
     out_file = Path(args.output)
     meta_file = Path(args.metadata)
     out_file.parent.mkdir(parents=True, exist_ok=True)
     meta_file.parent.mkdir(parents=True, exist_ok=True)
 
-    torch.save(model.state_dict(), str(out_file))
-    sha256_digest = compute_sha256(out_file)
+    from agrifed_khaos.models import save_checkpoint_bundle
+
     metadata = {
         "architecture": selected_arch,
         "num_classes": num_classes,
         "classes": classes,
         "img_size": 224,
+        "calibrated_thresholds": None,
         "target_client_tier": args.target_client_tier,
         "selection_mode": "auto" if is_auto else "manual",
         "selection_rationale": selection_rationale,
         "weights_file": str(out_file),
-        "sha256": sha256_digest,
         "hyperparameters": {
             "epochs": args.epochs,
             "batch_size": args.batch_size,
@@ -257,6 +257,9 @@ def main() -> None:
         "dataset_source": str(data_path),
         "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
+    save_checkpoint_bundle(out_file, model.state_dict(), metadata)
+    sha256_digest = compute_sha256(out_file)
+    metadata["sha256"] = sha256_digest
     meta_file.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
     print(f"[*] Checkpoint saved: {out_file} ({out_file.stat().st_size / (1024 * 1024):.2f} MB)")

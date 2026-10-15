@@ -87,5 +87,5 @@ no_implicit_optional = true
 show_error_codes = true
 
 [[tool.mypy.overrides]]
-module = ["yaml", "cv2", "cv2.*", "timm", "timm.*", "ultralytics", "ultralytics.*", "flwr", "flwr.*", "torchvision", "torchvision.*"]
+module = ["yaml", "timm", "timm.*", "flwr", "flwr.*", "torchvision", "torchvision.*"]
 ignore_missing_imports = true

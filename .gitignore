@@ -47,7 +47,16 @@ htmlcov/
 *.onnx
 models/*.pt
 models/*.pth
+models/*.json
+models/*.meta.json
+*.meta.json
 !models/.gitkeep
+
+# Logs, Reports and Artifacts
+runs/
+reports/
+artifacts/
+*.log
 
 # OS generated
 .DS_Store
