@@ -51,11 +51,11 @@ flowchart LR
 
 In-depth technical guides tailored to each profile:
 
-| Document | Language | Core Focus |
-| :--- | :---: | :--- |
-| [**User Guide**](docs/user_guide.md) | Spanish / English | Step-by-step operational manual structured by the 3 system roles (Admin, Consumer, and On-Premise Collaborator) on any dataset. |
-| [**System Architecture**](docs/architecture.md) | Spanish | Deep-dive engineering specification (Adapter pattern, security gates, HMAC lineage, formal DP, and FedAvgM). |
-| [**Empirical Case Study**](docs/workflow.md) | Spanish | Real end-to-end 2-machine validation on the Khaos olive leaf pathology dataset with quantified $T_0 \rightarrow T_1$ metrics. |
+| Document | Español | English | Core Focus |
+| :--- | :---: | :---: | :--- |
+| **User Guide** | [Guía de Usuario (ES)](docs/user_guide.md) | [English](docs/user_guide.en.md) | Step-by-step operational manual structured by the 3 system roles (Admin, Consumer, and On-Premise Collaborator) on any dataset. |
+| **System Architecture** | [Arquitectura (ES)](docs/architecture.md) | [English](docs/architecture.en.md) | Deep-dive engineering specification (Adapter pattern, security gates, HMAC lineage, formal DP, and FedAvgM). |
+| **Empirical Case Study** | [Caso de Estudio (ES)](docs/workflow.md) | [English](docs/workflow.en.md) | Real end-to-end 2-machine validation on the Khaos olive leaf pathology dataset with quantified $T_0 \rightarrow T_1$ metrics. |
 
 ---
 

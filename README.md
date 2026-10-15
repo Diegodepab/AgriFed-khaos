@@ -51,12 +51,11 @@ flowchart LR
 
 Guías detalladas según el perfil y objetivo:
 
-| Documento | Idioma | Propósito Principal |
-| :--- | :---: | :--- |
-| [**Manual de Usuario**](docs/user_guide.md) | Español | Guía paso a paso dividida por los 3 roles (Administrador, Consumidor y Colaborador On-Premise) para usar cualquier dataset. |
-| [**User Guide (EN)**](docs/user_guide.md) | English | Complete operational manual for all three system roles on any custom vision dataset. *(Próximamente / Available in Spanish)* |
-| [**Arquitectura del Sistema**](docs/architecture.md) | Español | Especificación técnica en profundidad (patrón Adaptador, compuertas de seguridad, linaje HMAC, DP y FedAvgM). |
-| [**Caso de Estudio Empírico**](docs/workflow.md) | Español | Validación real de extremo a extremo en 2 máquinas sobre el dataset de patología foliar del olivar, con métricas $T_0 \rightarrow T_1$. |
+| Documento | Español | English | Propósito Principal |
+| :--- | :---: | :---: | :--- |
+| **Manual de Usuario** | [Español](docs/user_guide.md) | [User Guide (EN)](docs/user_guide.en.md) | Guía paso a paso dividida por los 3 roles (Administrador, Consumidor y Colaborador On-Premise) para usar cualquier dataset. |
+| **Arquitectura del Sistema** | [Español](docs/architecture.md) | [Architecture (EN)](docs/architecture.en.md) | Especificación técnica en profundidad (patrón Adaptador, compuertas de seguridad, linaje HMAC, DP y FedAvgM). |
+| **Caso de Estudio Empírico** | [Español](docs/workflow.md) | [Case Study (EN)](docs/workflow.en.md) | Validación real de extremo a extremo en 2 máquinas sobre el dataset de patología foliar del olivar, con métricas $T_0 \rightarrow T_1$. |
 
 ---
 

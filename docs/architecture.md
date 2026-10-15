@@ -1,5 +1,7 @@
 # Arquitectura del Sistema: AgriFed-KHAOS
 
+> Versión en español. English version available in [docs/architecture.en.md](architecture.en.md).
+
 Documento de especificación técnica y decisiones arquitectónicas de **AgriFed-KHAOS**, framework modular de Aprendizaje Federado (*Federated Learning*, FL) orientado a Visión Artificial.
 
 ---

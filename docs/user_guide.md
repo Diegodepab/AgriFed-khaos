@@ -1,5 +1,7 @@
 # Guía de Usuario: AgriFed-KHAOS
 
+> Versión en español. English version available in [docs/user_guide.en.md](user_guide.en.md).
+
 Manual operativo de **AgriFed-KHAOS** para entrenar, servir y federar modelos de visión artificial sobre **cualquier dataset estructurado en carpetas estándar**.
 
 ---
@@ -117,7 +119,7 @@ curl -X POST http://<IP_O_DOMINIO_SERVIDOR>:8000/predict \
     "repilo": 0.9421,
     "cochinilla": 0.0167
   },
-  "calibrated": true,
+  "threshold_applied": "calibrated",
   "filename": "foto_campo.jpg"
 }
 ```

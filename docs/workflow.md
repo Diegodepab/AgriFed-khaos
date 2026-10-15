@@ -1,5 +1,7 @@
 # Flujo Operacional de Extremo a Extremo: Caso de Negocio Real en 2 Máquinas
 
+> Versión en español. English version available in [docs/workflow.en.md](workflow.en.md).
+
 Este documento detalla la validación empírica real de **AgriFed-KHAOS** utilizando el dataset oficial de patología foliar del olivar (*Olea europaea*):  
 [https://khaos.uma.es/isidros-opendata/dataset/enfermedades-hoja-olivo](https://khaos.uma.es/isidros-opendata/dataset/enfermedades-hoja-olivo) (`EnfermedadesHoja_v1.0`).
 
