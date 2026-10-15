@@ -4,6 +4,8 @@ services:
       context: .
       args:
         PROJECT_EXTRAS: ${AGRIFED_PROJECT_EXTRAS:-vision,fl,dev,serve,eval}
+        USER_UID: ${AGRIFED_UID:-1001}
+        USER_GID: ${AGRIFED_GID:-1001}
     image: agrifed-khaos:latest
     working_dir: /workspace
     shm_size: 2gb

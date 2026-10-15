@@ -26,10 +26,17 @@ RUN apt-get update \
         libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd --gid 1000 agrifed \
-    && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash agrifed \
+ARG USER_UID=1001
+ARG USER_GID=1001
+
+RUN groupadd --gid 1000 agrifed 2>/dev/null || true \
+    && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash agrifed 2>/dev/null || true \
+    && if [ "${USER_UID}" != "1000" ]; then \
+        groupadd --gid ${USER_GID} agrifed-user 2>/dev/null || true && \
+        useradd --uid ${USER_UID} --gid ${USER_GID} --create-home --shell /bin/bash agrifed-user 2>/dev/null || true ; \
+    fi \
     && mkdir -p /workspace /home/agrifed/.cache \
-    && chown -R agrifed:agrifed /workspace /home/agrifed
+    && chown -R 1000:1000 /workspace /home/agrifed
 
 COPY pyproject.toml README.md ./
 COPY src ./src
