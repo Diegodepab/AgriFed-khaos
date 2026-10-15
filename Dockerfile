@@ -33,6 +33,7 @@ RUN groupadd --gid 1000 agrifed \
 
 COPY pyproject.toml README.md ./
 COPY src ./src
+COPY scripts ./scripts
 COPY configs ./configs
 COPY tests ./tests
 

@@ -3,7 +3,7 @@
 AGRIFED_UID ?= $(shell id -u)
 AGRIFED_GID ?= $(shell id -g)
 AGRIFED_DATASET_ROOT ?= ../enfermedadeshoja_v1.0/EnfermedadesHoja_v1.0
-AGRIFED_PROJECT_EXTRAS ?= vision,fl,dev
+AGRIFED_PROJECT_EXTRAS ?= vision,fl,dev,serve,eval
 
 export AGRIFED_UID
 export AGRIFED_GID
