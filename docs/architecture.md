@@ -180,3 +180,51 @@ sequenceDiagram
     Server-->>C1: Diagnóstico mejorado + Mayor confianza T1
     end
 ```
+
+---
+
+## 5. Especificación Técnica de Capacidades v1.0
+
+### A. Checkpoints Autocontenidos (`save_checkpoint_bundle` / `load_checkpoint_bundle`)
+Para desacoplar el ciclo de inferencia y entrenamiento de dependencias de rutas externas, los checkpoints `.pt` se empaquetan como diccionarios estructurados:
+```python
+{
+    "state_dict": OrderedDict[str, torch.Tensor],
+    "metadata": {
+        "architecture": "resnet18",
+        "num_classes": C,
+        "classes": ["clase_0", ..., "clase_{C-1}"],
+        "img_size": 224,
+        "calibrated_thresholds": {"clase_0": 0.45, ...}  # opcional
+    }
+}
+```
+Las funciones [`load_checkpoint_bundle`](../src/agrifed_khaos/models.py) y [`save_checkpoint_bundle`](../src/agrifed_khaos/models.py) mantienen retrocompatibilidad transparente con tensores crudos (`state_dict` puro).
+
+### B. Remapeo Canónico y Protección de Clases Ausentes
+1. **Remapeo Canónico:** `torchvision.datasets.ImageFolder` asigna índices `0..K-1` alfabéticamente a las carpetas locales. Si el cliente solo posee un subconjunto de clases, estos índices no coincidirían con el modelo base. [`client_trainer.py`](../scripts/client_trainer.py) reasigna explícitamente `dataset.targets` contra la lista nominal canónica `base_meta["classes"]`.
+2. **Hard Projection Post-Step:** Para clases ausentes en el lote local, el gradiente cero no es suficiente frente a términos de momento y regularización FedProx. Tras cada `optimizer.step()`, se proyectan duramente los parámetros:
+   $$W_{\text{head}}[\text{missing}, :] \leftarrow W_{\text{base}}[\text{missing}, :]$$
+   $$b_{\text{head}}[\text{missing}] \leftarrow b_{\text{base}}[\text{missing}]$$
+   Garantizando una invariancia numérica exacta ($\Delta W = 0$) en las neuronas no entrenadas.
+
+### C. Expansión Dinámica de Clases (`--allow-new-classes`)
+Cuando un cliente perimetral descubre patologías no vistas en el modelo base:
+1. **Inicialización Determinista CRC32:** En lugar de depender de semillas globales del RNG que desincronizan cliente y servidor, cada fila de la matriz para la clase emergente $c$ se inicializa usando:
+   $$\text{seed} = \text{CRC32}(c.\text{encode}()) \pmod{2^{31}-1}$$
+   Tanto [`expand_model_classifier`](../src/agrifed_khaos/models.py) (cliente) como [`expand_state_dict_classifier`](../src/agrifed_khaos/models.py) (servidor) generan idénticos pesos de partida Kaiming Uniform, permitiendo que la compuerta de seguridad evalúe únicamente el gradiente genuino del cliente.
+2. **Alineación Nominal:** En [`aggregate.py`](../scripts/aggregate.py), la función `align_client_head` alinea las filas del clasificador por coincidencia nominal de clase (`target_idx = union_classes.index(cls)`), admitiendo expansiones disjuntas concurrentes.
+
+### D. Privacidad Diferencial Formal y FedAvgM
+1. **Mecanismo Gaussiano Global ($L_2$):** En [`TorchModuleWrapper`](../src/agrifed_khaos/wrappers.py), los tensores entrenables concatenados se recortan si $\|\Delta W\|_2 > C_{\text{clip}}$:
+   $$\Delta W \leftarrow \Delta W \cdot \min\left(1, \frac{C_{\text{clip}}}{\|\Delta W\|_2}\right)$$
+   Añadiendo ruido gaussiano $\mathcal{N}(0, \sigma^2 C_{\text{clip}}^2 \mathbf{I})$ con exención explícita de los buffers de normalización (evitando ruido en medias y varianzas de BatchNorm).
+2. **FedAvgM (Server Momentum):** [`aggregate.py`](../scripts/aggregate.py) y [`SanitizedFedProx`](../src/agrifed_khaos/federated.py) implementan momento del servidor con amortiguador $V_t$:
+   $$V_t = \beta V_{t-1} + \Delta W_{\text{fed}}, \quad W_{\text{global}} = W_{\text{base}} + \eta V_t$$
+
+### E. Calibración Multiclase One-vs-Rest e Inferencia Calibrada
+1. **Calibración OvR en `evaluate.py`:** Determina el umbral $\tau_c^*$ que maximiza el F1-Score / Youden para cada una de las $C$ clases independientemente.
+2. **Escalado en `serve.py`:** En `/predict`, las probabilidades se reescalan:
+   $$s_c = \frac{p_c}{\max(\tau_c^*, 10^{-6})}, \quad \hat{y} = \arg\max_{c} s_c$$
+   Asegurando detección equitativa en clases minoritarias severamente desbalanceadas.
+

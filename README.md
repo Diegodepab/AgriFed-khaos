@@ -10,20 +10,57 @@
 
 ---
 
+## 🚀 Flujo Operativo Esencial en 4 Pasos (Para Directores y Nuevos Usuarios)
+
+El ciclo de vida completo de AgriFed-KHAOS está diseñado para operar con la mínima intervención técnica en 4 fases intuitivas:
+
+```mermaid
+flowchart LR
+    P1["1. Iniciar Repo\n(make up / Docker)"] --> P2["2. Modelo Base\n(train_base.py)"]
+    P2 --> P3["3. Servir API\n(serve.py /predict)"]
+    P3 --> P4["4. Clientes & Agregación\n(client_trainer ➔ aggregate)"]
+```
+
+1. **Iniciar Entorno (Docker Reproducible):**
+   ```bash
+   cp .env.example .env && make up
+   ```
+2. **Subir un Dataset y Entrenar Modelo Base:**
+   Sube cualquier dataset en formato `ImageFolder` (ej. `/data/mi_cultivo/train`) y genera el checkpoint bundle inicial:
+   ```bash
+   python scripts/train_base.py --data-dir /data/mi_cultivo/train --output models/base_model.pt
+   ```
+3. **Servir el Modelo para Diagnóstico Remoto (REST API):**
+   Levanta el microservicio de inferencia con calibración automática y resolución dinámica:
+   ```bash
+   python scripts/serve.py --model models/base_model.pt --host 0.0.0.0 --port 8000
+   ```
+4. **Entrenar en Clientes Periféricos y Agregar Parámetros Federados:**
+   El cliente entrena localmente sin enviar una sola imagen (garantía de cero fuga de datos):
+   ```bash
+   # En el cliente perimetral (cooperativa / granja):
+   python scripts/client_trainer.py --data-dir /data/privado --weights-in models/base_model.pt --weights-out models/client_1.pt --head-only
+
+   # En el servidor central (fusión de parámetros con FedAvgM y compuertas de seguridad):
+   python scripts/aggregate.py --base-model models/base_model.pt --client-weights models/client_1.pt --output models/global_model.pt
+   ```
+
+---
+
 ## 📚 Documentación del Proyecto
 
-El repositorio cuenta con una jerarquía de documentación especializada para diferentes perfiles:
+El repositorio cuenta con una jerarquía de documentación especializada:
 
-1. [**`docs/architecture.md`**](docs/architecture.md) — **Arquitectura y Especificación Técnica:**
-   - Principios SOLID y Agnosticismo de Dominio.
-   - Patrón Adaptador ([`BaseFLWrapper`](src/agrifed_khaos/wrappers.py#L119)) y regularización FedProx ($\mu$).
-   - Puerta de seguridad ([`ParameterValidator`](src/agrifed_khaos/wrappers.py#L48)), perturbación estocástica de parámetros y linaje criptográfico SHA-256.
-2. [**`docs/user_guide.md`**](docs/user_guide.md) — **Manual Operativo Paso a Paso (100% Agnóstico de Dominio):**
-   - Cómo usar el repo con **cualquier dataset de imágenes** (olivos, mangos, manzanas, piezas industriales).
-   - Comandos directos: Entrenamiento base, cliente on-premise (cero fuga de datos), agregación, evaluación y despliegue de la API REST (`POST /predict` y `/predict/batch`).
+1. [**`docs/architecture.md`**](docs/architecture.md) — **Arquitectura y Especificación Técnica v1.0:**
+   - Principios SOLID, checkpoints autocontenidos `.pt` y linaje HMAC.
+   - Proyección dura de clases ausentes, expansión dinámica con init determinista CRC32.
+   - Privacidad Diferencial formal ($L_2$ clip + Gaussian noise) y servidor FedAvgM.
+2. [**`docs/user_guide.md`**](docs/user_guide.md) — **Manual Operativo Paso a Paso (Agnóstico de Dominio):**
+   - Cómo operar con cualquier dataset (frutas, hojas, anomalías).
+   - Comandos directos para Auto-FL, inferencia calibrada, clientes on-premise y agregación segura.
 3. [**`docs/workflow.md`**](docs/workflow.md) — **Caso de Estudio Empírico de Referencia:**
-   - Validación empírica real de extremo a extremo sobre el dataset de patología foliar (*Olea europaea*).
-   - Evolución cuantificada del modelo ($T_0: 74.44\% \rightarrow T_1: 82.56\%$), matrices de confusión y mapas de atención Grad-CAM.
+   - Validación empírica real de extremo a extremo sobre patología foliar (*Olea europaea*).
+   - Matrices de confusión, curvas de calibración y mapas de atención Grad-CAM.
 
 ---
 
@@ -88,9 +125,28 @@ In federated agricultural networks, clients may suffer from noisy updates, unsta
 > Using `test` for local training contaminates the global model and invalidates out-of-distribution evaluation.
 
 The canonical partition contract:
-* **`dataset/train`** (9,809 clf / 522 det): Sharded deterministically across federated clients via SHA-256 hashing.
-* **`dataset/val`** (1,178 clf / 57 det): Reserved for the central server to evaluate Round 0 baseline quality and round-by-round convergence.
-* **`dataset/test`** (1,170 clf / 62 det): Untouched, pristine holdout split for final global benchmark evaluation.
+* **`dataset/train`**: Sharded deterministically across federated clients via SHA-256 hashing.
+* **`dataset/val`**: Reserved for the central server to evaluate Round 0 baseline quality and round-by-round convergence.
+* **`dataset/test`**: Untouched, pristine holdout split for final global benchmark evaluation.
+
+### D. Self-Contained Checkpoint Bundles (`.pt`)
+Todos los checkpoints guardan y cargan de forma autocontenida la tupla:
+`{"state_dict": ..., "metadata": {"architecture": ..., "num_classes": ..., "classes": ..., "img_size": ..., "calibrated_thresholds": ...}}`.
+Esto garantiza que `serve.py` o `client_trainer.py` levanten el modelo de forma inmediata sin archivos de metadatos externos obligatorios ni hardcoding de resolución o clases.
+
+### E. Missing Classes Masking & Hard Projection
+Cuando un cliente local solo contiene un subconjunto de clases (Non-IID extremo):
+1. **Remapeo Canónico:** Reordena los índices locales de `ImageFolder` contra la lista nominal canónica `metadata["classes"]`.
+2. **Proyección Dura Post-Step:** Restaura exactamente los pesos y sesgos de las clases ausentes tras cada paso del optimizador (`p.data[missing_idx] = base_p[missing_idx]`), previniendo distorsiones por momento o decaimiento de pesos.
+
+### F. Dynamic Federated Class Expansion (`--allow-new-classes`)
+Soporta clientes que incorporan nuevas clases en producción:
+* **Inicialización Determinista CRC32:** Tanto el cliente como el servidor inicializan las filas de las clases no vistas con una semilla derivada de `CRC32(class_name)`, garantizando que el punto de partida sea idéntico y no contamine la norma $\Delta W$.
+* **Alineación Nominal:** En el servidor (`aggregate.py`), las matrices de pesos se fusionan alineando por nombre de clase, no por posición.
+
+### G. Formal Differential Privacy & FedAvgM
+* **Mecanismo Gaussiano Global ($L_2$):** `--dp-clip-norm` recorta el vector global concatenado de pesos entrenables y `--dp-noise-std` inyecta ruido normal $\mathcal{N}(0, \sigma^2 \cdot C^2)$, eximiendo explícitamente los buffers de BatchNorm.
+* **FedAvgM (Server Momentum):** Aceleración de agregación global con momento $\beta$ (`--server-momentum 0.9` por defecto) para estabilizar la convergencia bajo clientes heterogéneos.
 
 ---
 
