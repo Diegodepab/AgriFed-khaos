@@ -1048,6 +1048,18 @@ def main() -> None:
     print(f"[*] Aggregation complete! Saved updated global model: {out_path}")
     print(f"[*] Global SHA-256 Digest: {out_sha256}")
     print("=" * 65)
+    print("PROXIMOS PASOS OPERATIVOS:")
+    print("  1. Re-calibrar umbrales de decisión sobre el nuevo modelo global:")
+    print(
+        f"     python scripts/evaluate.py --model {out_path} "
+        f"--data-dir dataset/train --calibrate-threshold"
+    )
+    print("")
+    print("  2. Inferencia y Servicio REST:")
+    print("     El microservicio (scripts/serve.py) detecta y recarga este modelo automáticamente.")
+    print("     Los clientes pueden enviar muestras para diagnosticar en T1:")
+    print("     curl -X POST http://<IP_SERVIDOR>:8000/predict -F 'file=@$MUESTRA'")
+    print("=" * 65)
 
 
 if __name__ == "__main__":

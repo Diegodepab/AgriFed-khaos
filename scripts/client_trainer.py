@@ -584,6 +584,26 @@ def main() -> None:
             )
 
     print("=" * 65)
+    print("PROXIMOS PASOS (LADO SERVIDOR MAESTRO):")
+    if args.server_url:
+        print(
+            f"  [+] El servidor maestro ya recibió tu actualización en: "
+            f"models/client_updates/{args.client_id}_parameters.pt"
+        )
+        print("  El Administrador maestro incorporará tus parámetros con:")
+        print(
+            f"  python scripts/aggregate.py --base-model models/base_model.pt "
+            f"--client-weights models/client_updates/{args.client_id}_parameters.pt "
+            f"--output models/global_model.pt"
+        )
+    else:
+        print(f"  Transfiere el archivo {out_path} al servidor maestro (SFTP / SCP).")
+        print("  El Administrador maestro incorporará tus parámetros con:")
+        print(
+            f"  python scripts/aggregate.py --base-model models/base_model.pt "
+            f"--client-weights {out_path} --output models/global_model.pt"
+        )
+    print("=" * 65)
 
 
 if __name__ == "__main__":

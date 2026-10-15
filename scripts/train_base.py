@@ -281,6 +281,26 @@ def main() -> None:
     print(f"[*] SHA-256 Digest:   {sha256_digest}")
     print(f"[*] Metadata saved:   {meta_file}")
     print("=" * 65)
+    print("PROXIMOS PASOS OPERATIVOS:")
+    print("  1. (Recomendado) Calibrar umbrales óptimos para optimizar diagnósticos:")
+    print(
+        f"     python scripts/evaluate.py --model {out_file} "
+        f"--data-dir {args.data_dir} --calibrate-threshold"
+    )
+    print("")
+    print("  2. Iniciar el servicio REST de inferencia:")
+    print(f"     python scripts/serve.py --model {out_file}")
+    print("     -> Expone endpoints: /predict, /download-model y /submit-update")
+    print("")
+    print("  3. ¿Cómo colabora el Cliente 2 (Cooperativa On-Premise)?")
+    print(f"     El Cliente 2 descarga este modelo ({out_file.name}) desde el servidor maestro:")
+    print(f"     curl -o models/{out_file.name} http://<IP_SERVIDOR>:8000/download-model")
+    print("     Y entrena localmente sobre sus imágenes privadas sin compartirlas:")
+    print(
+        f"     python scripts/client_trainer.py --data-dir /ruta/fotos_privadas "
+        f"--weights-in models/{out_file.name} --head-only --server-url http://<IP_SERVIDOR>:8000"
+    )
+    print("=" * 65)
 
 
 if __name__ == "__main__":
