@@ -8,238 +8,175 @@
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Type Checked: mypy](https://img.shields.io/badge/type%20checked-mypy-blue.svg)](http://mypy-lang.org/)
 
-AgriFed-KHAOS es un framework modular y desacoplado de **Aprendizaje Federado** (*Federated Learning*, FL) orientado a Visión por Computador. Diseñado para operar en entornos agrícolas e industriales donde los datos son altamente confidenciales y se encuentran distribuidos entre diferentes sedes o cooperativas.
+AgriFed-KHAOS es un framework modular de **Aprendizaje Federado** (*Federated Learning*, FL) para visión artificial. Permite entrenar y mejorar modelos de diagnóstico visual de forma colaborativa entre múltiples entidades sin necesidad de centralizar ni compartir imágenes privadas.
 
 ---
 
 ## Tabla de Contenidos
 
-- [Descripción del Proyecto](#descripción-del-proyecto)
-- [Esquema Conceptual del Sistema](#esquema-conceptual-del-sistema)
+- [Esquema Conceptual](#esquema-conceptual)
 - [Documentación Especializada](#documentación-especializada)
 - [Inicio Rápido](#inicio-rápido)
-- [Flujo Operativo en 4 Pasos](#flujo-operativo-en-4-pasos)
-- [Estructura del Repositorio](#estructura-del-repositorio)
-- [Calidad de Código y Colaboración](#calidad-de-código-y-colaboración)
+- [Flujo Operativo Esencial](#flujo-operativo-esencial)
+- [Estructura del Proyecto](#estructura-del-proyecto)
 - [Licencia](#licencia)
 
 ---
 
-## Descripción del Proyecto
+## Esquema Conceptual
 
-### ¿Qué es y para qué sirve?
-AgriFed-KHAOS permite que múltiples organizaciones o productores colaboren para entrenar y mejorar modelos de visión artificial de alta precisión **sin necesidad de compartir ni centralizar sus imágenes privadas**.
-
-### Problemas que resuelve:
-1. **Fuga de Datos y Cumplimiento Normativo:** Los datos visuales en bruto jamás abandonan las instalaciones locales del cliente (garantía de cero fuga de datos, compatible con RGPD y secretos comerciales).
-2. **Cuellos de Botella de Ancho de Banda:** Elimina la necesidad de transferir gigabytes de imágenes a servidores en la nube; únicamente se transmiten ligeros tensores de pesos numéricos (~18 KB en modo clasificador).
-3. **Distribuciones No-IID Extremas:** Incorpora algoritmos avanzados para mitigar el desvío del cliente (*client drift*), gestionar clases ausentes y permitir la expansión dinámica de nuevas patologías no vistas en el modelo base.
-
----
-
-## Esquema Conceptual del Sistema
-
-El sistema coordina tres roles bien diferenciados sin dependencias circulares:
+El sistema coordina tres roles independientes:
 
 ```mermaid
-flowchart TD
-    subgraph ServidorMaestro ["Servidor Maestro (Hub de Inferencia y Agregación)"]
-        W_Base["Modelo Base Oficial\n(models/base_model.pt)"]
-        REST_API["API REST de Inferencia\n(POST /predict y /predict/batch)"]
-        Gate["Compuertas de Seguridad ParameterValidator\n• Finitud y cotas L2 (absoluta y relativa)\n• Firma criptográfica HMAC y linaje SHA-256"]
-        Aggregator["Motor de Agregación Segura FedAvgM\n(Fusión ponderada por muestras con momento)"]
-        W_Global["Modelo Global Actualizado\n(models/global_model.pt)"]
-    end
+flowchart LR
+    Consumidor["Cliente Consumidor\n(Técnico de Campo)"]
+    Maestro["Servidor Maestro\n(Inferencia y Agregador)"]
+    Colaborador["Cliente Colaborador\n(Cooperativa On-Premise)"]
 
-    subgraph ClienteConsumidor ["Cliente Consumidor (Técnico de Campo)"]
-        C1_Img["Foto de Campo"]
-        C1_App["Cliente Ligero (curl / App Móvil)\nNo clona repo ni instala PyTorch"]
-    end
+    Consumidor -->|"1. Diagnóstico HTTP"| Maestro
+    Maestro -->|"2. Resultado"| Consumidor
 
-    subgraph ClientesColaboradores ["Clientes Colaboradores On-Premise (Cooperativas)"]
-        CK_Data["Datasets Privados Locales\n(100% On-Premise)"]
-        CK_Train["Entrenador Local (client_trainer.py)\n• Regularización proximal FedProx\n• Invarianza en clases ausentes\n• Privacidad Diferencial (DP)"]
-        CK_Update["Tensores Numéricos (client_k.pt)\n0 Bytes de imágenes transferidas"]
-    end
-
-    C1_Img --> C1_App
-    C1_App -->|1. Diagnóstico remoto HTTP| REST_API
-    REST_API -->|Resultado + Confianza Calibrada| C1_App
-
-    W_Base -->|2. Descarga de pesos base iniciales| CK_Train
-    CK_Data --> CK_Train
-    CK_Train --> CK_Update
-    CK_Update -->|3. Envío de parámetros entrenados| Gate
-
-    Gate -->|4. Actualizaciones auditadas y válidas| Aggregator
-    Aggregator --> W_Global
-    W_Global --> REST_API
+    Maestro -.->|"3. Descarga base_model.pt"| Colaborador
+    Colaborador -->|"4. Envía pesos client.pt (0 fotos)"| Maestro
 ```
+
+### Leyenda de Roles:
+* **Servidor Maestro:** Entrena el modelo base inicial, expone la API REST de inferencia (`POST /predict`), y fusiona los pesos recibidos mediante compuertas de seguridad.
+* **Cliente Consumidor:** Usuario o técnico de campo que solo quiere clasificar fotos. Realiza consultas HTTP sencillas a la API (vía `curl` o app móvil). No necesita clonar el repositorio ni instalar PyTorch.
+* **Cliente Colaborador:** Organización con fotos privadas que ayuda a entrenar el modelo. Descarga los pesos base, entrena localmente en su propia máquina con un único comando, y envía únicamente el archivo de parámetros resultante (`.pt`). **Ninguna imagen sale de sus instalaciones.**
 
 ---
 
 ## Documentación Especializada
 
-El proyecto cuenta con guías técnicas detalladas según el perfil de uso:
+Guías detalladas según el perfil y objetivo:
 
-| Documento | Propósito | Contenido Principal |
-| :--- | :--- | :--- |
-| [**Manual de Usuario**](docs/user_guide.md) | Guía práctica paso a paso | Cómo usar el framework con **cualquier dataset de imágenes** (`ImageFolder`), comandos CLI para entrenamiento base, cliente on-premise, agregación y consumo de la API REST. |
-| [**Arquitectura del Sistema**](docs/architecture.md) | Especificación técnica y código | Principios SOLID, patrón Adaptador (`BaseFLWrapper`), compuertas de seguridad (`ParameterValidator`), linaje HMAC, inicialización determinista CRC32, DP formal y servidor FedAvgM. |
-| [**Caso de Estudio Empírico**](docs/workflow.md) | Caso de negocio de referencia | Validación empírica real de extremo a extremo sobre patología foliar, evolución cuantificada ($T_0 \rightarrow T_1$), matrices de confusión y explicabilidad Grad-CAM. |
+| Documento | Idioma | Propósito Principal |
+| :--- | :---: | :--- |
+| [**Manual de Usuario**](docs/user_guide.md) | Español | Guía paso a paso dividida por los 3 roles (Administrador, Consumidor y Colaborador On-Premise) para usar cualquier dataset. |
+| [**User Guide (EN)**](docs/user_guide.md) | English | Complete operational manual for all three system roles on any custom vision dataset. *(Próximamente / Available in Spanish)* |
+| [**Arquitectura del Sistema**](docs/architecture.md) | Español | Especificación técnica en profundidad (patrón Adaptador, compuertas de seguridad, linaje HMAC, DP y FedAvgM). |
+| [**Caso de Estudio Empírico**](docs/workflow.md) | Español | Validación real de extremo a extremo en 2 máquinas sobre el dataset de patología foliar del olivar, con métricas $T_0 \rightarrow T_1$. |
 
 ---
 
 ## Inicio Rápido
 
-### Requisitos Previos
-* Docker y Docker Compose (recomendado para máxima reproducibilidad).
-* O alternativamente: Python 3.10+ y entorno virtual Linux/macOS/WSL.
-
-### Puesta en Marcha con Docker
+### Puesta en Marcha con Docker (Recomendado)
 
 ```bash
 # 1. Clonar el repositorio
 git clone https://github.com/diegodepab/AgriFed-khaos.git
 cd AgriFed-khaos
 
-# 2. Configurar variables de entorno
+# 2. Iniciar el entorno
 cp .env.example .env
-
-# 3. Construir e iniciar el contenedor
-make build
 make up
 
-# 4. Acceder al shell interactivo dentro del contenedor
+# 3. Entrar al contenedor
 docker compose exec agrifed bash
 ```
 
-> **Soporte GPU:** Si dispone de GPUs NVIDIA y el NVIDIA Container Toolkit, ejecute `docker compose -f compose.yaml -f compose.gpu.yaml up -d`.
+> **Aceleración GPU:** Si dispone de GPU NVIDIA, ejecute: `docker compose -f compose.yaml -f compose.gpu.yaml up -d`.
 
 ---
 
-## Flujo Operativo en 4 Pasos
+## Flujo Operativo Esencial
 
-El ciclo completo requiere intervención únicamente en 4 puntos clave:
+Siguiendo la filosofía de máxima simplicidad, cada paso cuenta con valores por defecto inteligentes para que solo deba indicar los datos imprescindibles:
 
-<details>
-<summary><strong>Paso 1: Entrenar el Modelo Base Oficial (Servidor Maestro)</strong></summary>
+<details open>
+<summary><strong>Paso 1: Entrenar el Modelo Base (Servidor Maestro)</strong></summary>
 
-El servidor central entrena una primera versión de referencia seleccionando automáticamente la arquitectura adecuada según el perfil de hardware de los clientes y las dimensiones del dataset:
+Solo debe indicar la carpeta donde están las imágenes del entrenamiento inicial:
 
 ```bash
-python scripts/train_base.py \
-  --data-dir /ruta/al/dataset/train \
-  --arch auto \
-  --target-client-tier cpu-low \
-  --output models/base_model.pt
+python scripts/train_base.py --data-dir mi_dataset/train
 ```
 
-*Genera un checkpoint `.pt` autocontenido con los pesos (`state_dict`), clases descubiertas, resolución y metadatos.*
+*Por defecto selecciona automáticamente la mejor arquitectura (`auto`), la resolución y guarda `models/base_model.pt`.*
+
+<details>
+<summary>Ver banderas de personalización opcionales</summary>
+
+* `--arch {auto, resnet18, resnet50, mobilenetv4_conv_small}`: Fuerza una arquitectura concreta en lugar de elección automática.
+* `--epochs <int>`: Número de épocas de entrenamiento (defecto: 3).
+* `--batch-size <int>`: Tamaño del lote (defecto: 32).
+* `--lr <float>`: Tasa de aprendizaje (defecto: 0.001).
+* `--img-size <int>`: Resolución de imagen en píxeles (defecto: 224).
+</details>
 </details>
 
-<details>
-<summary><strong>Paso 2: Servir el Modelo como API REST (Inferencia y Diagnóstico)</strong></summary>
+<details open>
+<summary><strong>Paso 2: Servir el Modelo como API REST (Servidor Maestro)</strong></summary>
 
-Expone el modelo mediante una API REST HTTP para que clientes externos o aplicaciones de campo clasifiquen imágenes sin instalar PyTorch:
+Levanta el microservicio HTTP para atender a los clientes consumidores:
 
 ```bash
-python scripts/serve.py \
-  --model models/base_model.pt \
-  --host 0.0.0.0 \
-  --port 8000
+python scripts/serve.py
 ```
 
-*Consumo con `curl`:*
-```bash
-curl -X POST http://localhost:8000/predict -F "file=@foto_campo.jpg"
-```
+*Por defecto carga `models/global_model.pt` (o `base_model.pt`) y escucha en el puerto `8000`.*
 </details>
 
-<details>
-<summary><strong>Paso 3: Entrenamiento Local On-Premise (Clientes Colaboradores)</strong></summary>
+<details open>
+<summary><strong>Paso 3: Diagnosticar una Foto (Cliente Consumidor)</strong></summary>
 
-Cada cooperativa colaboradora entrena sobre sus imágenes privadas. Cero bytes de imágenes abandonan su host:
+El técnico de campo no necesita PyTorch ni clonar este repositorio. Clasifica cualquier imagen con una petición HTTP:
 
 ```bash
-python scripts/client_trainer.py \
-  --data-dir /ruta/a/datos_privados \
-  --weights-in models/base_model.pt \
-  --weights-out models/client_1.pt \
-  --head-only \
-  --allow-new-classes \
-  --client-id coop_sevilla
+curl -X POST http://localhost:8000/predict -F "file=@mi_foto.jpg"
 ```
 
-*Aplica remapeo canónico de clases, protección contra clases ausentes, y opcionalmente Privacidad Diferencial formal (`--dp-clip-norm 1.0 --dp-noise-std 0.01`).*
+*Devuelve la clase predicha, el porcentaje de confianza y las probabilidades por clase.*
 </details>
 
-<details>
-<summary><strong>Paso 4: Auditoría de Seguridad y Agregación Federada (Servidor Maestro)</strong></summary>
+<details open>
+<summary><strong>Paso 4: Entrenar en Local y Fusionar (Cliente Colaborador + Maestro)</strong></summary>
 
-El servidor recibe las actualizaciones numéricas de los clientes, las audita contra anomalías y las fusiona con momento FedAvgM:
+**En la máquina de la cooperativa (datos 100% privados):**
+El colaborador solo indica dónde tiene sus fotos locales:
 
 ```bash
-python scripts/aggregate.py \
-  --base-model models/base_model.pt \
-  --client-weights models/client_1.pt models/client_2.pt \
-  --output models/global_model.pt \
-  --allow-new-classes \
-  --server-momentum 0.9 \
-  --skip-invalid-clients
+python scripts/client_trainer.py --data-dir mis_fotos_privadas/
 ```
 
-*Produce el modelo global actualizado `models/global_model.pt`, que la API REST recarga inmediatamente.*
+*Genera `models/client_parameters.pt` (~18 KB). El colaborador envía únicamente este archivo al administrador.*
+
+**En el servidor maestro (agregación segura):**
+El administrador fusiona los parámetros recibidos:
+
+```bash
+python scripts/aggregate.py --client-weights models/coop1.pt models/coop2.pt
+```
+
+*Audita las compuertas de seguridad, aplica momento FedAvgM y actualiza `models/global_model.pt`.*
 </details>
 
 ---
 
-## Estructura del Repositorio
+## Estructura del Proyecto
 
 ```text
 AgriFed-khaos/
-├── configs/                  # Configuraciones YAML para ejecución Flower centralizada
-├── docs/                     # Documentación especializada (usuario, arquitectura, caso de estudio)
-├── models/                   # Directorio local de checkpoints (.pt) y metadatos auditables
+├── configs/                  # Configuraciones YAML para ejecución Flower
+├── docs/                     # Documentación especializada (usuario, arquitectura, workflow)
+├── models/                   # Almacén de checkpoints (.pt) y metadatos
 ├── scripts/                  # Puntos de entrada CLI directos
-│   ├── train_base.py         # Entrenamiento del modelo base (Auto-FL)
-│   ├── client_trainer.py     # Entrenamiento local on-premise (cero fuga de datos)
-│   ├── aggregate.py          # Agregador seguro multi-cliente (FedAvgM + HMAC + Gate)
-│   ├── evaluate.py           # Evaluación, calibración One-vs-Rest y Grad-CAM
-│   └── serve.py              # Microservicio de inferencia FastAPI (/predict)
-├── src/agrifed_khaos/        # Paquete fuente principal
-│   ├── crypto.py             # Funciones criptográficas seguras (SHA-256 y HMAC)
-│   ├── data.py               # Particionado Dirichlet, muestreo estratificado y loaders
-│   ├── federated.py          # Estrategia SanitizedFedProx y cliente Flower
-│   ├── hardware.py           # Auto-FL ModelSelector según hardware y datos
-│   ├── models.py             # Factoría de arquitecturas y checkpoints autocontenidos
-│   ├── quality.py            # Calibración multiclase One-vs-Rest y guardrails
-│   └── wrappers.py           # Adaptadores de modelos (BaseFLWrapper, TorchModuleWrapper)
-├── tests/                    # Suite de 45 pruebas unitarias y de integración
-├── compose.yaml              # Definición de contenedor Docker
-├── Makefile                  # Comandos de automatización (build, up, test, lint)
-└── pyproject.toml            # Definición formal de empaquetado (PEP 621)
+│   ├── train_base.py         # Entrenador del modelo base (Auto-FL)
+│   ├── client_trainer.py     # Entrenador local del cliente (cero fuga de datos)
+│   ├── aggregate.py          # Agregador multi-cliente seguro (FedAvgM + HMAC)
+│   ├── serve.py              # API REST de inferencia FastAPI (/predict)
+│   └── evaluate.py           # Evaluación, calibración y Grad-CAM
+├── src/agrifed_khaos/        # Núcleo modular del framework (SOLID)
+├── tests/                    # Suite de pruebas unitarias y de integración (45 tests)
+├── compose.yaml              # Servicio Docker oficial
+├── Makefile                  # Automatización de tareas (build, up, test, lint)
+└── pyproject.toml            # Definición formal del paquete (PEP 621)
 ```
-
----
-
-## Calidad de Código y Colaboración
-
-El proyecto se adhiere a un estándar estricto de cero errores y cero advertencias:
-
-* **Ejecutar Suite de Pruebas (45 tests):**
-  ```bash
-  make test
-  # Equivalente a: docker compose exec agrifed pytest
-  ```
-* **Análisis Estático y Tipado Estricto:**
-  ```bash
-  make lint
-  # Ejecuta ruff check y mypy con política 0 errores
-  ```
 
 ---
 
 ## Licencia
 
-Distribuido bajo la Licencia Apache 2.0. Consulte `LICENSE` para más detalles.
+Distribuido bajo la Licencia Apache 2.0. Consulte `LICENSE` para más información.
