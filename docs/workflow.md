@@ -110,8 +110,12 @@ ls -l dataset/
 
 #### 4. Entrar al contenedor Docker:
 ```bash
+# Ejecutar siempre desde la raíz del repositorio (donde reside compose.yaml):
+cd ~/temporal/AgriFed-khaos  # o la ruta a tu carpeta AgriFed-khaos
 docker compose exec agrifed bash
-# Ahora la sesión se ejecuta en /workspace con todas las librerías y datos disponibles.
+
+# O alternativamente, desde cualquier directorio mediante docker exec nativo:
+# docker exec -it agrifed-khaos-agrifed-1 bash
 ```
 </details>
 

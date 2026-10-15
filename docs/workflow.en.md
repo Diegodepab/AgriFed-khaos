@@ -110,8 +110,12 @@ ls -l dataset/
 
 #### 4. Enter the Docker container:
 ```bash
+# Always execute from the repository root (where compose.yaml resides):
+cd ~/temporal/AgriFed-khaos  # or the path to your cloned AgriFed-khaos directory
 docker compose exec agrifed bash
-# Your shell is now inside /workspace with PyTorch, dependencies, and datasets ready.
+
+# Or alternatively, from any directory via native docker exec:
+# docker exec -it agrifed-khaos-agrifed-1 bash
 ```
 </details>
 
