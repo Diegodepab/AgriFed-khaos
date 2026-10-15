@@ -82,7 +82,7 @@ docker compose exec agrifed bash
 
 ## Streamlined Workflow
 
-Following a lazy-user philosophy, each command relies on intelligent defaults so you only specify what is strictly necessary:
+Commands utilize sensible defaults so you only specify what is strictly necessary:
 
 <details open>
 <summary><strong>Step 1: Train Base Model (Master Server)</strong></summary>
@@ -109,7 +109,7 @@ python scripts/train_base.py --data-dir my_dataset/train
 <details open>
 <summary><strong>Step 2: Serve Model as REST API (Master Server)</strong></summary>
 
-Launches the HTTP microservice for consumer clients:
+Launches the HTTP microservice for consumer clients and update ingestion:
 
 ```bash
 python scripts/serve.py
@@ -121,35 +121,35 @@ python scripts/serve.py
 <details open>
 <summary><strong>Step 3: Diagnose a Field Image (Consumer Client)</strong></summary>
 
-The technician needs neither PyTorch nor repository code. Classify any image with a standard HTTP request:
+Field technicians classify any image with a standard HTTP request:
 
 ```bash
 curl -X POST http://localhost:8000/predict -F "file=@sample.jpg"
 ```
 
-*Returns predicted class, confidence score, and per-class probabilities.*
+*Returns predicted class, confidence score, and per-class probabilities. For rural areas without connectivity, technicians can evaluate locally in Offline-First mode.*
 </details>
 
 <details open>
 <summary><strong>Step 4: Local Training & Fusion (Collaborator + Master)</strong></summary>
 
 **On the collaborator's machine (100% private data):**
-The partner only points to its private images folder:
+The partner trains locally and transmits parameters automatically to the central server:
 
 ```bash
-python scripts/client_trainer.py --data-dir my_private_images/
+python scripts/client_trainer.py --data-dir my_private_images/ --server-url http://master:8000
 ```
 
-*Outputs `models/client_parameters.pt` (~18 KB). The partner sends only this file to the administrator.*
+*Outputs `models/client_parameters.pt` (~18 KB) and reports directly to the central API without manual file handling. 0 image bytes leave their premises.*
 
-**On the master server (secure aggregation):**
+**On the master server (FedAvgM aggregation):**
 The administrator fuses incoming client weights:
 
 ```bash
-python scripts/aggregate.py --client-weights models/client_1.pt models/client_2.pt
+python scripts/aggregate.py --client-weights models/client_updates/*.pt
 ```
 
-*Audits security gates, applies FedAvgM momentum, and updates `models/global_model.pt`.*
+*Audits security gates, applies server momentum FedAvgM ($\beta = 0.9$) to stabilize global convergence, and updates `models/global_model.pt`.*
 </details>
 
 ---

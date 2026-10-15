@@ -1,14 +1,12 @@
 # Guía de Usuario: AgriFed-KHAOS
 
-Manual operativo de **AgriFed-KHAOS** para aplicar Aprendizaje Federado sobre **cualquier dataset de visión artificial** estructurado en carpetas estándar.
-
-Esta guía está organizada en torno a los **tres roles del sistema**, de modo que cada usuario consulte únicamente las instrucciones que le corresponden sin sobrecarga técnica innecesaria.
+Manual operativo de **AgriFed-KHAOS** para entrenar, servir y federar modelos de visión artificial sobre **cualquier dataset estructurado en carpetas estándar**.
 
 ---
 
 ## 1. Estructura de Datos Universal (ImageFolder)
 
-El framework es 100% agnóstico del cultivo o tipo de imagen. Solo requiere que las imágenes estén organizadas en subcarpetas según su clase:
+El framework es agnóstico del cultivo o tipo de imagen. Requiere que las imágenes estén organizadas en subcarpetas según su clase:
 
 ```text
 mi_dataset/
@@ -26,29 +24,28 @@ mi_dataset/
 
 ---
 
-## 2. Rol 1: Administrador del Sistema (Dueño del Aprendizaje Federado)
+## 2. Rol 1: Administrador del Sistema (Servidor Maestro)
 
-El Administrador gestiona el servidor central, entrena el modelo base inicial, expone la API de diagnóstico y fusiona las actualizaciones de los colaboradores.
+El Administrador gestiona el servidor central, entrena el modelo base inicial, expone los servicios de inferencia y ejecuta la agregación federada de la red.
 
 ### Paso 1: Puesta en Marcha del Entorno
 ```bash
-# Iniciar contenedor Docker reproducible
 cp .env.example .env
 make up
 docker compose exec agrifed bash
 ```
 
 ### Paso 2: Entrenar el Modelo Base Oficial
-Siguiendo la filosofía de mínima fricción, solo debe indicar dónde están las imágenes iniciales:
+Indique la carpeta que contiene las imágenes del entrenamiento inicial:
 
 ```bash
 python scripts/train_base.py --data-dir mi_dataset/train
 ```
 
-*El comando selecciona automáticamente la arquitectura óptima (`auto`), infiere las clases, entrena el extractor de características y guarda el bundle autocontenido `models/base_model.pt`.*
+*Selecciona automáticamente la mejor arquitectura (`auto`), infiere las clases, entrena el modelo y genera el bundle autocontenido `models/base_model.pt`.*
 
 <details>
-<summary>Opciones de personalización avanzada (opcional)</summary>
+<summary>Opciones de personalización avanzada</summary>
 
 * `--arch {auto, resnet18, resnet50, mobilenetv4_conv_small}`: Fuerza una arquitectura concreta (defecto: `auto`).
 * `--target-client-tier {cpu-low, cpu-high, gpu}`: Perfil de hardware de los clientes perimetrales (defecto: `cpu-low`).
@@ -59,35 +56,37 @@ python scripts/train_base.py --data-dir mi_dataset/train
 * `--output <path>`: Ruta del checkpoint resultante (defecto: `models/base_model.pt`).
 </details>
 
-### Paso 3: Levantar el Servicio de Inferencia REST
-Expone el modelo para que cualquier técnico o aplicación de campo pueda clasificar fotos:
+### Paso 3: Levantar el Servicio de Inferencia y Recepción REST
+Inicia el microservicio HTTP tanto para atender diagnósticos de campo como para recibir actualizaciones automáticas de los colaboradores:
 
 ```bash
 python scripts/serve.py
 ```
 
-*Inicia la API REST en `http://0.0.0.0:8000`. Carga automáticamente `models/global_model.pt` (o `base_model.pt`) con inferencia calibrada One-vs-Rest.*
+*Escucha en `http://0.0.0.0:8000`. Carga automáticamente `models/global_model.pt` (o `base_model.pt`) con inferencia calibrada One-vs-Rest y habilita el endpoint de recepción `/submit-update`.*
 
-### Paso 4: Fusionar Actualizaciones de Colaboradores (Agregación Federada)
-Cuando recibe los archivos de parámetros de los colaboradores (ej. `coop1.pt`, `coop2.pt`), los fusiona en el modelo global:
+### Paso 4: Fusión de Parámetros con Servidor FedAvgM
+El Administrador fusiona las actualizaciones recibidas de los colaboradores utilizando el algoritmo **FedAvgM (Federated Averaging con Momento del Servidor)**:
 
 ```bash
-python scripts/aggregate.py --client-weights models/coop1.pt models/coop2.pt
+python scripts/aggregate.py --client-weights models/client_updates/*.pt
 ```
 
-*Aplica compuertas de seguridad contra anomalías (`ParameterValidator`), calcula el promedio ponderado por muestras con momento FedAvgM y actualiza `models/global_model.pt`.*
+* **Momento del Servidor ($\beta = 0.9$):** A diferencia de un promedio aritmético pasivo, FedAvgM mantiene un buffer de velocidad $V_t = \beta V_{t-1} + \Delta W_{\text{fed}}$, estabilizando y acelerando la trayectoria de convergencia global frente a la heterogeneidad extrema de los datos de cada agricultor.
+* **Compuertas de Seguridad ([`ParameterValidator`](../src/agrifed_khaos/wrappers.py)):** Audita finitud numérica (sin `NaN` ni `Inf`), cotas de divergencia L2 absolutas y relativas, y autenticidad criptográfica HMAC.
 
 <details>
 <summary>Opciones avanzadas de agregación</summary>
 
-* `--server-momentum <float>`: Factor de momento del servidor FedAvgM (defecto: 0.9).
-* `--allow-new-classes`: Permite expandir dinámicamente el clasificador si los colaboradores descubrieron patologías nuevas.
+* `--server-momentum <float>`: Factor de momento del servidor $\beta$ en $[0, 1)$ (defecto: 0.9).
+* `--eta <float>`: Tasa de aprendizaje del servidor (defecto: 0.6).
+* `--allow-new-classes`: Permite expandir dinámicamente el clasificador si los colaboradores descubrieron patologías nuevas registradas en la taxonomía global.
 * `--max-norm <float>`: Límite de norma L2 para rechazar actualizaciones anómalas (defecto: 150.0).
-* `--skip-invalid-clients`: Si un cliente no pasa las compuertas de seguridad, lo descarta y continúa con los válidos.
+* `--skip-invalid-clients`: Si un cliente no supera las compuertas de seguridad, lo descarta y continúa con los válidos.
 </details>
 
-### Paso 5: Evaluar y Calibrar el Modelo Global
-Evalúa el rendimiento sobre un split de prueba independiente, optimiza los umbrales de decisión One-vs-Rest y genera mapas explicables Grad-CAM:
+### Paso 5: Evaluación y Calibración del Modelo Global
+Evalúa el rendimiento sobre un split de prueba independiente, optimiza los umbrales de decisión One-vs-Rest ($\tau_c^*$) y genera mapas explicables Grad-CAM:
 
 ```bash
 python scripts/evaluate.py --data-dir mi_dataset/test
@@ -97,22 +96,18 @@ python scripts/evaluate.py --data-dir mi_dataset/test
 
 ## 3. Rol 2: Usuario Consumidor (Diagnóstico de Campo)
 
-El Consumidor es un técnico o productor en el campo que únicamente desea clasificar fotos y obtener un diagnóstico fiable en tiempo real.
+El Consumidor es un técnico o agricultor que necesita clasificar imágenes de campo y obtener un diagnóstico fiable con certidumbre calibrada.
 
-### Requisitos:
-* **No necesita clonar este repositorio.**
-* **No necesita instalar Python ni PyTorch.**
-* Solo necesita conectividad de red con el Servidor Maestro.
-
-### ¿Cómo clasificar una imagen?
-Con una simple petición HTTP (desde terminal `curl`, aplicación móvil o navegador):
+### Modalidad A: Inferencia Remota Centralizada (API REST)
+Diseñada para técnicos con conectividad de red que desean diagnosticar fotos sin instalar librerías de IA:
+* **Requisitos:** No necesita clonar el repositorio ni instalar PyTorch. Solo necesita conectividad con el Servidor Maestro.
 
 ```bash
 curl -X POST http://<IP_O_DOMINIO_SERVIDOR>:8000/predict \
   -F "file=@foto_campo.jpg"
 ```
 
-### Respuesta recibida:
+**Respuesta recibida:**
 ```json
 {
   "predicted_class": "repilo",
@@ -127,48 +122,58 @@ curl -X POST http://<IP_O_DOMINIO_SERVIDOR>:8000/predict \
 }
 ```
 
+### Modalidad B: Inferencia Perimetral Desconectada (Offline-First)
+Diseñada para técnicos en zonas rurales sin cobertura móvil:
+* El técnico descarga el bundle autocontenido `models/global_model.pt`.
+* La inferencia se ejecuta 100% en local en el dispositivo perimetral (laptop, tablet o app embebida con ONNX Runtime / TFLite) sin requerir conexión a internet.
+
 ---
 
 ## 4. Rol 3: Usuario Colaborador (Cooperativa con Datos Privados)
 
-El Colaborador posee imágenes valiosas tomadas en sus instalaciones, pero por normativas de privacidad (RGPD) o secreto comercial **no puede ni quiere subir sus fotos a ningún servidor central**.
+El Colaborador posee imágenes privadas tomadas en sus explotaciones agrícolas. Por normativas de privacidad (RGPD) o secreto comercial, **no permite la salida de ninguna imagen de su red local**.
 
-Acepta colaborar en el entrenamiento federado con una condición innegociable: **0 bytes de fotos saldrán jamás de su red local**.
+Colabora en el entrenamiento federado mediante un agente local automatizado que intercambia únicamente parámetros matemáticos.
 
-### ¿Qué necesita el Colaborador?
-1. Recibir del Administrador el archivo del modelo base (`base_model.pt`).
-2. Tener en su disco local una carpeta con sus fotos privadas organizadas por clase (ej. `/mis_fotos/`).
+### ¿Cómo opera el Colaborador en la práctica?
+1. Recibe o descarga el archivo del modelo base (`models/base_model.pt`).
+2. Mantiene sus imágenes en su disco privado local (ej. `/mis_fotos/`).
+3. Ejecuta el entrenamiento local conectando automáticamente con el servidor para reportar sus parámetros.
 
-### ¿Cómo ejecuta el entrenamiento local?
-
-#### Opción A: Mediante Docker (Recomendado, sin instalar dependencias)
-Si dispone de Docker, no necesita instalar librerías de Python. Ejecuta un único comando montando su carpeta de fotos:
+#### Ejecución Automatizada con Docker (Recomendado):
+El contenedor corre de forma desatendida, entrena sobre los datos privados locales y transmite los parámetros por streaming HTTP al servidor central:
 
 ```bash
 docker run --rm \
   -v /ruta/a/mis_fotos:/data \
-  -v /ruta/a/modelos:/models \
   agrifed \
-  python scripts/client_trainer.py --data-dir /data --weights-in /models/base_model.pt --weights-out /models/coop_pesos.pt
+  python scripts/client_trainer.py \
+    --data-dir /data \
+    --server-url http://<IP_SERVIDOR_MAESTRO>:8000
 ```
 
-#### Opción B: Con entorno Python local
-Si prefiere ejecutar directamente en su máquina con Python:
-
+#### Ejecución con Python local:
 ```bash
-python scripts/client_trainer.py --data-dir /ruta/a/mis_fotos/
+python scripts/client_trainer.py \
+  --data-dir /ruta/a/mis_fotos/ \
+  --server-url http://<IP_SERVIDOR_MAESTRO>:8000
 ```
 
-### ¿Qué artefacto se genera y qué devuelve al Administrador?
-* El script genera un único archivo ligero de parámetros numéricos: `models/client_parameters.pt` (de apenas ~18 KB en modo clasificador).
-* El colaborador envía **únicamente** ese archivo `.pt` al Administrador (por correo, SFTP o API segura).
-* **Garantía Técnica Verificable:** Ninguna imagen abandona su disco. El archivo `.pt` solo contiene pesos matemáticos de la red neuronal, auditados y protegidos con ruido de Privacidad Diferencial.
+### Garantías Técnicas de Privacidad:
+* **0 Bytes de Imágenes Transferidas:** El script extrae gradientes localmente y genera únicamente el archivo numérico `models/client_parameters.pt` (~18 KB en modo clasificador).
+* **Transmisión Automatizada:** Al concluir las épocas locales, el agente transmite los tensores directamente al endpoint seguro `/submit-update` (o por streaming gRPC de Flower en memoria viva). El operador de la cooperativa no manipula archivos manualmente.
+* **Privacidad Diferencial Formal:** Opcionalmente recorta la norma L2 y añade ruido gaussiano ($\mathcal{N}(0, \sigma^2 C^2)$), impidiendo cualquier ataque de reconstrucción inversa de imágenes.
+
+> [!WARNING]
+> **Advertencia Crítica de Gobernanza y Alineación de Clases (`--allow-new-classes`):**
+> En visión artificial federada bajo distribuciones No-IID, la incorporación de nuevas clases dinámicas requiere que todas las cooperativas respeten una **taxonomía nominal canónica compartida** (ej. nombres estandarizados como `repilo`, `antracnosis`, `cochinilla`). Si dos entidades utilizan nombres distintos para la misma patología o asignan el mismo nombre a clases biológicamente distintas, se producirán colisiones de etiquetas y olvido catastrófico (*catastrophic forgetting*). El servidor alinea nominalmente por nombre de clase mediante inicialización determinista CRC32, por lo que la coherencia en la nomenclatura de carpetas es un requisito indispensable de gobernanza.
 
 <details>
-<summary>Opciones de privacidad y entrenamiento avanzado para el colaborador</summary>
+<summary>Opciones avanzadas para el colaborador</summary>
 
-* `--head-only`: *(Recomendado por defecto)* Entrena solo la capa clasificadora final (~18 KB frente a 42 MB de transferencia).
-* `--dp-clip-norm <float>` y `--dp-noise-std <float>`: Aplica Privacidad Diferencial formal mediante recorte de norma L2 y ruido gaussiano sobre los pesos.
-* `--allow-new-classes`: Permite al cliente entrenar clases nuevas no vistas en el modelo base mediante inicialización determinista CRC32.
-* `--client-id <nombre>`: Identificador del colaborador en el manifiesto criptográfico HMAC.
+* `--head-only`: *(Activado por defecto)* Entrena solo el clasificador final (~18 KB frente a 42 MB de transferencia).
+* `--server-url <url>`: URL del servidor central para transmisión automatizada de la actualización.
+* `--dp-clip-norm <float>` y `--dp-noise-std <float>`: Aplica Privacidad Diferencial formal sobre los pesos.
+* `--allow-new-classes`: Permite registrar clases emergentes respetando la taxonomía global de AgriFed.
+* `--client-id <nombre>`: Identificador del colaborador en el manifiesto y firma criptográfica HMAC.
 </details>

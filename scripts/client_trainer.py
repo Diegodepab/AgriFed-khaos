@@ -128,6 +128,12 @@ def parse_args() -> argparse.Namespace:
         default="auto",
         help="Training hardware device: auto, cpu, cuda (default: auto)",
     )
+    parser.add_argument(
+        "--server-url",
+        type=str,
+        default=None,
+        help="Optional central server URL (e.g. http://master:8000) for automated submission",
+    )
     return parser.parse_args()
 
 
@@ -545,6 +551,38 @@ def main() -> None:
     print(f"[*] SHA-256 Digest:        {out_sha256}")
     print(f"[*] Client Metadata Saved: {meta_path}")
     print("[*] Privacy Verified: 0 bytes of images transferred outside host.")
+
+    if args.server_url:
+        import urllib.request
+        server_endpoint = f"{args.server_url.rstrip('/')}/submit-update"
+        print(f"[*] Automated FL Transmission: Uploading update to {server_endpoint}...")
+        try:
+            with open(out_path, "rb") as f:
+                data = f.read()
+            boundary = f"----AgriFedBoundary{int(time.time())}"
+            header = (
+                f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="file"; filename="{out_path.name}"\r\n'
+                f"Content-Type: application/octet-stream\r\n\r\n"
+            ).encode()
+            footer = f"\r\n--{boundary}--\r\n".encode()
+            body = header + data + footer
+
+            req = urllib.request.Request(
+                f"{server_endpoint}?client_id={args.client_id}",
+                data=body,
+                headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                resp_text = resp.read().decode("utf-8")
+                print(f"[+] Automated transmission successful. Server response: {resp_text}")
+        except Exception as exc:
+            print(
+                f"[!] Warning: Automated transmission to {server_endpoint} failed ({exc}). "
+                f"Checkpoint is safely stored locally at {out_path}."
+            )
+
     print("=" * 65)
 
 

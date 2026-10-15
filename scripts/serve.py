@@ -294,6 +294,33 @@ def create_app(
             "predictions": predictions,
         }
 
+    @app.post("/submit-update")
+    async def submit_update(
+        file: UploadFile = File(...),  # noqa: B008
+        client_id: str = "client",
+    ) -> dict[str, Any]:
+        """Automated ingestion endpoint for collaborative edge clients to upload
+        trained parameter bundles.
+        """
+        content = await file.read(50 * 1024 * 1024)  # 50 MB max limit for parameter tensors
+        if not content:
+            raise HTTPException(status_code=400, detail="Empty parameter file uploaded")
+
+        target_dir = Path("models/client_updates")
+        target_dir.mkdir(parents=True, exist_ok=True)
+        safe_client_id = "".join(c for c in client_id if c.isalnum() or c in ("_", "-")) or "client"
+        dest_path = target_dir / f"{safe_client_id}_parameters.pt"
+        dest_path.write_bytes(content)
+
+        file_sha256 = hashlib.sha256(content).hexdigest()
+        return {
+            "status": "received",
+            "client_id": safe_client_id,
+            "bytes_received": len(content),
+            "sha256": file_sha256,
+            "saved_to": str(dest_path),
+        }
+
     return app
 
 

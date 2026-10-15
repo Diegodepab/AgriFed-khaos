@@ -83,7 +83,7 @@ docker compose exec agrifed bash
 
 ## Flujo Operativo Esencial
 
-Siguiendo la filosofía de máxima simplicidad, cada paso cuenta con valores por defecto inteligentes para que solo deba indicar los datos imprescindibles:
+Los comandos cuentan con valores por defecto para operar indicando únicamente los datos necesarios:
 
 <details open>
 <summary><strong>Paso 1: Entrenar el Modelo Base (Servidor Maestro)</strong></summary>
@@ -110,7 +110,7 @@ python scripts/train_base.py --data-dir mi_dataset/train
 <details open>
 <summary><strong>Paso 2: Servir el Modelo como API REST (Servidor Maestro)</strong></summary>
 
-Levanta el microservicio HTTP para atender a los clientes consumidores:
+Levanta el microservicio HTTP para atender a los clientes consumidores y recibir actualizaciones:
 
 ```bash
 python scripts/serve.py
@@ -122,35 +122,35 @@ python scripts/serve.py
 <details open>
 <summary><strong>Paso 3: Diagnosticar una Foto (Cliente Consumidor)</strong></summary>
 
-El técnico de campo no necesita PyTorch ni clonar este repositorio. Clasifica cualquier imagen con una petición HTTP:
+El técnico de campo clasifica cualquier imagen con una petición HTTP:
 
 ```bash
 curl -X POST http://localhost:8000/predict -F "file=@mi_foto.jpg"
 ```
 
-*Devuelve la clase predicha, el porcentaje de confianza y las probabilidades por clase.*
+*Devuelve la clase predicha, el porcentaje de confianza y las probabilidades por clase. En zonas rurales sin internet, el técnico puede cargar el bundle localmente en modo Offline-First.*
 </details>
 
 <details open>
 <summary><strong>Paso 4: Entrenar en Local y Fusionar (Cliente Colaborador + Maestro)</strong></summary>
 
 **En la máquina de la cooperativa (datos 100% privados):**
-El colaborador solo indica dónde tiene sus fotos locales:
+El colaborador entrena localmente y transmite automáticamente los parámetros al servidor central:
 
 ```bash
-python scripts/client_trainer.py --data-dir mis_fotos_privadas/
+python scripts/client_trainer.py --data-dir mis_fotos_privadas/ --server-url http://servidor:8000
 ```
 
-*Genera `models/client_parameters.pt` (~18 KB). El colaborador envía únicamente este archivo al administrador.*
+*Genera los tensores (`models/client_parameters.pt`, ~18 KB) y los reporta directamente a la API central sin manipulación manual de archivos. 0 imágenes salen de su red.*
 
-**En el servidor maestro (agregación segura):**
-El administrador fusiona los parámetros recibidos:
+**En el servidor maestro (agregación con FedAvgM):**
+El administrador fusiona las actualizaciones recibidas:
 
 ```bash
-python scripts/aggregate.py --client-weights models/coop1.pt models/coop2.pt
+python scripts/aggregate.py --client-weights models/client_updates/*.pt
 ```
 
-*Audita las compuertas de seguridad, aplica momento FedAvgM y actualiza `models/global_model.pt`.*
+*Audita las compuertas de seguridad, aplica momento FedAvgM ($\beta = 0.9$) para estabilizar la convergencia global y actualiza `models/global_model.pt`.*
 </details>
 
 ---
