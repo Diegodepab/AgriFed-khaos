@@ -9,7 +9,7 @@ Documento de especificación técnica y decisiones arquitectónicas de **AgriFed
 El framework está concebido bajo estándares de ingeniería de software y MLOps modernos:
 
 1. **Agnosticismo de Dominio (Domain-Agnostic Core):** El núcleo del framework no conoce ni depende de ningún cultivo, planta o patología específica. Opera sobre tensores arbitrarios de imágenes agrupadas en estructuras de clases estándar (`ImageFolder`) o manifiestos anotados.
-2. **Desacoplamiento Data-Centric (Principio de Inversión de Dependencias - DIP):** La curación, filtrado de calidad y normalización de datos corresponden exclusivamente al repositorio hermano [`agrivision-khaos`](../../agrivision-khaos). `AgriFed-KHAOS` asume que los datos locales del cliente son un estándar de oro y se concentra únicamente en la optimización distribuida y la agregación de pesos.
+2. **Desacoplamiento Data-Centric (Principio de Inversión de Dependencias - DIP):** La curación, filtrado de calidad y normalización de datos corresponden exclusivamente al repositorio hermano [`agrivision-khaos`](https://github.com/Diegodepab/agrivision-khaos). `AgriFed-KHAOS` asume que los datos locales del cliente son un estándar de oro y se concentra únicamente en la optimización distribuida y la agregación de pesos.
 3. **Patrón Adaptador (Adapter Pattern - Principio Abierto/Cerrado - OCP):** La abstracción [`BaseFLWrapper`](../src/agrifed_khaos/wrappers.py) desacopla por completo el runtime de comunicación federada (Flower / tensores NumPy) de los frameworks subyacentes de deep learning (PyTorch, Timm, Ultralytics YOLO).
 4. **Cero Fuga de Datos (Zero Data Leakage Contract):** Los datos físicos en bruto (imágenes RGB y etiquetas locales) jamás abandonan el host perimetral del cliente. La red solo transporta parámetros matemáticos y firmas criptográficas.
 
@@ -86,7 +86,9 @@ En entrenamientos federados No-IID, permitir que las capas `BatchNorm` actualice
 
 Para mitigar el desvío del cliente (*client drift*) inducido por distribuciones No-IID locales, el entrenamiento aplica la regularización proximal de **FedProx**:
 
-$$\mathcal{L}_{\text{prox}}(W; W_{\text{ref}}) = \mathcal{L}_{\text{CE}}(W; X, Y) + \frac{\mu}{2} \sum_{l=1}^{L} \| W_l - W_{l,\text{ref}} \|_2^2$$
+$$
+\mathcal{L}_{\text{prox}}(W; W_{\text{ref}}) = \mathcal{L}_{\text{CE}}(W; X, Y) + \frac{\mu}{2} \sum_{l=1}^{L} \| W_l - W_{l,\text{ref}} \|_2^2
+$$
 
 Donde $\mu \ge 0$ es el hiperparámetro proximal (por defecto $0.01$) y $W_{\text{ref}}$ es el ancla base global.
 
@@ -100,10 +102,18 @@ Todo vector de parámetros recibido es auditado de forma determinista mediante t
    - Esquema Head-Only: sólo los tensores clasificadores (`fc.*`, `classifier.*`).
    - Esquema Full-Model: todos los tensores del modelo base sin claves extras ni faltantes.
 2. **Finitud Numérica:** Ausencia total de valores no finitos (`NaN` o `Inf`).
-3. **Cota de Divergencia Absoluta ($L_2$ Gate):**
-   $$\|\Delta W\|_2 = \sqrt{\sum (W^{\text{cliente}} - W^{\text{base}})^2} \le \tau \quad (\text{defecto } \tau = 150.0)$$
+3. **Cota de Divergencia Absoluta (L2 Gate):**
+
+   $$
+   \|\Delta W\|_2 = \sqrt{\sum (W^{\text{cliente}} - W^{\text{base}})^2} \le \tau \quad (\text{defecto } \tau = 150.0)
+   $$
+
 4. **Cota de Divergencia Relativa (`max_relative_norm`):**
-   $$\text{rel\_norm} = \frac{\|\Delta W\|_2}{\max(\|W_{\text{base}}\|_2, 10^{-8})} \le \tau_{\text{rel}}$$
+
+   $$
+   \delta_{\text{rel}} = \frac{\|\Delta W\|_2}{\max(\|W_{\text{base}}\|_2, 10^{-8})} \le \tau_{\text{rel}}
+   $$
+
    Permite blindar modelos `--head-only` contra rotaciones desproporcionadas en subconjuntos reducidos de parámetros (~4.600 pesos), donde una cota absoluta de 150.0 resultaría ineficaz.
 
 ---
@@ -112,8 +122,13 @@ Todo vector de parámetros recibido es auditado de forma determinista mediante t
 
 Para mitigar riesgos de reconstrucción o ataques de inversión de pesos (*Deep Leakage from Gradients*), el cliente puede inyectar ruido gaussiano escalado por la raíz de la media cuadrática (RMS) de cada capa:
 
-$$\text{rms}(p) = \max\left(\frac{\|p\|_2}{\sqrt{p.\text{numel}()}}, 10^{-4}\right)$$
-$$W_{\text{export}} = W_{\text{local}} + \mathcal{N}(0, \mathbf{I}) \cdot \sigma \cdot \text{rms}(p)$$
+$$
+\text{rms}(p) = \max\left(\frac{\|p\|_2}{\sqrt{p.\text{numel}()}}, 10^{-4}\right)
+$$
+
+$$
+W_{\text{export}} = W_{\text{local}} + \mathcal{N}(0, \mathbf{I}) \cdot \sigma \cdot \text{rms}(p)
+$$
 
 Donde $\sigma$ es el parámetro `--noise-std`. Esto garantiza una relación señal-ruido uniforme por capa, protegiendo tensores de baja magnitud (como `bias`) de ser destruidos.
 
@@ -124,13 +139,24 @@ Donde $\sigma$ es el parámetro `--noise-std`. Esto garantiza una relación señ
 [`scripts/aggregate.py`](../scripts/aggregate.py) admite múltiples clientes simultáneos (`--client-weights c1.pt c2.pt ...`):
 
 1. **Ponderación por Muestras Locales:**
-   Dados $K$ clientes aprobados con muestras $n_1, \dots, n_K$ y $N = \sum_{k=1}^K n_k$:
-   $$\Delta W_{\text{fed}} = \sum_{k=1}^{K} \frac{n_k}{N} (W_k - W_{\text{base}})$$
-   $$W_{\text{global}} = W_{\text{base}} + \eta \cdot \Delta W_{\text{fed}}$$
+   Dados $K$ clientes aprobados con muestras $n_1, \dots, n_K$ y masa muestral agregada $N = \sum_{k=1}^K n_k$:
+
+   $$
+   \Delta W_{\text{fed}} = \sum_{k=1}^{K} \frac{n_k}{N} (W_k - W_{\text{base}})
+   $$
+
+   $$
+   W_{\text{global}} = W_{\text{base}} + \eta \cdot \Delta W_{\text{fed}}
+   $$
+
 2. **Blindaje Criptográfico HMAC de `num_samples`:**
-   El número de muestras $n_k$ se firma dentro del HMAC del manifiesto:
-   $$\text{HMAC}(\text{"sha256=}H_c\text{|base\_sha256=}H_b\text{|scope=}S\text{|client\_id=}ID\text{|num\_samples=}n_k\text{"})$$
-   Impidiendo que un nodo malicioso infle su peso en la agregación global.
+   El número de muestras $n_k$ se autentica dentro del HMAC-SHA256 del manifiesto mediante una cadena canónica delimitada:
+
+   ```text
+   HMAC-SHA256(key, "sha256=" + H_c + "|base_sha256=" + H_b + "|scope=" + S + "|client_id=" + ID + "|num_samples=" + n_k)
+   ```
+
+   Esto impide que un nodo malicioso infle artificialmente su peso $n_k$ en la agregación global.
 3. **Resiliencia ante Fallos (`--skip-invalid-clients`):**
    Si uno de los clientes enviados no supera alguna compuerta de seguridad, el servidor puede descartarlo con una advertencia y continuar la ronda con los clientes válidos.
 
@@ -204,27 +230,61 @@ Las funciones [`load_checkpoint_bundle`](../src/agrifed_khaos/models.py) y [`sav
 ### B. Remapeo Canónico y Protección de Clases Ausentes
 1. **Remapeo Canónico:** `torchvision.datasets.ImageFolder` asigna índices `0..K-1` alfabéticamente a las carpetas locales. Si el cliente solo posee un subconjunto de clases, estos índices no coincidirían con el modelo base. [`client_trainer.py`](../scripts/client_trainer.py) reasigna explícitamente `dataset.targets` contra la lista nominal canónica `base_meta["classes"]`.
 2. **Hard Projection Post-Step:** Para clases ausentes en el lote local, el gradiente cero no es suficiente frente a términos de momento y regularización FedProx. Tras cada `optimizer.step()`, se proyectan duramente los parámetros:
-   $$W_{\text{head}}[\text{missing}, :] \leftarrow W_{\text{base}}[\text{missing}, :]$$
-   $$b_{\text{head}}[\text{missing}] \leftarrow b_{\text{base}}[\text{missing}]$$
+
+   $$
+   W_{\text{head}}[\text{missing}, :] \leftarrow W_{\text{base}}[\text{missing}, :]
+   $$
+
+   $$
+   b_{\text{head}}[\text{missing}] \leftarrow b_{\text{base}}[\text{missing}]
+   $$
+
    Garantizando una invariancia numérica exacta ($\Delta W = 0$) en las neuronas no entrenadas.
 
 ### C. Expansión Dinámica de Clases (`--allow-new-classes`)
 Cuando un cliente perimetral descubre patologías no vistas en el modelo base:
 1. **Inicialización Determinista CRC32:** En lugar de depender de semillas globales del RNG que desincronizan cliente y servidor, cada fila de la matriz para la clase emergente $c$ se inicializa usando:
-   $$\text{seed} = \text{CRC32}(c.\text{encode}()) \pmod{2^{31}-1}$$
+
+   $$
+   \text{seed} = \text{CRC32}(c.\text{encode}()) \pmod{2^{31}-1}
+   $$
+
    Tanto [`expand_model_classifier`](../src/agrifed_khaos/models.py) (cliente) como [`expand_state_dict_classifier`](../src/agrifed_khaos/models.py) (servidor) generan idénticos pesos de partida Kaiming Uniform, permitiendo que la compuerta de seguridad evalúe únicamente el gradiente genuino del cliente.
 2. **Alineación Nominal:** En [`aggregate.py`](../scripts/aggregate.py), la función `align_client_head` alinea las filas del clasificador por coincidencia nominal de clase (`target_idx = union_classes.index(cls)`), admitiendo expansiones disjuntas concurrentes.
 
 ### D. Privacidad Diferencial Formal y FedAvgM
-1. **Mecanismo Gaussiano Global ($L_2$):** En [`TorchModuleWrapper`](../src/agrifed_khaos/wrappers.py), los tensores entrenables concatenados se recortan si $\|\Delta W\|_2 > C_{\text{clip}}$:
-   $$\Delta W \leftarrow \Delta W \cdot \min\left(1, \frac{C_{\text{clip}}}{\|\Delta W\|_2}\right)$$
-   Añadiendo ruido gaussiano $\mathcal{N}(0, \sigma^2 C_{\text{clip}}^2 \mathbf{I})$ con exención explícita de los buffers de normalización (evitando ruido en medias y varianzas de BatchNorm).
+1. **Mecanismo Gaussiano Global (L2):** En [`TorchModuleWrapper`](../src/agrifed_khaos/wrappers.py), los tensores entrenables concatenados se recortan si la norma excede el umbral de corte $C_{\text{clip}}$:
+
+   $$
+   \|\Delta W\|_2 > C_{\text{clip}}
+   $$
+
+   Aplicando la transformación de recorte:
+
+   $$
+   \Delta W \leftarrow \Delta W \cdot \min\left(1, \frac{C_{\text{clip}}}{\|\Delta W\|_2}\right)
+   $$
+
+   Y añadiendo ruido gaussiano calibrado:
+
+   $$
+   \mathcal{N}\left(0, \sigma^2 C_{\text{clip}}^2 \mathbf{I}\right)
+   $$
+
+   Con exención explícita de los buffers de normalización (evitando distorsionar medias y varianzas de BatchNorm).
 2. **FedAvgM (Server Momentum):** [`aggregate.py`](../scripts/aggregate.py) y [`SanitizedFedProx`](../src/agrifed_khaos/federated.py) implementan momento del servidor con amortiguador $V_t$:
-   $$V_t = \beta V_{t-1} + \Delta W_{\text{fed}}, \quad W_{\text{global}} = W_{\text{base}} + \eta V_t$$
+
+   $$
+   V_t = \beta V_{t-1} + \Delta W_{\text{fed}}, \quad W_{\text{global}} = W_{\text{base}} + \eta V_t
+   $$
 
 ### E. Calibración Multiclase One-vs-Rest e Inferencia Calibrada
 1. **Calibración OvR en `evaluate.py`:** Determina el umbral $\tau_c^*$ que maximiza el F1-Score / Youden para cada una de las $C$ clases independientemente.
 2. **Escalado en `serve.py`:** En `/predict`, las probabilidades se reescalan:
-   $$s_c = \frac{p_c}{\max(\tau_c^*, 10^{-6})}, \quad \hat{y} = \arg\max_{c} s_c$$
+
+   $$
+   s_c = \frac{p_c}{\max(\tau_c^*, 10^{-6})}, \quad \hat{y} = \arg\max_{c} s_c
+   $$
+
    Asegurando detección equitativa en clases minoritarias severamente desbalanceadas.
 
