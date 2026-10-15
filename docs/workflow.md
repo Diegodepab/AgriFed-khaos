@@ -178,9 +178,9 @@ Evaluación certificada sobre el dataset de referencia de 9 clases foliares (1.1
 
 | Métrica de Rendimiento | Modelo Base ($T_0$) | Modelo Global Federado ($T_1$) | Impacto Neto ($\Delta$) | Estado |
 |---|:---:|:---:|:---:|:---:|
-| **Exactitud Global (Test Accuracy)** | `74.44%` | **`82.56%`** | **`+8.12%`** | :white_check_mark: Mejora Robusta y Real |
-| **Pérdida en Test (Cross-Entropy Loss)** | `0.8611` | **`0.4333`** | **`-0.4278`** | :white_check_mark: Pérdida Reducida a la Mitad |
-| **Macro F1-Score** | `64.15%` | **`70.60%`** | **`+6.45%`** | :white_check_mark: Separabilidad Incrementada |
-| **Confianza en Muestra de Campo (Repilo)** | `79.62%` | **`96.87%`** | **`+17.25%`** | :white_check_mark: Certidumbre Diagnóstica Alta |
-| **Datos de Imágenes Transferidos por Cooperativas** | `0 bytes` | `0 bytes` | **`0 B`** | :lock: **Privacidad Total (Zero Leakage)** |
-| **Norma de Perturbación ($\|\Delta W\|_2$)** | — | `12.0091` | (Límite $\le 150.0$) | :white_check_mark: Aprobado por el Gate |
+| **Exactitud Global (Test Accuracy)** | `74.44%` | **`82.56%`** | **`+8.12%`** | Mejora Robusta y Real |
+| **Pérdida en Test (Cross-Entropy Loss)** | `0.8611` | **`0.4333`** | **`-0.4278`** | Pérdida Reducida a la Mitad |
+| **Macro F1-Score** | `64.15%` | **`70.60%`** | **`+6.45%`** | Separabilidad Incrementada |
+| **Confianza en Muestra de Campo (Repilo)** | `79.62%` | **`96.87%`** | **`+17.25%`** | Certidumbre Diagnóstica Alta |
+| **Datos de Imágenes Transferidos por Cooperativas** | `0 bytes` | `0 bytes` | **`0 B`** | Privacidad Total (Cero Fuga) |
+| **Norma de Perturbación ($\|\Delta W\|_2$)** | — | `12.0091` | (Límite $\le 150.0$) | Aprobado por Compuerta |
