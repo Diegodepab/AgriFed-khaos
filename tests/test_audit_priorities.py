@@ -268,3 +268,636 @@ def test_prepare_olivefruit_classification_sanitization(tmp_path: Path) -> None:
     assert counts.get("sana") == 1
     extracted_crops = list((out_dir / "train" / "sana").glob("*.jpg"))
     assert len(extracted_crops) == 1
+
+
+def test_missing_class_masking_preserves_classifier_row() -> None:
+    """Verify that when a class is absent in local partition (N_k=0),
+    its classifier row in weights and bias remains strictly invariant (ΔW_k = 0),
+    even when training with AdamW (active weight decay & momentum) and FedProx prox_mu = 0.1.
+    """
+    import torch.nn as nn
+    from torch.utils.data import DataLoader, TensorDataset
+
+    from agrifed_khaos.wrappers import TorchModuleWrapper
+
+    torch.manual_seed(42)
+    # 3 classes, 4 input features
+    model = nn.Sequential(
+        nn.Linear(4, 8),
+        nn.ReLU(),
+        nn.Linear(8, 3),  # Classifier head: weight shape (3, 8), bias shape (3,)
+    )
+
+    # Save initial baseline weights
+    base_head_weight = model[2].weight.detach().clone()
+    base_head_bias = model[2].bias.detach().clone()
+
+    optimizer = torch.optim.AdamW(model.parameters(), lr=0.05, weight_decay=1e-2)
+    criterion = nn.CrossEntropyLoss()
+
+    wrapper = TorchModuleWrapper(
+        module=model,
+        optimizer=optimizer,
+        criterion=criterion,
+        device="cpu",
+    )
+
+    # Dataset containing ONLY classes 0 and 1. Class 2 is unobserved (N_2 = 0)
+    x = torch.randn(20, 4)
+    y = torch.tensor([0, 1] * 10)
+    dataset = TensorDataset(x, y)
+    loader = DataLoader(dataset, batch_size=4, shuffle=True)
+
+    base_params = wrapper.get_parameters()
+
+    stats = wrapper.train_local_epoch(
+        loader,
+        epochs=3,
+        prox_mu=0.1,  # Active FedProx regularization
+        reference_parameters=base_params,
+        missing_classes=[2],
+    )
+    assert stats.examples == 60  # 20 samples * 3 epochs
+
+    final_head_weight = model[2].weight.detach()
+    final_head_bias = model[2].bias.detach()
+
+    # Classes 0 and 1 must have been updated by gradients
+    assert not torch.allclose(final_head_weight[0], base_head_weight[0])
+    assert not torch.allclose(final_head_weight[1], base_head_weight[1])
+
+    # Class 2 row and bias MUST be exactly identical (zero change: ΔW_2 = 0, Δb_2 = 0)
+    assert torch.allclose(final_head_weight[2], base_head_weight[2], atol=1e-7)
+    assert torch.allclose(final_head_bias[2], base_head_bias[2], atol=1e-7)
+
+
+def test_serve_dynamic_img_size_and_calibrated_thresholds(tmp_path: Path) -> None:
+    """Verify serve.py respects bundle img_size and applies calibrated thresholds."""
+    import io
+
+    from PIL import Image
+    from starlette.testclient import TestClient
+
+    from agrifed_khaos.models import build_model, save_checkpoint_bundle
+    from scripts.serve import create_app
+
+    # Build and save a dummy 2-class checkpoint bundle
+    model = build_model("resnet18", num_classes=2, pretrained=False)
+    bundle_meta = {
+        "architecture": "resnet18",
+        "num_classes": 2,
+        "classes": ["sana", "defectuosa"],
+        "img_size": [128, 128],
+        "calibrated_thresholds": {
+            "calibrated_youden": {"optimal_threshold": 0.85}
+        },
+    }
+    model_path = tmp_path / "model_bundle.pt"
+    meta_path = tmp_path / "metadata.json"
+    save_checkpoint_bundle(model_path, model.state_dict(), bundle_meta)
+
+    app = create_app(str(model_path), str(meta_path), architecture="resnet18")
+    client = TestClient(app)
+
+    # 1. Health check returns dynamic bundle metadata
+    resp_health = client.get("/health")
+    assert resp_health.status_code == 200
+    data_health = resp_health.json()
+    assert data_health["img_size"] == [128, 128]
+    assert data_health["calibrated_thresholds"]["calibrated_youden"]["optimal_threshold"] == 0.85
+
+    # 2. Predict endpoint executes calibrated threshold routing
+    dummy_img = Image.new("RGB", (100, 100), color="blue")
+    buf = io.BytesIO()
+    dummy_img.save(buf, format="JPEG")
+    buf.seek(0)
+
+    resp_pred = client.post(
+        "/predict",
+        files={"file": ("test.jpg", buf, "image/jpeg")},
+    )
+    assert resp_pred.status_code == 200
+    data_pred = resp_pred.json()
+    assert data_pred["threshold_applied"] == "calibrated"
+    assert data_pred["predicted_class"] in {"sana", "defectuosa"}
+
+
+def test_serve_multiclass_calibrated_scoring_4_classes(tmp_path: Path) -> None:
+    """Verify that serve.py applies multiclass calibrated score scaling for C >= 2:
+    calibrated_scores[c] = probs[c] / max(tau_c, 1e-6) and alters the prediction vs raw argmax.
+    """
+    import io
+
+    import torch.nn as nn
+    from PIL import Image
+    from starlette.testclient import TestClient
+
+    from agrifed_khaos.models import build_model, save_checkpoint_bundle
+    from scripts.serve import create_app
+
+    classes = ["sana", "roña", "mildiu", "tizón"]
+    calibrated_thresholds = {
+        "sana": 0.05,
+        "roña": 0.80,
+        "mildiu": 0.50,
+        "tizón": 0.50,
+    }
+    bundle_meta = {
+        "architecture": "resnet18",
+        "num_classes": 4,
+        "classes": classes,
+        "img_size": [64, 64],
+        "calibrated_thresholds": calibrated_thresholds,
+    }
+    model = build_model("resnet18", num_classes=4, pretrained=False)
+    model_path = tmp_path / "model_4c.pt"
+    meta_path = tmp_path / "metadata_4c.json"
+    save_checkpoint_bundle(model_path, model.state_dict(), bundle_meta)
+
+    app = create_app(str(model_path), str(meta_path), architecture="resnet18")
+
+    # Mock net to output fixed logits corresponding to probs: [0.25, 0.40, 0.20, 0.15]
+    # Raw argmax would choose class 1 ("roña", prob 0.40)
+    # Calibrated scores:
+    #   sana: 0.25 / 0.05 = 5.0  <-- WINNER
+    #   roña: 0.40 / 0.80 = 0.5
+    #   mildiu: 0.20 / 0.50 = 0.4
+    #   tizón: 0.15 / 0.50 = 0.3
+    class MockNet(nn.Module):
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            target_probs = torch.tensor([[0.25, 0.40, 0.20, 0.15]], dtype=torch.float32)
+            return torch.log(target_probs)
+
+    app.state.net = MockNet()
+    client = TestClient(app)
+
+    dummy_img = Image.new("RGB", (64, 64), color="green")
+    buf = io.BytesIO()
+    dummy_img.save(buf, format="JPEG")
+    buf.seek(0)
+
+    resp_pred = client.post(
+        "/predict",
+        files={"file": ("test.jpg", buf, "image/jpeg")},
+    )
+    assert resp_pred.status_code == 200
+    data = resp_pred.json()
+
+    # Raw argmax would have returned "roña" (40% vs 25% sana)
+    # Calibrated thresholding selects "sana" due to operating threshold (0.05 vs 0.80)
+    assert data["predicted_class"] == "sana"
+    assert data["threshold_applied"] == "calibrated"
+
+
+def test_formal_dp_gaussian_mechanism() -> None:
+    """Verify formal DP: static L2 clipping bound C and independent Gaussian noise."""
+    from agrifed_khaos.wrappers import apply_dp_gaussian_noise
+
+    # Base reference parameters
+    p_ref = [torch.zeros((4, 4), dtype=torch.float32)]
+    # Client parameters with update norm = 10.0
+    p_client = [torch.full((4, 4), 2.5, dtype=torch.float32)]  # norm = sqrt(16 * 6.25) = 10.0
+    delta_init = (p_client[0] - p_ref[0]).norm(p=2).item()
+    assert abs(delta_init - 10.0) < 1e-4
+
+    # Case 1: Pure static clipping (clip_norm=4.0, noise_std=0.0)
+    apply_dp_gaussian_noise(p_client, reference_params=p_ref, clip_norm=4.0, noise_std=0.0)
+    delta_clipped = (p_client[0] - p_ref[0]).norm(p=2).item()
+    assert abs(delta_clipped - 4.0) < 1e-4
+
+    # Case 2: Update below clipping bound (clip_norm=10.0) is not modified when noise_std=0.0
+    p_client_small = [torch.full((4, 4), 0.5, dtype=torch.float32)]  # norm = sqrt(16 * 0.25) = 2.0
+    apply_dp_gaussian_noise(p_client_small, reference_params=p_ref, clip_norm=5.0, noise_std=0.0)
+    delta_small = (p_client_small[0] - p_ref[0]).norm(p=2).item()
+    assert abs(delta_small - 2.0) < 1e-4
+
+    # Case 3: Formal Gaussian noise injection with non-zero std
+    torch.manual_seed(42)
+    p_noisy = [torch.zeros((100, 100), dtype=torch.float32)]
+    apply_dp_gaussian_noise(p_noisy, reference_params=None, clip_norm=2.0, noise_std=0.5)
+    # Expected noise std = clip_norm * noise_std = 2.0 * 0.5 = 1.0
+    sample_std = p_noisy[0].std().item()
+    assert abs(sample_std - 1.0) < 0.05
+
+
+def test_dp_gaussian_and_adaptive_rms_noise_immunity_for_batchnorm() -> None:
+    """Verify that BatchNorm buffers are strictly immune to noise perturbation
+    and that global L2 clipping norm is calculated jointly.
+    """
+    from agrifed_khaos.wrappers import apply_adaptive_rms_noise, apply_dp_gaussian_noise
+
+    # Setup weights and BN buffers
+    w1 = torch.ones((10, 10), dtype=torch.float32)
+    w2 = torch.ones((5, 5), dtype=torch.float32)
+    bn_mean = torch.tensor([1.5, 2.5], dtype=torch.float32)
+    bn_var = torch.tensor([0.8, 1.2], dtype=torch.float32)
+    bn_count = torch.tensor(100, dtype=torch.int64)
+
+    param_dict = {
+        "conv1.weight": w1,
+        "fc.weight": w2,
+        "bn1.running_mean": bn_mean,
+        "bn1.running_var": bn_var,
+        "bn1.num_batches_tracked": bn_count,
+    }
+
+    # Base reference
+    ref_dict = {
+        "conv1.weight": torch.zeros((10, 10), dtype=torch.float32),
+        "fc.weight": torch.zeros((5, 5), dtype=torch.float32),
+        "bn1.running_mean": bn_mean.clone(),
+        "bn1.running_var": bn_var.clone(),
+        "bn1.num_batches_tracked": bn_count.clone(),
+    }
+
+    # 1. Apply formal DP Gaussian mechanism
+    # Initial joint delta norm = sqrt(100 * 1^2 + 25 * 1^2) = sqrt(125) ~ 11.1803
+    orig_norm = apply_dp_gaussian_noise(
+        param_dict,
+        reference_parameters=ref_dict,
+        clip_norm=5.0,
+        noise_std=0.2,
+    )
+    assert abs(orig_norm - (125.0**0.5)) < 1e-3
+
+    # Trainable weights have been modified by clipping and noise
+    assert not torch.equal(param_dict["conv1.weight"], torch.ones((10, 10)))
+    assert not torch.equal(param_dict["fc.weight"], torch.ones((5, 5)))
+
+    # BatchNorm buffers MUST be bit-for-bit identical (zero perturbation)
+    assert torch.equal(param_dict["bn1.running_mean"], ref_dict["bn1.running_mean"])
+    assert torch.equal(param_dict["bn1.running_var"], ref_dict["bn1.running_var"])
+    assert torch.equal(param_dict["bn1.num_batches_tracked"], ref_dict["bn1.num_batches_tracked"])
+
+    # 2. Apply adaptive RMS noise
+    apply_adaptive_rms_noise(param_dict, noise_std=0.1)
+    # BN buffers remain bit-for-bit identical
+    assert torch.equal(param_dict["bn1.running_mean"], ref_dict["bn1.running_mean"])
+    assert torch.equal(param_dict["bn1.running_var"], ref_dict["bn1.running_var"])
+    assert torch.equal(param_dict["bn1.num_batches_tracked"], ref_dict["bn1.num_batches_tracked"])
+
+
+def test_client_trainer_canonical_class_remapping_and_missing_class(tmp_path: Path) -> None:
+    """Verify that client_trainer re-maps ImageFolder alphabetized targets against
+    the canonical class list of the base model, preserving missing class rows (ΔW_k = 0).
+    """
+    import subprocess
+    import sys
+
+    from PIL import Image
+
+    from agrifed_khaos.models import build_model, load_checkpoint_bundle, save_checkpoint_bundle
+
+    # 1. Base model has 3 canonical classes: ["clase_a", "clase_b", "clase_c"]
+    base_model = build_model("resnet18", num_classes=3)
+    base_meta = {
+        "architecture": "resnet18",
+        "num_classes": 3,
+        "classes": ["clase_a", "clase_b", "clase_c"],
+        "img_size": [3, 32, 32],
+    }
+    base_pt = tmp_path / "base_model.pt"
+    save_checkpoint_bundle(base_pt, base_model.state_dict(), base_meta)
+
+    # 2. Client data contains ONLY folders "clase_b" and "clase_c"
+    # ImageFolder naturally indexes clase_b -> 0, clase_c -> 1
+    # Canonical index must be clase_b -> 1, clase_c -> 2, missing -> 0
+    client_dir = tmp_path / "client_data"
+    for c_name in ["clase_b", "clase_c"]:
+        c_dir = client_dir / c_name
+        c_dir.mkdir(parents=True)
+        for i in range(2):
+            im = Image.new("RGB", (32, 32), color="blue" if c_name == "clase_b" else "red")
+            im.save(c_dir / f"img_{i}.png")
+
+    client_pt = tmp_path / "client_update.pt"
+    cmd = [
+        sys.executable,
+        "scripts/client_trainer.py",
+        "--data-dir",
+        str(client_dir),
+        "--weights-in",
+        str(base_pt),
+        "--weights-out",
+        str(client_pt),
+        "--epochs",
+        "1",
+        "--batch-size",
+        "2",
+        "--lr",
+        "0.01",
+        "--head-only",
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+
+    # Verify stdout detected missing classes: [0]
+    assert "[0]" in res.stdout
+
+    # Verify client update bundle
+    client_state, client_meta = load_checkpoint_bundle(client_pt)
+    assert client_meta["classes"] == ["clase_a", "clase_b", "clase_c"]
+    assert client_meta["missing_classes"] == [0]
+
+    # Row 0 (clase_a) must be exactly identical to base model (unaltered)
+    base_fc_w = base_model.state_dict()["fc.weight"]
+    base_fc_b = base_model.state_dict()["fc.bias"]
+    assert torch.equal(client_state["fc.weight"][0], base_fc_w[0])
+    assert torch.equal(client_state["fc.bias"][0], base_fc_b[0])
+
+    # Rows 1 and 2 (clase_b and clase_c) must have updated
+    assert not torch.equal(client_state["fc.weight"][1], base_fc_w[1])
+    assert not torch.equal(client_state["fc.weight"][2], base_fc_w[2])
+
+
+def test_dynamic_class_expansion_client_and_aggregation(tmp_path: Path) -> None:
+    """Verify end-to-end dynamic class expansion (--allow-new-classes) across
+    client training and server aggregation.
+    """
+    import subprocess
+    import sys
+
+    from PIL import Image
+
+    from agrifed_khaos.models import build_model, load_checkpoint_bundle, save_checkpoint_bundle
+
+    # 1. Base model with 3 classes
+    base_model = build_model("resnet18", num_classes=3)
+    base_meta = {
+        "architecture": "resnet18",
+        "num_classes": 3,
+        "classes": ["clase_a", "clase_b", "clase_c"],
+        "img_size": [3, 32, 32],
+    }
+    base_pt = tmp_path / "base_model.pt"
+    save_checkpoint_bundle(base_pt, base_model.state_dict(), base_meta)
+
+    # 2. Client 1 introduces a new class: "clase_d" (has clase_b and clase_d)
+    c1_dir = tmp_path / "c1_data"
+    for c_name in ["clase_b", "clase_d"]:
+        d = c1_dir / c_name
+        d.mkdir(parents=True)
+        for i in range(2):
+            Image.new("RGB", (32, 32), color="green").save(d / f"img_{i}.png")
+
+    c1_pt = tmp_path / "c1_update.pt"
+    # Running client 1 with --allow-new-classes
+    cmd1 = [
+        sys.executable,
+        "scripts/client_trainer.py",
+        "--data-dir",
+        str(c1_dir),
+        "--weights-in",
+        str(base_pt),
+        "--weights-out",
+        str(c1_pt),
+        "--epochs",
+        "1",
+        "--batch-size",
+        "2",
+        "--lr",
+        "0.01",
+        "--head-only",
+        "--allow-new-classes",
+    ]
+    subprocess.run(cmd1, capture_output=True, text=True, check=True)
+
+    c1_state, c1_meta = load_checkpoint_bundle(c1_pt)
+    assert c1_meta["classes"] == ["clase_a", "clase_b", "clase_c", "clase_d"]
+    assert c1_state["fc.weight"].shape[0] == 4
+
+    # 3. Client 2 has only standard base classes: clase_a and clase_b
+    c2_dir = tmp_path / "c2_data"
+    for c_name in ["clase_a", "clase_b"]:
+        d = c2_dir / c_name
+        d.mkdir(parents=True)
+        for i in range(2):
+            Image.new("RGB", (32, 32), color="yellow").save(d / f"img_{i}.png")
+
+    c2_pt = tmp_path / "c2_update.pt"
+    cmd2 = [
+        sys.executable,
+        "scripts/client_trainer.py",
+        "--data-dir",
+        str(c2_dir),
+        "--weights-in",
+        str(base_pt),
+        "--weights-out",
+        str(c2_pt),
+        "--epochs",
+        "1",
+        "--batch-size",
+        "2",
+        "--lr",
+        "0.01",
+        "--head-only",
+    ]
+    subprocess.run(cmd2, capture_output=True, text=True, check=True)
+
+    c2_state, c2_meta = load_checkpoint_bundle(c2_pt)
+    assert c2_meta["classes"] == ["clase_a", "clase_b", "clase_c"]
+    assert c2_state["fc.weight"].shape[0] == 3
+
+    # 4. Aggregation with --allow-new-classes
+    global_pt = tmp_path / "global_expanded.pt"
+    agg_cmd = [
+        sys.executable,
+        "scripts/aggregate.py",
+        "--base-model",
+        str(base_pt),
+        "--client-weights",
+        str(c1_pt),
+        str(c2_pt),
+        "--output",
+        str(global_pt),
+        "--metadata",
+        str(tmp_path / "agg_meta.json"),
+        "--eta",
+        "0.6",
+        "--allow-new-classes",
+    ]
+    subprocess.run(agg_cmd, capture_output=True, text=True, check=True)
+
+    # 5. Verify aggregated global model
+    global_state, global_meta = load_checkpoint_bundle(global_pt)
+    assert global_meta["classes"] == ["clase_a", "clase_b", "clase_c", "clase_d"]
+    assert global_meta["num_classes"] == 4
+    assert global_state["fc.weight"].shape == (4, base_model.fc.in_features)
+    assert global_state["fc.bias"].shape == (4,)
+
+
+def test_deterministic_row_initialization_between_client_and_server() -> None:
+    """Verify that init_deterministic_classifier_row produces 100% bit-for-bit identical
+    initialization between client module expansion and server state_dict expansion,
+    preventing RNG divergence from contaminating Delta W norms.
+    """
+    from agrifed_khaos.models import (
+        build_model,
+        expand_model_classifier,
+        expand_state_dict_classifier,
+        init_deterministic_classifier_row,
+    )
+
+    # 1. Direct row test
+    w1, b1 = init_deterministic_classifier_row(512, class_name="patologia_x", row_idx=3)
+    w2, b2 = init_deterministic_classifier_row(512, class_name="patologia_x", row_idx=3)
+    assert torch.equal(w1, w2)
+    assert b1 is not None and b2 is not None and torch.equal(b1, b2)
+
+    # Different class name must produce different weights
+    w3, b3 = init_deterministic_classifier_row(512, class_name="patologia_y", row_idx=3)
+    assert not torch.equal(w1, w3)
+
+    # 2. Client expand_model vs Server expand_state_dict parity
+    base_model = build_model("resnet18", num_classes=2)
+    state_dict = {k: v.clone() for k, v in base_model.state_dict().items()}
+
+    expanded_classes = ["clase_0", "clase_1", "nueva_patologia"]
+    expand_model_classifier(base_model, new_num_classes=3, class_names=expanded_classes)
+    expand_state_dict_classifier(state_dict, new_num_classes=3, class_names=expanded_classes)
+
+    # The newly initialized row for "nueva_patologia" must be bit-for-bit identical
+    client_w = base_model.fc.weight[2].detach()
+    server_w = state_dict["fc.weight"][2]
+    client_b = base_model.fc.bias[2].detach()
+    server_b = state_dict["fc.bias"][2]
+
+    assert torch.equal(client_w, server_w)
+    assert torch.equal(client_b, server_b)
+
+
+def test_disjoint_new_class_collision_isolation(tmp_path: Path) -> None:
+    """Verify that when Client 1 introduces 'clase_d' and Client 2 introduces 'clase_e'
+    simultaneously over base model (C=3 -> C=5), align_client_head maps by nominal class name,
+    and row-wise aggregation isolates each class update without collision or dilution.
+    """
+    import subprocess
+    import sys
+
+    from PIL import Image
+
+    from agrifed_khaos.models import build_model, load_checkpoint_bundle, save_checkpoint_bundle
+
+    # 1. Base model with 3 classes
+    base_model = build_model("resnet18", num_classes=3)
+    base_meta = {
+        "architecture": "resnet18",
+        "num_classes": 3,
+        "classes": ["clase_a", "clase_b", "clase_c"],
+        "img_size": [3, 32, 32],
+    }
+    base_pt = tmp_path / "base_model.pt"
+    save_checkpoint_bundle(base_pt, base_model.state_dict(), base_meta)
+
+    # 2. Client 1 has clase_b, clase_c, and NEW class "clase_d" (total 4 classes)
+    c1_dir = tmp_path / "c1_data"
+    for c_name in ["clase_b", "clase_c", "clase_d"]:
+        d = c1_dir / c_name
+        d.mkdir(parents=True)
+        for i in range(2):
+            Image.new("RGB", (32, 32), color="green").save(d / f"img_{i}.png")
+
+    c1_pt = tmp_path / "c1_update.pt"
+    cmd1 = [
+        sys.executable,
+        "scripts/client_trainer.py",
+        "--data-dir",
+        str(c1_dir),
+        "--weights-in",
+        str(base_pt),
+        "--weights-out",
+        str(c1_pt),
+        "--epochs",
+        "1",
+        "--batch-size",
+        "2",
+        "--lr",
+        "0.01",
+        "--head-only",
+        "--allow-new-classes",
+    ]
+    subprocess.run(cmd1, capture_output=True, text=True, check=True)
+
+    c1_state, c1_meta = load_checkpoint_bundle(c1_pt)
+    assert c1_meta["classes"] == ["clase_a", "clase_b", "clase_c", "clase_d"]
+    assert c1_state["fc.weight"].shape[0] == 4
+
+    # 3. Client 2 has clase_a, clase_b, and NEW class "clase_e" (total 4 classes)
+    # Notice: In Client 2, "clase_e" is at local index 3, exactly where Client 1 had "clase_d"!
+    c2_dir = tmp_path / "c2_data"
+    for c_name in ["clase_a", "clase_b", "clase_e"]:
+        d = c2_dir / c_name
+        d.mkdir(parents=True)
+        for i in range(2):
+            Image.new("RGB", (32, 32), color="yellow").save(d / f"img_{i}.png")
+
+    c2_pt = tmp_path / "c2_update.pt"
+    cmd2 = [
+        sys.executable,
+        "scripts/client_trainer.py",
+        "--data-dir",
+        str(c2_dir),
+        "--weights-in",
+        str(base_pt),
+        "--weights-out",
+        str(c2_pt),
+        "--epochs",
+        "1",
+        "--batch-size",
+        "2",
+        "--lr",
+        "0.01",
+        "--head-only",
+        "--allow-new-classes",
+    ]
+    subprocess.run(cmd2, capture_output=True, text=True, check=True)
+
+    c2_state, c2_meta = load_checkpoint_bundle(c2_pt)
+    assert c2_meta["classes"] == ["clase_a", "clase_b", "clase_c", "clase_e"]
+    assert c2_state["fc.weight"].shape[0] == 4
+
+    # 4. Aggregation with --allow-new-classes and eta=1.0 (pure gradient step)
+    global_pt = tmp_path / "global_expanded_5.pt"
+    agg_cmd = [
+        sys.executable,
+        "scripts/aggregate.py",
+        "--base-model",
+        str(base_pt),
+        "--client-weights",
+        str(c1_pt),
+        str(c2_pt),
+        "--output",
+        str(global_pt),
+        "--metadata",
+        str(tmp_path / "agg_meta.json"),
+        "--eta",
+        "1.0",
+        "--allow-new-classes",
+    ]
+    subprocess.run(agg_cmd, capture_output=True, text=True, check=True)
+
+    # 5. Verify aggregated global model (5 classes: a, b, c, d, e)
+    global_state, global_meta = load_checkpoint_bundle(global_pt)
+    assert global_meta["classes"] == [
+        "clase_a",
+        "clase_b",
+        "clase_c",
+        "clase_d",
+        "clase_e",
+    ]
+    assert global_meta["num_classes"] == 5
+    assert global_state["fc.weight"].shape == (5, base_model.fc.in_features)
+    assert global_state["fc.bias"].shape == (5,)
+
+    # Row 3 ("clase_d") must match Client 1's trained row exactly (at Client 1 index 3)
+    assert torch.allclose(global_state["fc.weight"][3], c1_state["fc.weight"][3], atol=1e-5)
+    assert torch.allclose(global_state["fc.bias"][3], c1_state["fc.bias"][3], atol=1e-5)
+
+    # Row 4 ("clase_e") must match Client 2's trained row exactly (at Client 2 index 3)
+    assert torch.allclose(global_state["fc.weight"][4], c2_state["fc.weight"][3], atol=1e-5)
+    assert torch.allclose(global_state["fc.bias"][4], c2_state["fc.bias"][3], atol=1e-5)
+
+    # Rows 3 and 4 must be distinct (no cross-contamination or positional collision)
+    assert not torch.allclose(global_state["fc.weight"][3], global_state["fc.weight"][4])
+
+
+

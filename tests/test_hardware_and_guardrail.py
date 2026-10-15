@@ -693,8 +693,10 @@ def test_frozen_batchnorm_invariance_in_wrapper_and_client_trainer(tmp_path: Pat
     res_train = subprocess.run(cmd_train, capture_output=True, text=True)
     assert res_train.returncode == 0, f"client_trainer failed: {res_train.stderr}"
 
-    client_state = torch.load(str(client_pt), weights_only=True)
-    base_state = torch.load(str(base_pt), weights_only=True)
+    from agrifed_khaos.models import load_checkpoint_bundle
+
+    client_state, _ = load_checkpoint_bundle(client_pt)
+    base_state, _ = load_checkpoint_bundle(base_pt)
 
     # Verify Frozen BatchNorm in client checkpoint
     assert torch.equal(client_state["bn1.running_mean"], base_state["bn1.running_mean"])
@@ -717,7 +719,7 @@ def test_frozen_batchnorm_invariance_in_wrapper_and_client_trainer(tmp_path: Pat
     res_agg = subprocess.run(cmd_agg, capture_output=True, text=True)
     assert res_agg.returncode == 0, f"aggregate.py failed: {res_agg.stderr}"
 
-    global_state = torch.load(str(global_pt), weights_only=True)
+    global_state, _ = load_checkpoint_bundle(global_pt)
     # Global model MUST retain exact base model BatchNorm statistics
     assert torch.equal(global_state["bn1.running_mean"], base_state["bn1.running_mean"])
     assert torch.equal(global_state["bn1.running_var"], base_state["bn1.running_var"])
@@ -732,7 +734,7 @@ def test_multi_client_weighted_aggregation(tmp_path: Path) -> None:
 
     import torch
 
-    from agrifed_khaos.models import build_model
+    from agrifed_khaos.models import build_model, load_checkpoint_bundle
     from scripts.aggregate import compute_manifest_hmac, compute_sha256
 
     # 1. Setup Base Model
@@ -838,7 +840,7 @@ def test_multi_client_weighted_aggregation(tmp_path: Path) -> None:
 
     # 5. Verify Exact Mathematical Weighted Incorporations:
     # delta_expected = (80/100) * (+0.005) + (20/100) * (-0.010) = +0.004 - 0.002 = +0.002
-    global_state = torch.load(str(global_pt), weights_only=True)
+    global_state, _ = load_checkpoint_bundle(global_pt)
     for k in trainable_keys:
         if base_state[k].dtype.is_floating_point:
             expected_tensor = base_state[k] + 0.002
