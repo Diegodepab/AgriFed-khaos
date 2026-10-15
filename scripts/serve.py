@@ -273,6 +273,25 @@ def create_app(
             "threshold_applied": "calibrated" if calibrated_thresholds else "nominal_argmax",
         }
 
+    @app.get("/")
+    def root() -> dict[str, Any]:
+        _resolve_and_reload_model()
+        return {
+            "name": "AgriFed-KHAOS REST Inference Server",
+            "status": "online",
+            "active_model": str(active_model_p) if active_model_p else str(model_p),
+            "architecture": arch,
+            "classes": classes,
+            "endpoints": {
+                "health": "GET /health",
+                "interactive_docs": "GET /docs",
+                "predict": "POST /predict",
+                "predict_batch": "POST /predict/batch",
+                "download_model": "GET /download-model",
+                "submit_update": "POST /submit-update",
+            },
+        }
+
     @app.get("/health")
     def health() -> dict[str, Any]:
         _resolve_and_reload_model()
