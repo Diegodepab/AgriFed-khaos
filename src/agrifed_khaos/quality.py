@@ -377,3 +377,50 @@ def save_canary_history(file_path: Path, history: list[CanaryRoundRecord]) -> No
     file_path.write_text(json.dumps(serialized, indent=2), encoding="utf-8")
 
 
+def compute_multiclass_calibrated_thresholds(
+    y_true: list[int] | Any,
+    y_probs: list[list[float]] | Any,
+    class_names: list[str],
+) -> dict[str, float]:
+    """Compute optimal One-vs-Rest (OvR) decision thresholds maximizing F1 per class.
+
+    Returns:
+        Mapping of class_name -> optimal_threshold (tau_c).
+    """
+    import numpy as np
+
+    y_arr = np.asarray(y_true, dtype=int)
+    probs_arr = np.asarray(y_probs, dtype=float)
+    thresholds = np.linspace(0.05, 0.95, 91)
+    tau_map: dict[str, float] = {}
+
+    for c_idx, c_name in enumerate(class_names):
+        p_c = probs_arr[:, c_idx]
+        y_c = (y_arr == c_idx).astype(int)
+
+        best_f1 = -1.0
+        best_tau = 0.50
+        for tau in thresholds:
+            preds_c = (p_c >= tau).astype(int)
+            tp = int(((preds_c == 1) & (y_c == 1)).sum())
+            fp = int(((preds_c == 1) & (y_c == 0)).sum())
+            fn = int(((preds_c == 0) & (y_c == 1)).sum())
+
+            precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+            recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+            f1 = (
+                (2.0 * precision * recall / (precision + recall))
+                if (precision + recall) > 0.0
+                else 0.0
+            )
+
+            if f1 > best_f1:
+                best_f1 = f1
+                best_tau = float(tau)
+
+        tau_map[c_name] = round(best_tau, 4)
+
+    return tau_map
+
+
+

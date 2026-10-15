@@ -105,10 +105,11 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def get_transforms() -> transforms.Compose:
+def get_transforms(img_size: tuple[int, int] | int = (224, 224)) -> transforms.Compose:
+    size = (img_size, img_size) if isinstance(img_size, int) else img_size
     return transforms.Compose(
         [
-            transforms.Resize((224, 224)),
+            transforms.Resize(size),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
@@ -307,29 +308,48 @@ def main() -> None:
         print(f"[!] Error: Model file not found: {model_path}", file=sys.stderr)
         sys.exit(1)
 
-    # 1. Resolve classes and architecture from metadata or dataset
-    from agrifed_khaos.models import build_model, get_cam_target_layer
+    # 1. Resolve classes and architecture from bundle, metadata, or dataset
+    from agrifed_khaos.models import (
+        build_model,
+        get_cam_target_layer,
+        load_checkpoint_bundle,
+        save_checkpoint_bundle,
+    )
 
-    classes: list[str] = []
-    arch = args.arch
+    state, bundle_meta = load_checkpoint_bundle(model_path, device=device)
+
+    classes: list[str] = bundle_meta.get("classes", [])
+    arch = args.arch or bundle_meta.get("architecture")
     meta_path = Path(args.metadata)
+    meta: dict[str, Any] = {}
     if meta_path.is_file():
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        classes = meta.get("classes", [])
-        if not arch:
-            arch = meta.get("architecture")
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            if not classes:
+                classes = meta.get("classes", [])
+            if not arch:
+                arch = meta.get("architecture")
+        except Exception:
+            meta = {}
 
     if not classes and args.data_dir:
         classes = sorted([d.name for d in Path(args.data_dir).iterdir() if d.is_dir()])
 
-    num_classes = len(classes) if classes else 9
+    num_classes = len(classes) if classes else (bundle_meta.get("num_classes") or 9)
     arch = arch or "resnet18"
     model = build_model(architecture=arch, num_classes=num_classes).to(device)
-    state = torch.load(str(model_path), map_location=device, weights_only=True)
     model.load_state_dict(state)
     model.eval()
 
-    eval_tf = get_transforms()
+    raw_img_size = bundle_meta.get("img_size") or (meta.get("img_size") if meta else 224)
+    if isinstance(raw_img_size, int):
+        img_size_tuple = (raw_img_size, raw_img_size)
+    elif isinstance(raw_img_size, (list, tuple)) and len(raw_img_size) == 2:
+        img_size_tuple = (int(raw_img_size[0]), int(raw_img_size[1]))
+    else:
+        img_size_tuple = (224, 224)
+
+    eval_tf = get_transforms(img_size=img_size_tuple)
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -389,6 +409,17 @@ def main() -> None:
     if args.data_dir:
         data_path = Path(args.data_dir)
         dataset = datasets.ImageFolder(str(data_path), transform=eval_tf)
+        if classes:
+            canonical_set = set(classes)
+            dataset.samples = [
+                (p, classes.index(dataset.classes[t]))
+                for p, t in dataset.samples
+                if dataset.classes[t] in canonical_set
+            ]
+            dataset.targets = [t for _, t in dataset.samples]
+            class_names = list(classes)
+        else:
+            class_names = list(dataset.classes)
         loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False)
 
         total_loss = 0.0
@@ -418,7 +449,6 @@ def main() -> None:
 
         avg_loss = total_loss / max(total, 1)
         acc = (correct / max(total, 1)) * 100
-        class_names = dataset.classes
 
         # Macro metrics
         macro_prec, macro_rec, macro_f1, _ = precision_recall_fscore_support(
@@ -675,6 +705,33 @@ def main() -> None:
                     f"[*] Multiclass OvR Threshold Calibration computed for "
                     f"{len(class_names)} classes."
                 )
+
+        if calibration_results is not None:
+            if len(class_names) == 2:
+                cal_f1_val = calibration_results.get("calibrated_f1", {})
+                cal_j_val = calibration_results.get("calibrated_youden", {})
+                tau_map = {
+                    class_names[0]: 0.50,
+                    class_names[1]: float(cal_f1_val.get("optimal_threshold", 0.50)),
+                    "calibrated_f1": cal_f1_val,
+                    "calibrated_youden": cal_j_val,
+                }
+            else:
+                tau_map = {
+                    c_name: float(c_res["optimal_threshold"])
+                    for c_name, c_res in calibration_results.items()
+                }
+
+            bundle_meta["calibrated_thresholds"] = tau_map
+            save_checkpoint_bundle(model_path, state, bundle_meta)
+            print(f"[*] Injected calibrated thresholds into checkpoint bundle: {model_path}")
+            if meta_path.is_file():
+                try:
+                    meta["calibrated_thresholds"] = tau_map
+                    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+                    print(f"[*] Updated metadata mirror with calibrated thresholds: {meta_path}")
+                except Exception as exc:
+                    print(f"[!] Warning: Failed to update metadata mirror: {exc}", file=sys.stderr)
 
         # 4. Export Comprehensive JSON Evaluation Report
         report_data: dict[str, Any] = {

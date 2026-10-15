@@ -55,8 +55,6 @@ def create_app(
     metadata_path: str,
     architecture: str | None = None,
 ) -> FastAPI:
-    from agrifed_khaos.models import build_model
-
     app = FastAPI(
         title="AgriFed-KHAOS Inference API",
         description="Zero-dependency REST service for vision model inference & diagnosis",
@@ -71,33 +69,62 @@ def create_app(
     )
 
     device = torch.device("cpu")
-    meta_p = Path(metadata_path)
-    classes: list[str] = []
-    arch = architecture
-    if meta_p.is_file():
-        meta = json.loads(meta_p.read_text(encoding="utf-8"))
-        classes = meta.get("classes", [])
-        if not arch:
-            arch = meta.get("architecture")
-
-    num_classes = len(classes) if classes else 9
-    arch = arch or "resnet18"
-    net = build_model(architecture=arch, num_classes=num_classes).to(device)
     model_p = Path(model_path)
+    meta_p = Path(metadata_path)
+
+    from agrifed_khaos.models import build_model, load_checkpoint_bundle
+
+    bundle_meta: dict[str, Any] = {}
+    state: dict[str, Any] = {}
     model_sha256 = ""
+
     if model_p.is_file():
-        state = torch.load(str(model_p), map_location=device, weights_only=True)
-        net.load_state_dict(state)
-        net.eval()
+        state, bundle_meta = load_checkpoint_bundle(model_p, device=device)
         sha = hashlib.sha256()
         with model_p.open("rb") as handle:
             while chunk := handle.read(65536):
                 sha.update(chunk)
         model_sha256 = sha.hexdigest()
 
+    meta: dict[str, Any] = {}
+    if meta_p.is_file():
+        try:
+            meta = json.loads(meta_p.read_text(encoding="utf-8"))
+        except Exception:
+            meta = {}
+
+    classes: list[str] = bundle_meta.get("classes") or meta.get("classes") or []
+    arch = (
+        architecture
+        or bundle_meta.get("architecture")
+        or meta.get("architecture")
+        or "resnet18"
+    )
+    num_classes = (
+        bundle_meta.get("num_classes")
+        or meta.get("num_classes")
+        or (len(classes) if classes else 9)
+    )
+    calibrated_thresholds = bundle_meta.get("calibrated_thresholds") or meta.get(
+        "calibrated_thresholds"
+    )
+
+    net = build_model(architecture=arch, num_classes=num_classes).to(device)
+    if state:
+        net.load_state_dict(state)
+        net.eval()
+
+    raw_img_size = bundle_meta.get("img_size") or meta.get("img_size") or 224
+    if isinstance(raw_img_size, int):
+        img_size_tuple = (raw_img_size, raw_img_size)
+    elif isinstance(raw_img_size, (list, tuple)) and len(raw_img_size) == 2:
+        img_size_tuple = (int(raw_img_size[0]), int(raw_img_size[1]))
+    else:
+        img_size_tuple = (224, 224)
+
     transform = transforms.Compose(
         [
-            transforms.Resize((224, 224)),
+            transforms.Resize(img_size_tuple),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
@@ -122,8 +149,61 @@ def create_app(
         with torch.no_grad():
             logits = net(tensor)
             probs = F.softmax(logits, dim=1)[0]
+
+            # Apply calibrated decision thresholds if present
             pred_idx = int(probs.argmax().item())
             confidence = float(probs[pred_idx].item())
+
+            if calibrated_thresholds:
+                # 1. Exact binary thresholding if explicit single positive-class threshold
+                if num_classes == 2 and any(
+                    k in calibrated_thresholds
+                    for k in ("calibrated_youden", "calibrated_f1", "optimal_threshold")
+                ):
+                    tau_pos: float | None = None
+                    if "calibrated_youden" in calibrated_thresholds:
+                        opt = calibrated_thresholds["calibrated_youden"].get("optimal_threshold")
+                        if opt is not None:
+                            tau_pos = float(opt)
+                    elif "calibrated_f1" in calibrated_thresholds:
+                        opt = calibrated_thresholds["calibrated_f1"].get("optimal_threshold")
+                        if opt is not None:
+                            tau_pos = float(opt)
+                    elif "optimal_threshold" in calibrated_thresholds:
+                        opt = calibrated_thresholds.get("optimal_threshold")
+                        if opt is not None:
+                            tau_pos = float(opt)
+
+                    if tau_pos is not None:
+                        pred_idx = 1 if float(probs[1].item()) >= tau_pos else 0
+                        confidence = float(probs[pred_idx].item())
+                else:
+                    # 2. General C >= 2 calibrated score scaling:
+                    # calibrated_scores[c] = probs[c] / max(tau_c, 1e-6)
+                    calibrated_scores: list[float] = []
+                    for c in range(num_classes):
+                        c_name = classes[c] if c < len(classes) else f"class_{c}"
+                        tau_c = 0.50
+                        if isinstance(calibrated_thresholds, dict):
+                            val = calibrated_thresholds.get(c_name)
+                            if val is None:
+                                val = calibrated_thresholds.get(str(c))
+                            if val is None:
+                                val = calibrated_thresholds.get(c)
+                            if isinstance(val, dict) and "optimal_threshold" in val:
+                                val = val["optimal_threshold"]
+                            if val is not None and isinstance(val, (int, float)):
+                                tau_c = float(val)
+                        elif isinstance(calibrated_thresholds, (list, tuple)) and c < len(
+                            calibrated_thresholds
+                        ):
+                            tau_c = float(calibrated_thresholds[c])
+
+                        p_c = float(probs[c].item())
+                        calibrated_scores.append(p_c / max(tau_c, 1e-6))
+
+                    pred_idx = int(torch.tensor(calibrated_scores).argmax().item())
+                    confidence = float(probs[pred_idx].item())
 
         pred_class = (
             classes[pred_idx] if classes and pred_idx < len(classes) else f"class_{pred_idx}"
@@ -138,6 +218,7 @@ def create_app(
             "confidence": round(confidence, 4),
             "probabilities": prob_dict,
             "filename": filename,
+            "threshold_applied": "calibrated" if calibrated_thresholds else "nominal_argmax",
         }
 
     @app.get("/health")
@@ -146,8 +227,11 @@ def create_app(
             "status": "online",
             "model_path": str(model_p),
             "model_sha256": model_sha256,
+            "architecture": arch,
             "num_classes": num_classes,
             "classes": classes,
+            "img_size": list(img_size_tuple),
+            "calibrated_thresholds": calibrated_thresholds,
         }
 
     @app.post("/predict")
