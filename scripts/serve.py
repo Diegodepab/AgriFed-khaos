@@ -47,6 +47,13 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Model architecture (default: resolved from metadata.json or 'resnet18')",
     )
+    parser.add_argument(
+        "--device",
+        type=str,
+        choices=["auto", "cpu", "cuda"],
+        default="auto",
+        help="Inference hardware device: auto, cpu, cuda (default: auto)",
+    )
     return parser.parse_args()
 
 
@@ -54,6 +61,7 @@ def create_app(
     model_path: str,
     metadata_path: str,
     architecture: str | None = None,
+    device_name: str = "auto",
 ) -> FastAPI:
     app = FastAPI(
         title="AgriFed-KHAOS Inference API",
@@ -68,7 +76,10 @@ def create_app(
         allow_headers=["*"],
     )
 
-    device = torch.device("cpu")
+    if device_name == "cuda" or (device_name == "auto" and torch.cuda.is_available()):
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
     model_p = Path(model_path)
     meta_p = Path(metadata_path)
 
@@ -288,7 +299,7 @@ def create_app(
 
 def main() -> None:
     args = parse_args()
-    app = create_app(args.model, args.metadata, architecture=args.arch)
+    app = create_app(args.model, args.metadata, architecture=args.arch, device_name=args.device)
     print(f"[*] Starting AgriFed REST Inference Server on {args.host}:{args.port}")
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 

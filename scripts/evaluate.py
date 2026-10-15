@@ -102,6 +102,13 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Model architecture (default: resolved from metadata.json or 'resnet18')",
     )
+    parser.add_argument(
+        "--device",
+        type=str,
+        choices=["auto", "cpu", "cuda"],
+        default="auto",
+        help="Evaluation hardware device: auto, cpu, cuda (default: auto)",
+    )
     return parser.parse_args()
 
 
@@ -301,7 +308,10 @@ def calibrate_multiclass_ovr_thresholds(
 
 def main() -> None:
     args = parse_args()
-    device = torch.device("cpu")
+    if args.device == "cuda" or (args.device == "auto" and torch.cuda.is_available()):
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
 
     model_path = Path(args.model)
     if not model_path.is_file():

@@ -59,6 +59,19 @@ def parse_args() -> argparse.Namespace:
         help="Use inverse-frequency class weighting in CrossEntropyLoss to counter class skew",
     )
     parser.add_argument(
+        "--img-size",
+        type=int,
+        default=224,
+        help="Input image resolution in pixels (default: 224)",
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        choices=["auto", "cpu", "cuda"],
+        default="auto",
+        help="Hardware accelerator to train on: auto, cpu, cuda (default: auto)",
+    )
+    parser.add_argument(
         "--threads", type=int, default=8, help="PyTorch CPU intra-op threads (default: 8)"
     )
     return parser.parse_args()
@@ -67,7 +80,10 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     torch.set_num_threads(args.threads)
-    device = torch.device("cpu")
+    if args.device == "cuda" or (args.device == "auto" and torch.cuda.is_available()):
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
 
     data_path = Path(args.data_dir)
     if not data_path.is_dir():
@@ -77,7 +93,7 @@ def main() -> None:
     # 1. Inspect classes dynamically from subfolders (Domain-Agnostic)
     transform = transforms.Compose(
         [
-            transforms.Resize((224, 224)),
+            transforms.Resize((args.img_size, args.img_size)),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
             transforms.RandomRotation(15),
@@ -164,7 +180,6 @@ def main() -> None:
     loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=0)
 
     # 3. Initialize Model with ImageNet Pretrained Backbone
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"[*] Base training device: {device.type.upper()}")
     model = build_model(
         architecture=selected_arch, num_classes=num_classes, pretrained=True
@@ -242,7 +257,7 @@ def main() -> None:
         "architecture": selected_arch,
         "num_classes": num_classes,
         "classes": classes,
-        "img_size": 224,
+        "img_size": args.img_size,
         "calibrated_thresholds": None,
         "target_client_tier": args.target_client_tier,
         "selection_mode": "auto" if is_auto else "manual",

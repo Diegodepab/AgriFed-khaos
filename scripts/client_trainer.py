@@ -121,13 +121,23 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional pre-shared secret key to sign client manifest with HMAC-SHA256",
     )
+    parser.add_argument(
+        "--device",
+        type=str,
+        choices=["auto", "cpu", "cuda"],
+        default="auto",
+        help="Training hardware device: auto, cpu, cuda (default: auto)",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     torch.set_num_threads(args.threads)
-    device = torch.device("cpu")
+    if args.device == "cuda" or (args.device == "auto" and torch.cuda.is_available()):
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
 
     weights_in_path = Path(args.weights_in)
     if not weights_in_path.is_file():
@@ -469,10 +479,12 @@ def main() -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     if head_only:
-        saved_state = {k: v for k, v in model.state_dict().items() if is_head_param(k)}
+        saved_state = {
+            k: v.detach().cpu() for k, v in model.state_dict().items() if is_head_param(k)
+        }
         training_scope = "head_only"
     else:
-        saved_state = model.state_dict()
+        saved_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
         training_scope = "full"
 
     base_sha256 = compute_sha256(weights_in_path)
