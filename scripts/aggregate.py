@@ -55,6 +55,8 @@ class ClientUpdate:
         scope: str,
         state_dict: dict[str, torch.Tensor] | None,
         target_keys: list[str],
+        classes: list[str] | None = None,
+        num_classes: int | None = None,
     ) -> None:
         self.path = path
         self.meta_path = meta_path
@@ -66,6 +68,8 @@ class ClientUpdate:
         self.scope = scope
         self.state_dict = state_dict
         self.target_keys = target_keys
+        self.classes = classes
+        self.num_classes = num_classes
 
 
 def parse_args() -> argparse.Namespace:
@@ -169,6 +173,11 @@ def parse_args() -> argparse.Namespace:
             "Byzantine inflation (optional)"
         ),
     )
+    parser.add_argument(
+        "--allow-new-classes",
+        action="store_true",
+        help="Allow dynamic classifier expansion and class-incremental federated aggregation",
+    )
     return parser.parse_args()
 
 
@@ -213,6 +222,46 @@ def evaluate_weights(
     return EvaluationStats(examples=total, loss=avg_loss, metrics={"accuracy": acc})
 
 
+def align_client_head(
+    client_state: dict[str, torch.Tensor],
+    client_classes: list[str] | None,
+    base_state: dict[str, torch.Tensor],
+    union_classes: list[str],
+) -> dict[str, torch.Tensor]:
+    """Align and pad client classification head parameters to match base_state/union_classes shape.
+
+    If a client has fewer classes than union_classes, missing classes are initialized with
+    the exact weights from base_state (implying Delta W = 0 for unseen classes).
+    """
+    if not union_classes:
+        return client_state
+
+    for k, b_t in base_state.items():
+        if any(k.startswith(pfx) for pfx in HEAD_PREFIXES) and k in client_state:
+            c_t = client_state[k]
+            if (
+                b_t.dim() in (1, 2)
+                and b_t.dim() == c_t.dim()
+                and b_t.shape[0] == len(union_classes)
+                and (
+                    c_t.shape != b_t.shape
+                    or (client_classes is not None and client_classes != union_classes)
+                )
+            ):
+                padded = b_t.clone()
+                if client_classes:
+                    for local_idx, c_name in enumerate(client_classes):
+                        if c_name in union_classes and local_idx < c_t.shape[0]:
+                            u_idx = union_classes.index(c_name)
+                            padded[u_idx] = c_t[local_idx]
+                else:
+                    min_c = min(c_t.shape[0], b_t.shape[0])
+                    padded[:min_c] = c_t[:min_c]
+                client_state[k] = padded
+
+    return client_state
+
+
 def main() -> None:
     args = parse_args()
     device = torch.device("cpu")
@@ -235,7 +284,12 @@ def main() -> None:
         print("[!] Error: No client parameter files provided.", file=sys.stderr)
         sys.exit(1)
 
-    # Resolve architecture from metadata or CLI
+    from agrifed_khaos.models import load_checkpoint_bundle, save_checkpoint_bundle
+
+    base_state, base_bundle_meta = load_checkpoint_bundle(base_path, device=device)
+    actual_base_sha = compute_sha256(base_path)
+
+    # Resolve architecture from CLI, metadata, or bundle
     arch = args.arch
     if not arch and meta_file.is_file():
         try:
@@ -243,6 +297,8 @@ def main() -> None:
             arch = m_data.get("architecture")
         except Exception:
             pass
+    if not arch:
+        arch = base_bundle_meta.get("architecture")
     arch = arch or "resnet18"
 
     print("=" * 65)
@@ -254,8 +310,48 @@ def main() -> None:
     for cp in client_paths:
         print(f"  • {cp}")
 
-    base_state = torch.load(str(base_path), map_location=device, weights_only=True)
-    actual_base_sha = compute_sha256(base_path)
+    base_classes = list(base_bundle_meta.get("classes", []))
+    if not base_classes and meta_file.is_file():
+        try:
+            m_data = json.loads(meta_file.read_text(encoding="utf-8"))
+            base_classes = list(m_data.get("classes", []))
+        except Exception:
+            pass
+
+    union_classes = list(base_classes)
+    if args.allow_new_classes:
+        from agrifed_khaos.models import expand_state_dict_classifier
+
+        for cp in client_paths:
+            if not cp.is_file():
+                continue
+            try:
+                _, c_bmeta = load_checkpoint_bundle(cp, device=device)
+                c_cls = c_bmeta.get("classes")
+                if not c_cls:
+                    mp = resolve_meta_path(cp)
+                    if mp.is_file():
+                        c_meta_json = json.loads(mp.read_text(encoding="utf-8"))
+                        c_cls = c_meta_json.get("classes")
+                if c_cls:
+                    for c_name in c_cls:
+                        if c_name not in union_classes:
+                            union_classes.append(c_name)
+            except Exception:
+                pass
+
+        if len(union_classes) > len(base_classes):
+            print(
+                f"[*] Dynamic Classifier Expansion (--allow-new-classes): "
+                f"Expanding global model from {len(base_classes)} to {len(union_classes)} classes."
+            )
+            print(f"    Base classes:  {base_classes}")
+            print(f"    Union classes: {union_classes}")
+            expand_state_dict_classifier(
+                base_state, len(union_classes), class_names=union_classes
+            )
+            base_bundle_meta["classes"] = union_classes
+            base_bundle_meta["num_classes"] = len(union_classes)
 
     base_keys = set(base_state.keys())
     base_clean_keys = {k for k in base_keys if "num_batches_tracked" not in k}
@@ -458,7 +554,9 @@ def main() -> None:
 
         # 1. Update Scope Auto-Detection and Strict Schema Validation
         try:
-            client_state = torch.load(str(client_path), map_location=device, weights_only=True)
+            client_state, client_bundle_meta = load_checkpoint_bundle(client_path, device=device)
+            if not client_meta and client_bundle_meta:
+                client_meta = client_bundle_meta
         except Exception as exc:
             err_msg = f"Failed to load PyTorch tensor file {client_path}: {exc}"
             if args.skip_invalid_clients:
@@ -466,6 +564,12 @@ def main() -> None:
                 continue
             print(f"[!] Error: {err_msg}", file=sys.stderr)
             sys.exit(1)
+
+        c_classes = client_meta.get("classes") or client_bundle_meta.get("classes")
+        if c_classes is None:
+            c_classes = list(base_classes)
+        if args.allow_new_classes and union_classes:
+            client_state = align_client_head(client_state, c_classes, base_state, union_classes)
 
         client_keys = set(client_state.keys())
         client_clean_keys = {k for k in client_keys if "num_batches_tracked" not in k}
@@ -622,6 +726,8 @@ def main() -> None:
                 scope=update_scope,
                 state_dict=client_state,
                 target_keys=trainable_target_keys,
+                classes=c_classes,
+                num_classes=len(c_classes),
             )
         )
 
@@ -671,16 +777,48 @@ def main() -> None:
         if base_state[k].dtype.is_floating_point
     }
 
+    num_union_classes = len(union_classes)
+    total_samples_per_class: list[int] = [0] * num_union_classes
+    for idx_cls, cls_name in enumerate(union_classes):
+        total_samples_per_class[idx_cls] = sum(
+            c.num_samples
+            for c in validated_clients
+            if c.classes and cls_name in c.classes
+        )
+
     for c in validated_clients:
         weight_k = c.num_samples / total_samples
-        c_state = (
-            c.state_dict
-            if c.state_dict is not None
-            else torch.load(str(c.path), map_location=device, weights_only=True)
-        )
+        if c.state_dict is not None:
+            c_state = c.state_dict
+        else:
+            c_state, _ = load_checkpoint_bundle(str(c.path), device=device)
+            if args.allow_new_classes and union_classes:
+                c_state = align_client_head(c_state, c.classes, base_state, union_classes)
+
         for k in round_trainable_keys:
-            if k in c_state and k in delta_fed_accum:
-                delta_fed_accum[k] += weight_k * (c_state[k].float() - base_state[k].float())
+            if k not in c_state or k not in delta_fed_accum:
+                continue
+
+            is_head_key = any(k.startswith(pfx) for pfx in HEAD_PREFIXES)
+            delta_k = c_state[k].float() - base_state[k].float()
+
+            if (
+                is_head_key
+                and num_union_classes > 0
+                and delta_k.dim() in (1, 2)
+                and delta_k.shape[0] == num_union_classes
+            ):
+                for idx_cls, cls_name in enumerate(union_classes):
+                    if (
+                        c.classes
+                        and cls_name in c.classes
+                        and total_samples_per_class[idx_cls] > 0
+                    ):
+                        weight_kc = c.num_samples / total_samples_per_class[idx_cls]
+                        delta_fed_accum[k][idx_cls] += weight_kc * delta_k[idx_cls]
+            else:
+                delta_fed_accum[k] += weight_k * delta_k
+
         # Free memory immediately to prevent O(K) checkpoint RAM buildup
         c.state_dict = None
 
@@ -816,11 +954,8 @@ def main() -> None:
             guardrail_status = "PASSED"
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(new_state, str(out_path))
 
     # 5. Provenance & Metadata Governance
-    out_sha256 = compute_sha256(out_path)
-
     meta_file = Path(args.metadata)
     meta: dict[str, Any] = {}
     if meta_file.is_file():
@@ -828,9 +963,37 @@ def main() -> None:
             meta = json.loads(meta_file.read_text(encoding="utf-8"))
         except Exception:
             meta = {}
+    elif base_bundle_meta:
+        meta = dict(base_bundle_meta)
+
+    # Propagate base metadata fields if missing
+    meta["architecture"] = arch
+    if union_classes:
+        meta["classes"] = union_classes
+        meta["num_classes"] = len(union_classes)
+    else:
+        if "num_classes" not in meta and "num_classes" in base_bundle_meta:
+            meta["num_classes"] = base_bundle_meta["num_classes"]
+        if "classes" not in meta and "classes" in base_bundle_meta:
+            meta["classes"] = base_bundle_meta["classes"]
+    if "img_size" not in meta and "img_size" in base_bundle_meta:
+        meta["img_size"] = base_bundle_meta["img_size"]
+    if "calibrated_thresholds" not in meta and "calibrated_thresholds" in base_bundle_meta:
+        meta["calibrated_thresholds"] = base_bundle_meta["calibrated_thresholds"]
+
+    if (
+        meta.get("calibrated_thresholds")
+        and isinstance(meta["calibrated_thresholds"], dict)
+        and union_classes
+    ):
+        if not all(c in meta["calibrated_thresholds"] for c in union_classes):
+            print(
+                "[*] Calibrated thresholds invalidated due to class expansion. "
+                "Will require re-calibration on new class set."
+            )
+            meta.pop("calibrated_thresholds", None)
 
     meta["latest_aggregated_checkpoint"] = str(out_path)
-    meta["latest_aggregated_sha256"] = out_sha256
     history = meta.get("aggregation_history", [])
 
     clients_record = [
@@ -864,12 +1027,17 @@ def main() -> None:
         "total_samples": total_samples,
         "clients": clients_record,
         "updated_tensors": round_trainable_keys,
-        "global_sha256": out_sha256,
         "status": "APPROVED",
         "guardrail_status": guardrail_status,
     }
     history.append(history_entry)
     meta["aggregation_history"] = history
+
+    save_checkpoint_bundle(out_path, new_state, meta)
+    out_sha256 = compute_sha256(out_path)
+    meta["latest_aggregated_sha256"] = out_sha256
+    history_entry["global_sha256"] = out_sha256
+
     try:
         meta_file.parent.mkdir(parents=True, exist_ok=True)
         meta_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")

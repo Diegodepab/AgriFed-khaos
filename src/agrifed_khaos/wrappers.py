@@ -1,7 +1,7 @@
 """Flower-compatible model wrappers, parameter validation, and FedProx adapters.
 
-This module provides the Adapter pattern between vision model libraries (PyTorch,
-Timm ViT, Ultralytics YOLOv8) and the Flower Federated Learning runtime.
+This module provides the Adapter pattern between vision classification models (PyTorch,
+Timm ViT / CNNs) and the Federated Learning runtime.
 """
 
 from __future__ import annotations
@@ -15,6 +15,9 @@ import numpy as np
 
 if TYPE_CHECKING:
     import torch.nn as nn
+
+
+BN_BUFFER_SUFFIXES: tuple[str, ...] = (".running_mean", ".running_var", ".num_batches_tracked")
 
 
 @dataclass(slots=True)
@@ -155,19 +158,24 @@ def freeze_bn_stats(model: Any) -> None:
 
 
 def apply_adaptive_rms_noise(
-    parameters: Sequence[Any],
+    parameters: Sequence[Any] | dict[str, Any],
     noise_std: float,
     min_rms: float = 1e-4,
+    parameter_names: Sequence[str] | None = None,
 ) -> None:
-    """Apply layer-wise RMS-scaled Gaussian parameter noise perturbation.
+    """Apply heuristic layer-wise RMS-scaled Gaussian parameter noise perturbation.
+
+    Note: This is post-training weight perturbation for heuristic model obfuscation
+    against feature reconstruction attacks; it does not constitute formal (epsilon, delta)-DP.
+    For mathematically bounded Differential Privacy, use apply_dp_gaussian_noise.
 
     Scales injected noise relative to the root-mean-square magnitude of each
     trainable tensor:
         rms(p) = max(||p||_2 / sqrt(p.numel()), min_rms)
         noise = N(0, I) * noise_std * rms(p)
 
-    Acts as a uniform signal-to-noise ratio per layer, preventing destruction
-    of low-magnitude tensors while preserving privacy across varied layers.
+    Guarantees that BatchNorm buffers (running_mean, running_var, num_batches_tracked)
+    and non-floating tensors are strictly immune and never perturbed.
     """
     if noise_std <= 0.0:
         return
@@ -176,10 +184,24 @@ def apply_adaptive_rms_noise(
     except ImportError:
         return
 
-    with torch.no_grad():
+    items: list[tuple[str | None, Any]] = []
+    if isinstance(parameters, dict):
+        items = list(parameters.items())
+    elif parameter_names is not None:
+        items = list(zip(parameter_names, parameters, strict=False))
+    else:
         for p in parameters:
+            if isinstance(p, tuple) and len(p) == 2 and isinstance(p[0], str):
+                items.append((p[0], p[1]))
+            else:
+                items.append((getattr(p, "name", None), p))
+
+    with torch.no_grad():
+        for name, p in items:
+            if name is not None and any(name.endswith(suffix) for suffix in BN_BUFFER_SUFFIXES):
+                continue
             tensor = p.data if hasattr(p, "data") else p
-            if not isinstance(tensor, torch.Tensor):
+            if not isinstance(tensor, torch.Tensor) or not tensor.is_floating_point():
                 continue
             p_float = tensor.float()
             p_norm = float(torch.linalg.norm(p_float).item())
@@ -187,6 +209,102 @@ def apply_adaptive_rms_noise(
             rms = max(p_norm / (numel**0.5), min_rms)
             noise = torch.randn_like(tensor) * (noise_std * rms)
             tensor.add_(noise)
+
+
+def apply_dp_gaussian_noise(
+    parameters: Sequence[Any] | dict[str, Any],
+    reference_parameters: Sequence[Any] | dict[str, Any] | None = None,
+    clip_norm: float = 1.0,
+    noise_std: float = 0.0,
+    *,
+    reference_params: Sequence[Any] | dict[str, Any] | None = None,
+    parameter_names: Sequence[str] | None = None,
+) -> float:
+    """Apply formal Gaussian Differential Privacy mechanism on client parameter updates.
+
+    Computes Delta W = W_client - W_base.
+    1. Enforces static joint global L2 clipping:
+       Delta W_i <- Delta W_i * min(1, clip_norm / sqrt(sum_k ||Delta W_k||_2^2))
+    2. Injects Gaussian perturbation calibrated to clip_norm:
+       Delta W_i <- Delta W_i + N(0, (noise_std * clip_norm)^2 * I)
+    3. Reconstructs W_client = W_base + Delta W.
+
+    Guarantees:
+    - Joint global L2 norm clipping across all trainable parameters (not per-layer).
+    - BatchNorm buffers (running_mean, running_var, num_batches_tracked) are strictly
+      immune and never perturbed with noise.
+    - Noise standard deviation is strictly independent of the client's tensor weights.
+
+    Returns:
+        Original joint global update L2 norm before clipping.
+    """
+    if clip_norm <= 0.0:
+        raise ValueError("clip_norm must be positive for DP clipping")
+    if noise_std < 0.0:
+        raise ValueError("noise_std cannot be negative")
+
+    ref_list_raw = reference_parameters if reference_parameters is not None else reference_params
+
+    try:
+        import torch
+    except ImportError:
+        return 0.0
+
+    param_items: list[tuple[str | None, Any]] = []
+    if isinstance(parameters, dict):
+        param_items = list(parameters.items())
+    elif parameter_names is not None:
+        param_items = list(zip(parameter_names, parameters, strict=False))
+    else:
+        for p in parameters:
+            if isinstance(p, tuple) and len(p) == 2 and isinstance(p[0], str):
+                param_items.append((p[0], p[1]))
+            else:
+                param_items.append((getattr(p, "name", None), p))
+
+    ref_tensors_raw: list[Any] = []
+    if ref_list_raw is None:
+        ref_tensors_raw = [
+            torch.zeros_like(p.data if hasattr(p, "data") else p)
+            for _, p in param_items
+        ]
+    elif isinstance(ref_list_raw, dict):
+        ref_tensors_raw = [
+            ref_list_raw.get(name, torch.zeros_like(p.data if hasattr(p, "data") else p))
+            if name is not None
+            else torch.zeros_like(p.data if hasattr(p, "data") else p)
+            for name, p in param_items
+        ]
+    else:
+        ref_tensors_raw = list(ref_list_raw)
+
+    with torch.no_grad():
+        active_triplets: list[tuple[Any, Any, Any]] = []
+        for (name, p), ref in zip(param_items, ref_tensors_raw, strict=True):
+            p_t = p.data if hasattr(p, "data") else p
+            ref_t = ref.data if hasattr(ref, "data") else ref
+            if not isinstance(p_t, torch.Tensor) or not isinstance(ref_t, torch.Tensor):
+                continue
+            if name is not None and any(name.endswith(suffix) for suffix in BN_BUFFER_SUFFIXES):
+                continue
+            if not p_t.is_floating_point():
+                continue
+
+            delta = p_t - ref_t
+            active_triplets.append((p_t, ref_t, delta))
+
+        total_norm_sq = sum(torch.sum(delta.float() ** 2).item() for _, _, delta in active_triplets)
+        total_norm = total_norm_sq**0.5
+
+        scale = min(1.0, clip_norm / max(total_norm, 1e-8))
+        for p_t, ref_t, delta in active_triplets:
+            clipped_delta = delta * scale
+            if noise_std > 0.0:
+                noise = torch.randn_like(p_t) * (noise_std * clip_norm)
+                clipped_delta = clipped_delta + noise
+            p_t.copy_(ref_t + clipped_delta)
+
+    return float(total_norm)
 
 
 class BaseFLWrapper(ABC):
@@ -198,6 +316,11 @@ class BaseFLWrapper(ABC):
     @abstractmethod
     def get_parameters(self) -> list[np.ndarray]:
         """Extract trainable parameters as a list of NumPy arrays."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_parameter_names(self) -> list[str]:
+        """Extract parameter names corresponding to get_parameters()."""
         raise NotImplementedError
 
     @abstractmethod
@@ -214,8 +337,11 @@ class BaseFLWrapper(ABC):
         prox_mu: float = 0.0,
         reference_parameters: Sequence[np.ndarray] | None = None,
         max_grad_norm: float | None = 1.0,
+        missing_classes: Sequence[int] | None = None,
     ) -> TrainingStats:
-        """Run local optimization round with optional FedProx proximal penalty."""
+        """Run local optimization round with optional FedProx proximal penalty
+        and missing class masking.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -276,6 +402,14 @@ class TorchModuleWrapper(BaseFLWrapper):
             if param.requires_grad
         ]
 
+    def get_parameter_names(self) -> list[str]:
+        """Extract parameter names corresponding to get_parameters()."""
+        return [
+            name
+            for name, param in self.module.named_parameters()
+            if param.requires_grad
+        ]
+
     def set_parameters(self, parameters: Sequence[np.ndarray]) -> None:
         """Inject parameters directly into trainable layers."""
         torch = self._require_torch()
@@ -296,6 +430,7 @@ class TorchModuleWrapper(BaseFLWrapper):
         prox_mu: float = 0.0,
         reference_parameters: Sequence[np.ndarray] | None = None,
         max_grad_norm: float | None = 1.0,
+        missing_classes: Sequence[int] | None = None,
     ) -> TrainingStats:
         """Train local epochs with exact FedProx proximal regularization and gradient clipping."""
         torch = self._require_torch()
@@ -308,6 +443,24 @@ class TorchModuleWrapper(BaseFLWrapper):
                 torch.as_tensor(np.asarray(p), device=self.device, dtype=p_orig.dtype)
                 for p, p_orig in zip(reference_parameters, trainable_params, strict=True)
             ]
+
+        # Explicitly isolate classifier head parameters to avoid masking hidden layers
+        head_params: list[Any] = []
+        for n, p in self.module.named_parameters():
+            if any(h in n for h in ("fc", "classifier", "head")) and p.requires_grad:
+                head_params.append(p)
+        if not head_params:
+            if trainable_params:
+                head_params = trainable_params[-2:]
+
+        missing_set = set(missing_classes) if missing_classes else None
+        saved_missing_weights: list[tuple[Any, Any]] = []
+        if missing_set:
+            miss_list = list(missing_set)
+            max_cls = max(miss_list)
+            for p in head_params:
+                if p.dim() in (1, 2) and p.shape[0] > max_cls:
+                    saved_missing_weights.append((p, p.detach()[miss_list].clone()))
 
         examples = 0
         batches = 0
@@ -333,9 +486,30 @@ class TorchModuleWrapper(BaseFLWrapper):
                     loss = loss + 0.5 * prox_mu * prox_penalty
 
                 loss.backward()
+
+                # Zero gradients for missing classes in classification head
+                if missing_set:
+                    miss_list = list(missing_set)
+                    max_cls = max(miss_list)
+                    for p in head_params:
+                        if p.grad is not None and p.dim() in (1, 2) and p.shape[0] > max_cls:
+                            if p.dim() == 2:
+                                p.grad[miss_list, :] = 0.0
+                            elif p.dim() == 1:
+                                p.grad[miss_list] = 0.0
+
                 if max_grad_norm is not None and max_grad_norm > 0.0:
                     torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=max_grad_norm)
                 self.optimizer.step()
+
+                # Hard projection: strictly restore base rows for missing classes after step
+                if saved_missing_weights:
+                    with torch.no_grad():
+                        for p, base_rows in saved_missing_weights:
+                            if p.dim() == 2:
+                                p[miss_list, :] = base_rows
+                            elif p.dim() == 1:
+                                p[miss_list] = base_rows
 
                 batch_size = int(inputs.shape[0]) if hasattr(inputs, "shape") else 1
                 examples += batch_size
@@ -410,79 +584,3 @@ class TimmClassificationWrapper(TorchModuleWrapper):
             validator=validator,
         )
 
-
-class YOLOv8Wrapper(BaseFLWrapper):
-    """Adapter for Ultralytics YOLOv8+ detection models."""
-
-    def __init__(
-        self,
-        yolo_model: Any,
-        device: str = "cpu",
-        validator: ParameterValidator | None = None,
-    ) -> None:
-        super().__init__(validator=validator)
-        self.yolo_model = yolo_model
-        self.device = device
-
-    @classmethod
-    def create(
-        cls,
-        model_cfg_or_weights: str = "yolov8n.yaml",
-        device: str = "cpu",
-        validator: ParameterValidator | None = None,
-    ) -> YOLOv8Wrapper:
-        """Factory method to instantiate an Ultralytics YOLO model."""
-        try:
-            from ultralytics import YOLO
-        except ImportError as exc:
-            raise RuntimeError("ultralytics is required for YOLOv8Wrapper") from exc
-
-        model = YOLO(model_cfg_or_weights)
-        return cls(yolo_model=model, device=device, validator=validator)
-
-    def _get_inner_model(self) -> Any:
-        return getattr(self.yolo_model, "model", self.yolo_model)
-
-    def get_parameters(self) -> list[np.ndarray]:
-        """Extract trainable parameters from the underlying PyTorch detection network."""
-        inner = self._get_inner_model()
-        return [p.detach().cpu().numpy().copy() for p in inner.parameters() if p.requires_grad]
-
-    def set_parameters(self, parameters: Sequence[np.ndarray]) -> None:
-        """Inject updated parameters into the detection network."""
-        try:
-            import torch
-        except ImportError as exc:
-            raise RuntimeError("PyTorch is required for YOLOv8Wrapper") from exc
-
-        validation = self.validate_parameters(parameters, check_delta_norm=False)
-        if not validation.valid:
-            raise ValueError(f"Invalid parameters rejected: {'; '.join(validation.issues)}")
-
-        inner = self._get_inner_model()
-        trainable = [p for p in inner.parameters() if p.requires_grad]
-        for param, candidate in zip(trainable, parameters, strict=True):
-            tensor = torch.as_tensor(np.asarray(candidate), device=param.device, dtype=param.dtype)
-            param.data.copy_(tensor)
-
-    def train_local_epoch(
-        self,
-        train_data: Any,
-        *,
-        epochs: int,
-        prox_mu: float = 0.0,
-        reference_parameters: Sequence[np.ndarray] | None = None,
-        max_grad_norm: float | None = 1.0,
-    ) -> TrainingStats:
-        """Local fine-tuning execution."""
-        import logging
-
-        logging.getLogger(__name__).warning(
-            "YOLOv8Wrapper.train_local_epoch called: local fine-tuning for Ultralytics YOLO models "
-            "requires ultralytics training engine. Checkpoint weights were not modified."
-        )
-        return TrainingStats(examples=0, batches=0, loss=0.0)
-
-    def evaluate(self, eval_data: Any) -> EvaluationStats:
-        """Local detection evaluation."""
-        return EvaluationStats(examples=0, loss=0.0, metrics={"mAP50": 0.0})

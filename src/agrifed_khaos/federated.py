@@ -15,7 +15,12 @@ from typing import Any
 
 import numpy as np
 
-from .wrappers import BaseFLWrapper, ParameterValidationResult, ParameterValidator
+from .wrappers import (
+    BN_BUFFER_SUFFIXES,
+    BaseFLWrapper,
+    ParameterValidationResult,
+    ParameterValidator,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +163,9 @@ class SanitizedFedProx(FedProx):  # type: ignore[misc]
         max_samples_per_client: int | None = None,
         val_data: Any | None = None,
         max_allowed_acc_drop: float = 0.03,
+        server_momentum: float = 0.0,
+        eta: float = 1.0,
+        param_names: list[str] | None = None,
         **kwargs: Any,
     ) -> None:
         if not _FLWR_AVAILABLE:
@@ -168,6 +176,19 @@ class SanitizedFedProx(FedProx):  # type: ignore[misc]
         self.max_samples_per_client = max_samples_per_client
         self.val_data = val_data
         self.max_allowed_acc_drop = max_allowed_acc_drop
+        self.server_momentum = server_momentum
+        self.eta = eta
+        self.param_names = (
+            param_names
+            if param_names is not None
+            else (
+                global_model_wrapper.get_parameter_names()
+                if global_model_wrapper is not None
+                and hasattr(global_model_wrapper, "get_parameter_names")
+                else None
+            )
+        )
+        self.velocity_buffer: list[np.ndarray] | None = None
         self.rejection_history: list[dict[str, Any]] = []
 
     def aggregate_fit(
@@ -234,6 +255,50 @@ class SanitizedFedProx(FedProx):  # type: ignore[misc]
             failures,
         )
 
+        # Apply Server Momentum (FedAvgM) and Server Learning Rate (eta)
+        if aggregated_parameters is not None and reference_params is not None:
+            agg_ndarrays = parameters_to_ndarrays(aggregated_parameters)
+            delta_fed = [
+                agg - ref for agg, ref in zip(agg_ndarrays, reference_params, strict=True)
+            ]
+
+            def is_bn_buffer_idx(idx: int) -> bool:
+                if self.param_names and idx < len(self.param_names):
+                    p_name = self.param_names[idx]
+                    return any(p_name.endswith(s) for s in BN_BUFFER_SUFFIXES)
+                return False
+
+            if self.server_momentum > 0.0:
+                if self.velocity_buffer is None:
+                    self.velocity_buffer = [
+                        np.zeros_like(d) if is_bn_buffer_idx(i) else np.copy(d)
+                        for i, d in enumerate(delta_fed)
+                    ]
+                else:
+                    self.velocity_buffer = [
+                        np.zeros_like(v)
+                        if is_bn_buffer_idx(i)
+                        else (self.server_momentum * v + d)
+                        for i, (v, d) in enumerate(
+                            zip(self.velocity_buffer, delta_fed, strict=True)
+                        )
+                    ]
+                effective_step = self.velocity_buffer
+            else:
+                effective_step = delta_fed
+
+            updated_ndarrays = [
+                ref if is_bn_buffer_idx(i) else (ref + self.eta * step)
+                for i, (ref, step) in enumerate(
+                    zip(reference_params, effective_step, strict=True)
+                )
+            ]
+            aggregated_parameters = ndarrays_to_parameters(updated_ndarrays)
+        elif aggregated_parameters is not None:
+            updated_ndarrays = parameters_to_ndarrays(aggregated_parameters)
+        else:
+            updated_ndarrays = []
+
         # Post-Aggregation Regression Guardrail Verification
         if (
             aggregated_parameters is not None
@@ -241,12 +306,14 @@ class SanitizedFedProx(FedProx):  # type: ignore[misc]
             and self.val_data is not None
         ):
             from .quality import audit_regression_guardrail
+            from .wrappers import TorchModuleWrapper, freeze_bn_stats
 
             base_eval = self.global_model_wrapper.evaluate(self.val_data)
-            updated_ndarrays = parameters_to_ndarrays(aggregated_parameters)
 
             # Test candidate parameters on global wrapper
             self.global_model_wrapper.set_parameters(updated_ndarrays)
+            if isinstance(self.global_model_wrapper, TorchModuleWrapper):
+                freeze_bn_stats(self.global_model_wrapper.module)
             candidate_eval = self.global_model_wrapper.evaluate(self.val_data)
 
             guardrail = audit_regression_guardrail(
@@ -262,6 +329,8 @@ class SanitizedFedProx(FedProx):  # type: ignore[misc]
                 # Rollback to baseline parameters
                 if reference_params is not None:
                     self.global_model_wrapper.set_parameters(reference_params)
+                    if isinstance(self.global_model_wrapper, TorchModuleWrapper):
+                        freeze_bn_stats(self.global_model_wrapper.module)
                     return ndarrays_to_parameters(reference_params), {
                         "guardrail_status": "REJECTED_ROLLBACK"
                     }
@@ -273,8 +342,11 @@ class SanitizedFedProx(FedProx):  # type: ignore[misc]
                     candidate_eval.metrics.get("accuracy", 0.0) * 100,
                 )
         elif aggregated_parameters is not None and self.global_model_wrapper is not None:
-            updated_ndarrays = parameters_to_ndarrays(aggregated_parameters)
+            from .wrappers import TorchModuleWrapper, freeze_bn_stats
+
             self.global_model_wrapper.set_parameters(updated_ndarrays)
+            if isinstance(self.global_model_wrapper, TorchModuleWrapper):
+                freeze_bn_stats(self.global_model_wrapper.module)
 
         return aggregated_parameters, metrics
 

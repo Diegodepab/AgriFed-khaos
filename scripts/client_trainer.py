@@ -74,11 +74,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--param-noise",
         "--noise-std",
-        "--dp-noise",
         dest="noise_std",
         type=float,
         default=0.0,
-        help="Post-training Gaussian parameter noise standard deviation sigma (default: 0.0)",
+        help="Heuristic parameter perturbation: RMS-scaled Gaussian noise (non-DP, default: 0.0)",
+    )
+    parser.add_argument(
+        "--dp-clip-norm",
+        type=float,
+        default=0.0,
+        help="Formal DP: Static L2 clipping bound C on update ΔW (default: 0.0, disabled)",
+    )
+    parser.add_argument(
+        "--dp-noise-std",
+        "--dp-noise",
+        dest="dp_noise_std",
+        type=float,
+        default=0.0,
+        help="Formal DP: Gaussian noise multiplier sigma for N(0, (sigma*C)^2 I) (default: 0.0)",
     )
     parser.add_argument(
         "--arch",
@@ -90,6 +103,11 @@ def parse_args() -> argparse.Namespace:
         "--head-only",
         action="store_true",
         help="Train only classification head and freeze backbone (ultra-fast, ~18 KB update)",
+    )
+    parser.add_argument(
+        "--allow-new-classes",
+        action="store_true",
+        help="Allow dynamic classifier expansion if client dataset contains unseen classes",
     )
     parser.add_argument(
         "--client-id",
@@ -116,21 +134,32 @@ def main() -> None:
         print(f"[!] Error: Base weights file not found: {weights_in_path}", file=sys.stderr)
         sys.exit(1)
 
-    # 1. Resolve architecture and number of classes from metadata or dataset
-    from agrifed_khaos.models import build_model
+    # 1. Resolve architecture and number of classes from bundle or metadata
+    from agrifed_khaos.models import build_model, load_checkpoint_bundle, save_checkpoint_bundle
 
-    num_classes = 9
-    arch = args.arch
+    state_dict, bundle_meta = load_checkpoint_bundle(weights_in_path, device=device)
+
+    num_classes = bundle_meta.get("num_classes")
+    canonical_classes = bundle_meta.get("classes")
+    arch = args.arch or bundle_meta.get("architecture")
     meta_path = Path(args.metadata)
     if meta_path.is_file():
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        num_classes = meta.get("num_classes", 9)
+        if num_classes is None:
+            num_classes = meta.get("num_classes", 9)
+        if canonical_classes is None:
+            canonical_classes = meta.get("classes")
         if not arch:
             arch = meta.get("architecture")
 
+    num_classes = num_classes or 9
     arch = arch or "resnet18"
+    if canonical_classes is None:
+        canonical_classes = [f"class_{i}" for i in range(num_classes)]
+    else:
+        canonical_classes = list(canonical_classes)
+
     model = build_model(architecture=arch, num_classes=num_classes).to(device)
-    state_dict = torch.load(str(weights_in_path), map_location=device, weights_only=True)
     model.load_state_dict(state_dict)
     print("=" * 65)
     print("AGRIFED-KHAOS: CLIENT TRAINER (ON-PREMISE ZERO-LEAKAGE)")
@@ -142,6 +171,116 @@ def main() -> None:
 
     def is_head_param(param_name: str) -> bool:
         return param_name.startswith(HEAD_PREFIXES)
+
+    # 2. Local Private Dataset Loading & Canonical Class Re-mapping
+    raw_img_size = bundle_meta.get("img_size", 224)
+    if isinstance(raw_img_size, int):
+        img_size_tuple = (raw_img_size, raw_img_size)
+    elif isinstance(raw_img_size, (list, tuple)) and len(raw_img_size) == 2:
+        img_size_tuple = (int(raw_img_size[0]), int(raw_img_size[1]))
+    else:
+        img_size_tuple = (224, 224)
+
+    transform = transforms.Compose(
+        [
+            transforms.Resize(img_size_tuple),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(),
+            transforms.RandomRotation(15),
+            transforms.ColorJitter(brightness=0.1, contrast=0.1),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
+
+    data_path = Path(args.data_dir)
+    dataset = datasets.ImageFolder(str(data_path), transform=transform)
+    total_avail = len(dataset)
+    print(f"[*] Private dataset located at {data_path} ({total_avail} samples)")
+
+    # Audit & Re-map ImageFolder alphabetical targets against canonical base model classes
+    local_classes = list(dataset.classes)
+    known_set = set(canonical_classes)
+    unseen_classes = sorted([c for c in local_classes if c not in known_set])
+
+    if unseen_classes:
+        if not args.allow_new_classes:
+            valid_samples = [
+                (p, t) for p, t in dataset.samples if dataset.classes[t] in known_set
+            ]
+            if not valid_samples:
+                raise ValueError(
+                    f"Local dataset at {data_path} contains only unknown class(es): "
+                    f"{unseen_classes}. None match base model classes: {canonical_classes}. "
+                    "Pass --allow-new-classes to enable dynamic classifier expansion."
+                )
+            num_filtered = len(dataset.samples) - len(valid_samples)
+            print(
+                f"[!] WARNING: Filtered out {num_filtered} sample(s) belonging to "
+                f"unknown class(es) {unseen_classes}. "
+                "(Pass --allow-new-classes to enable incremental expansion)."
+            )
+            dataset.samples = [
+                (p, canonical_classes.index(dataset.classes[t])) for p, t in valid_samples
+            ]
+            dataset.targets = [t for _, t in dataset.samples]
+            dataset.classes = list(canonical_classes)
+            dataset.class_to_idx = {c: i for i, c in enumerate(canonical_classes)}
+        else:
+            expanded_classes = list(canonical_classes) + unseen_classes
+            new_num_classes = len(expanded_classes)
+            print(
+                f"[*] Dynamic Classifier Expansion (--allow-new-classes): "
+                f"Expanding classifier from {num_classes} to {new_num_classes} classes."
+            )
+            print(f"    Base classes: {canonical_classes}")
+            print(f"    New classes:  {unseen_classes}")
+
+            from agrifed_khaos.models import expand_model_classifier
+
+            expand_model_classifier(
+                model, new_num_classes, class_names=expanded_classes
+            )
+            model.to(device)
+            num_classes = new_num_classes
+            canonical_classes = expanded_classes
+            bundle_meta["classes"] = expanded_classes
+            bundle_meta["num_classes"] = new_num_classes
+
+            dataset.samples = [
+                (p, expanded_classes.index(dataset.classes[t])) for p, t in dataset.samples
+            ]
+            dataset.targets = [t for _, t in dataset.samples]
+            dataset.classes = list(expanded_classes)
+            dataset.class_to_idx = {c: i for i, c in enumerate(expanded_classes)}
+    else:
+        # Standard subset case: strictly map ImageFolder alphabetical indices
+        # to canonical base model indices
+        dataset.samples = [
+            (p, canonical_classes.index(dataset.classes[t])) for p, t in dataset.samples
+        ]
+        dataset.targets = [t for _, t in dataset.samples]
+        dataset.classes = list(canonical_classes)
+        dataset.class_to_idx = {c: i for i, c in enumerate(canonical_classes)}
+
+    train_ds: Any = dataset
+    if args.max_samples and args.max_samples < len(dataset):
+        from agrifed_khaos.data import create_stratified_subset
+
+        train_ds = create_stratified_subset(dataset, args.max_samples, seed=42)
+        print(f"[*] Stratified subsampled to {len(train_ds)} samples for fast local round")
+
+    # Detect unobserved classes in local client partition (Missing Classes Masking)
+    from agrifed_khaos.data import get_dataset_targets
+
+    targets = get_dataset_targets(train_ds)
+    present_classes = set(int(t) for t in targets)
+    missing_classes = sorted(set(range(num_classes)) - present_classes)
+    if missing_classes:
+        print(
+            f"[*] Extreme Non-IID skew: {len(missing_classes)} missing class(es) detected: "
+            f"{missing_classes}. Gradient masking active on classification head."
+        )
 
     head_only = args.head_only
     if not head_only and meta_path.is_file():
@@ -166,38 +305,13 @@ def main() -> None:
     else:
         print("[*] Full-Model Mode Active: All network layers trainable.")
 
-    # Reference weights for FedProx proximal regularization: 0.5 * mu * ||W - W_ref||^2
+    # Reference weights for FedProx proximal regularization captured after expansion
     ref_params = [p.detach().clone() for p in model.parameters() if p.requires_grad]
-
-    # 2. Local Private Dataset
-    transform = transforms.Compose(
-        [
-            transforms.Resize((224, 224)),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomVerticalFlip(),
-            transforms.RandomRotation(15),
-            transforms.ColorJitter(brightness=0.1, contrast=0.1),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]
-    )
-
-    data_path = Path(args.data_dir)
-    dataset = datasets.ImageFolder(str(data_path), transform=transform)
-    total_avail = len(dataset)
-    print(f"[*] Private dataset located at {data_path} ({total_avail} samples)")
-
-    train_ds: Any = dataset
-    if args.max_samples and args.max_samples < total_avail:
-        from agrifed_khaos.data import create_stratified_subset
-
-        train_ds = create_stratified_subset(dataset, args.max_samples, seed=42)
-        print(f"[*] Stratified subsampled to {len(train_ds)} samples for fast local round")
 
     loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=0)
 
     # 3. Local Training with FedProx & Frozen BatchNorm Statistics
-    from agrifed_khaos.wrappers import apply_adaptive_rms_noise, freeze_bn_stats
+    from agrifed_khaos.wrappers import freeze_bn_stats
 
     head_trainable = [
         p for n, p in model.named_parameters() if p.requires_grad and is_head_param(n)
@@ -243,6 +357,14 @@ def main() -> None:
     freeze_bn_stats(model)
     print("[*] Frozen BatchNorm: Active (running_mean & running_var locked to base model)")
     trainable_params = [p for p in model.parameters() if p.requires_grad]
+    saved_missing_head: list[tuple[torch.Tensor, torch.Tensor]] = []
+    if missing_classes:
+        max_miss = max(missing_classes)
+        for n, p in model.named_parameters():
+            if is_head_param(n) and p.requires_grad:
+                if p.dim() in (1, 2) and p.shape[0] > max_miss:
+                    saved_missing_head.append((p, p.detach()[missing_classes].clone()))
+
     t0 = time.time()
 
     for epoch in range(args.epochs):
@@ -265,9 +387,29 @@ def main() -> None:
                 loss = loss + 0.5 * args.mu * prox_term
 
             loss.backward()
+
+            # Zero gradients for missing classes in classification head
+            if missing_classes:
+                max_miss = max(missing_classes)
+                for n, p in model.named_parameters():
+                    if is_head_param(n) and p.grad is not None:
+                        if p.dim() == 2 and p.shape[0] > max_miss:
+                            p.grad[missing_classes, :] = 0.0
+                        elif p.dim() == 1 and p.shape[0] > max_miss:
+                            p.grad[missing_classes] = 0.0
+
             if args.max_grad_norm > 0.0:
                 torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=args.max_grad_norm)
             optimizer.step()
+
+            # Hard projection: strictly preserve base model rows for missing classes
+            if saved_missing_head:
+                with torch.no_grad():
+                    for p, base_rows in saved_missing_head:
+                        if p.dim() == 2:
+                            p[missing_classes, :] = base_rows
+                        elif p.dim() == 1:
+                            p[missing_classes] = base_rows
 
             bs = x.size(0)
             epoch_loss += loss.item() * bs
@@ -284,13 +426,37 @@ def main() -> None:
 
     elapsed = time.time() - t0
 
-    # 4. Optional Post-Training Gaussian Parameter Noise Perturbation
-    if args.noise_std > 0.0:
+    # 4. Privacy Enhancement & Parameter Perturbation
+    from agrifed_khaos.wrappers import (
+        apply_adaptive_rms_noise,
+        apply_dp_gaussian_noise,
+    )
+
+    if args.dp_clip_norm > 0.0 and args.dp_noise_std > 0.0:
+        print(
+            "[*] Applying Formal Differential Privacy on Update ΔW: "
+            f"L2 clip C={args.dp_clip_norm}, Gaussian noise sigma={args.dp_noise_std}..."
+        )
+        apply_dp_gaussian_noise(
+            trainable_params,
+            reference_params=ref_params,
+            clip_norm=args.dp_clip_norm,
+            noise_std=args.dp_noise_std,
+        )
+    elif args.noise_std > 0.0:
         print(
             "[*] Applying Post-Training Parameter Perturbation: "
             f"Adaptive RMS-Scaled Gaussian noise (sigma={args.noise_std})..."
         )
         apply_adaptive_rms_noise(trainable_params, noise_std=args.noise_std)
+
+    if saved_missing_head:
+        with torch.no_grad():
+            for p, base_rows in saved_missing_head:
+                if p.dim() == 2:
+                    p[missing_classes, :] = base_rows
+                elif p.dim() == 1:
+                    p[missing_classes] = base_rows
 
     # 5. Compute Delta Norm ||W - W_ref||_2
     delta_sq = 0.0
@@ -298,7 +464,7 @@ def main() -> None:
         delta_sq += torch.sum((p - p_ref) ** 2).item()
     delta_norm = delta_sq**0.5
 
-    # 6. Save Output Parameters & Metadata Manifest
+    # 6. Save Output Parameters & Metadata Manifest Bundle
     out_path = Path(args.weights_out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -309,24 +475,24 @@ def main() -> None:
         saved_state = model.state_dict()
         training_scope = "full"
 
-    torch.save(saved_state, str(out_path))
-    filesize_kb = out_path.stat().st_size / 1024.0
-    size_str = (
-        f"{filesize_kb:.1f} KB" if filesize_kb < 1024.0 else f"{filesize_kb / 1024.0:.2f} MB"
-    )
-    out_sha256 = compute_sha256(out_path)
     base_sha256 = compute_sha256(weights_in_path)
-
     num_samples = max(len(train_ds), 1)
 
     client_meta = {
         "client_weights_file": str(out_path),
         "client_id": args.client_id,
-        "sha256": out_sha256,
         "base_model_sha256": base_sha256,
         "num_samples": num_samples,
         "delta_norm": round(delta_norm, 4),
         "training_scope": training_scope,
+        "architecture": arch,
+        "num_classes": num_classes,
+        "classes": canonical_classes,
+        "img_size": raw_img_size,
+        "missing_classes": missing_classes,
+        "dp_applied": args.dp_clip_norm > 0.0 and args.dp_noise_std > 0.0,
+        "dp_clip_norm": args.dp_clip_norm if args.dp_clip_norm > 0.0 else None,
+        "dp_noise_std": args.dp_noise_std if args.dp_noise_std > 0.0 else None,
         "trainable_tensors": list(saved_state.keys()),
         "training_stats": {
             "epochs": args.epochs,
@@ -338,6 +504,10 @@ def main() -> None:
         },
         "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
+
+    save_checkpoint_bundle(out_path, saved_state, client_meta)
+    out_sha256 = compute_sha256(out_path)
+    client_meta["sha256"] = out_sha256
 
     if args.hmac_key:
         client_meta["hmac_signature"] = compute_manifest_hmac(
@@ -351,6 +521,11 @@ def main() -> None:
 
     meta_path = out_path.with_suffix(".meta.json")
     meta_path.write_text(json.dumps(client_meta, indent=2), encoding="utf-8")
+
+    filesize_kb = out_path.stat().st_size / 1024.0
+    size_str = (
+        f"{filesize_kb:.1f} KB" if filesize_kb < 1024.0 else f"{filesize_kb / 1024.0:.2f} MB"
+    )
 
     print(f"[*] Training finished in {elapsed:.2f}s (Scope: {training_scope})")
     print(f"[*] Divergence Delta Norm ||ΔW||_2: {delta_norm:.4f}")
