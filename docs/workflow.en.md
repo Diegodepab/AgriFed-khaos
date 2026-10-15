@@ -58,6 +58,22 @@ flowchart LR
 
 ## 3. Step-by-Step Execution
 
+### Preliminary Step: Official Dataset Setup
+
+After downloading the official archive `enfermedadeshoja_v1.0.zip` from the KHAOS open data portal:
+
+```bash
+# 1. Unzip the dataset in your workspace:
+unzip enfermedadeshoja_v1.0.zip
+
+# 2. Symlink the dataset/ directory to the project root:
+ln -s EnfermedadesHoja_v1.0/dataset dataset
+```
+
+*This immediately exposes local partitions `dataset/train`, `dataset/val`, and `dataset/test`.*
+
+---
+
 ### Phase A: On Machine 1 (Master Server - Baseline Model & T0 Service)
 
 1. **Train the Baseline Model:**
@@ -79,18 +95,22 @@ flowchart LR
 
 3. **Launch REST Diagnostic Service:**
    ```bash
-   python scripts/serve.py --model models/base_model.pt
+   python scripts/serve.py
    ```
-   *Listens on `http://0.0.0.0:8000` with endpoints for inference (`/predict`), public model weights distribution (`/download-model`), and secure parameter ingestion (`/submit-update`).*
+   *Listens on `http://0.0.0.0:8000` with automatic dynamic model reloading, endpoints for inference (`/predict`), public model weights distribution (`/download-model`), and secure parameter ingestion (`/submit-update`).*
 
 ---
 
 ### Phase B: Consumer Client (Pre-Federated Inference at T0)
 
-The field technician sends an ambiguous olive leaf sample exhibiting symptoms of repilo / peacock spot (`dataset/test/repilo/muestra_campo.jpg`):
+The field technician selects a genuine leaf sample exhibiting peacock spot symptoms (`dataset/test/repilo/`):
 
 ```bash
-curl -X POST http://<MACHINE_1_IP>:8000/predict -F "file=@muestra_campo.jpg"
+# Select a real test sample:
+SAMPLE=$(ls dataset/test/repilo/*.jpg | head -n 1)
+
+# Query diagnostic prediction from master server:
+curl -X POST http://<MACHINE_1_IP>:8000/predict -F "file=@$SAMPLE"
 ```
 
 **Diagnostic Response at T0:**
@@ -176,8 +196,8 @@ The master server receives `coop_sevilla_parameters.pt`, validates security gate
    ```
    *Calculates fresh optimal thresholds $\tau_c^*$ on the updated decision boundary and updates `models/global_model.pt` directly.*
 
-3. **Reload in REST Service:**
-   The service in `scripts/serve.py` automatically detects and reloads `models/global_model.pt`. The indicator `"threshold_applied": "calibrated"` now reflects genuine calibrated probabilities on the updated model.
+3. **Dynamic Hot-Reload in REST Service:**
+   The service in `scripts/serve.py` automatically detects when `models/global_model.pt` is created or updated on disk and hot-reloads the weights and calibrated thresholds on the next incoming request (or triggered manually via `curl -X POST http://localhost:8000/reload-model`). The indicator `"threshold_applied": "calibrated"` now reflects genuine calibrated probabilities on the updated model.
 
 ---
 
@@ -186,7 +206,7 @@ The master server receives `coop_sevilla_parameters.pt`, validates security gate
 The field technician queries the API with the identical sample image:
 
 ```bash
-curl -X POST http://<MACHINE_1_IP>:8000/predict -F "file=@muestra_campo.jpg"
+curl -X POST http://<MACHINE_1_IP>:8000/predict -F "file=@$SAMPLE"
 ```
 
 **Diagnostic Response at T1 (Post-Federation):**
@@ -234,3 +254,4 @@ To audit and present findings to leadership and stakeholders:
   ```bash
   python scripts/evaluate.py --image field_sample.jpg --out-dir reports/
   ```
+

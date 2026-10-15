@@ -58,6 +58,22 @@ flowchart LR
 
 ## 3. Ejecución Paso a Paso
 
+### Paso Previo: Preparación del Dataset Oficial
+
+Tras descargar el archivo oficial `EnfermedadesHoja_v1.0.zip` desde el portal de datos de KHAOS:
+
+```bash
+# 1. Descomprimir el archivo en su entorno de trabajo:
+unzip enfermedadeshoja_v1.0.zip
+
+# 2. Enlazar la carpeta dataset al directorio raíz del proyecto:
+ln -s EnfermedadesHoja_v1.0/dataset dataset
+```
+
+*Esto deja disponibles de inmediato las particiones locales `dataset/train`, `dataset/val` y `dataset/test`.*
+
+---
+
 ### Fase A: En la Máquina 1 (Servidor Maestro - Modelo Base y Servicio T0)
 
 1. **Entrenar el Modelo Base:**
@@ -79,18 +95,22 @@ flowchart LR
 
 3. **Levantar el Servicio de Diagnóstico REST:**
    ```bash
-   python scripts/serve.py --model models/base_model.pt
+   python scripts/serve.py
    ```
-   *Queda escuchando en `http://0.0.0.0:8000` con endpoints para inferencia (`/predict`), descarga pública de pesos (`/download-model`) y recepción segura de actualizaciones (`/submit-update`).*
+   *Queda escuchando en `http://0.0.0.0:8000` con recarga dinámica automática, endpoints para inferencia (`/predict`), descarga pública de pesos (`/download-model`) y recepción de actualizaciones (`/submit-update`).*
 
 ---
 
 ### Fase B: Cliente Consumidor (Inferencia Pre-Federada en T0)
 
-El técnico de campo envía una muestra real de hoja con síntomas de repilo (`dataset/test/repilo/muestra_campo.jpg`):
+El técnico de campo selecciona una muestra real de hoja con síntomas de repilo (`dataset/test/repilo/`):
 
 ```bash
-curl -X POST http://<IP_MAQUINA_1>:8000/predict -F "file=@muestra_campo.jpg"
+# Seleccionar una muestra real de prueba:
+MUESTRA=$(ls dataset/test/repilo/*.jpg | head -n 1)
+
+# Consultar el diagnóstico al servidor maestro:
+curl -X POST http://<IP_MAQUINA_1>:8000/predict -F "file=@$MUESTRA"
 ```
 
 **Respuesta recibida en T0:**
@@ -176,8 +196,8 @@ El servidor maestro recibe `coop_sevilla_parameters.pt`, valida las compuertas d
    ```
    *Calcula los nuevos umbrales óptimos $\tau_c^*$ sobre la nueva superficie de decisión y los actualiza directamente en el bundle `models/global_model.pt`.*
 
-3. **Recarga en el Servicio de Inferencia:**
-   El servicio REST en `scripts/serve.py` recarga `models/global_model.pt`. Ahora el indicador `"threshold_applied": "calibrated"` refleja una calibración empírica y matemáticamente exacta sobre el modelo global actualizado.
+3. **Recarga Dinámica en el Servicio de Inferencia:**
+   El servicio REST en `scripts/serve.py` detecta automáticamente que `models/global_model.pt` ha sido creado o actualizado en disco y recarga los pesos y umbrales calibrados en la siguiente petición (también puede forzarse manualmente con `curl -X POST http://localhost:8000/reload-model` o reiniciando el servicio). Ahora el indicador `"threshold_applied": "calibrated"` refleja la calibración matemática sobre el modelo global actualizado.
 
 ---
 
@@ -186,7 +206,7 @@ El servidor maestro recibe `coop_sevilla_parameters.pt`, valida las compuertas d
 El técnico vuelve a enviar la misma fotografía a la API:
 
 ```bash
-curl -X POST http://<IP_MAQUINA_1>:8000/predict -F "file=@muestra_campo.jpg"
+curl -X POST http://<IP_MAQUINA_1>:8000/predict -F "file=@$MUESTRA"
 ```
 
 **Respuesta recibida en T1 (Post-Federación):**

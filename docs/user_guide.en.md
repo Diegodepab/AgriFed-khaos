@@ -179,3 +179,4 @@ python scripts/client_trainer.py \
 * `--allow-new-classes`: Enables registration of emerging pathologies adhering to global AgriFed taxonomy.
 * `--client-id <name>`: Collaborator identifier included in manifest and cryptographic HMAC signature.
 </details>
+

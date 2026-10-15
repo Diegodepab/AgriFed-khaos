@@ -86,54 +86,15 @@ def create_app(
 
     from agrifed_khaos.models import build_model, load_checkpoint_bundle
 
+    active_model_p: Path | None = None
+    last_mtime: float = -1.0
     bundle_meta: dict[str, Any] = {}
-    state: dict[str, Any] = {}
-    model_sha256 = ""
-
-    if model_p.is_file():
-        state, bundle_meta = load_checkpoint_bundle(model_p, device=device)
-        sha = hashlib.sha256()
-        with model_p.open("rb") as handle:
-            while chunk := handle.read(65536):
-                sha.update(chunk)
-        model_sha256 = sha.hexdigest()
-
-    meta: dict[str, Any] = {}
-    if meta_p.is_file():
-        try:
-            meta = json.loads(meta_p.read_text(encoding="utf-8"))
-        except Exception:
-            meta = {}
-
-    classes: list[str] = bundle_meta.get("classes") or meta.get("classes") or []
-    arch = (
-        architecture
-        or bundle_meta.get("architecture")
-        or meta.get("architecture")
-        or "resnet18"
-    )
-    num_classes = (
-        bundle_meta.get("num_classes")
-        or meta.get("num_classes")
-        or (len(classes) if classes else 9)
-    )
-    calibrated_thresholds = bundle_meta.get("calibrated_thresholds") or meta.get(
-        "calibrated_thresholds"
-    )
-
-    net = build_model(architecture=arch, num_classes=num_classes).to(device)
-    if state:
-        net.load_state_dict(state)
-        net.eval()
-
-    raw_img_size = bundle_meta.get("img_size") or meta.get("img_size") or 224
-    if isinstance(raw_img_size, int):
-        img_size_tuple = (raw_img_size, raw_img_size)
-    elif isinstance(raw_img_size, (list, tuple)) and len(raw_img_size) == 2:
-        img_size_tuple = (int(raw_img_size[0]), int(raw_img_size[1]))
-    else:
-        img_size_tuple = (224, 224)
-
+    classes: list[str] = []
+    arch: str = architecture or "resnet18"
+    num_classes: int = 9
+    calibrated_thresholds: Any = None
+    model_sha256: str = ""
+    img_size_tuple: tuple[int, int] = (224, 224)
     transform = transforms.Compose(
         [
             transforms.Resize(img_size_tuple),
@@ -141,8 +102,87 @@ def create_app(
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
     )
+    net: torch.nn.Module = build_model(architecture=arch, num_classes=num_classes).to(device)
+
+    def _resolve_and_reload_model(force: bool = False) -> None:
+        nonlocal active_model_p, last_mtime, bundle_meta, classes, arch, num_classes
+        nonlocal calibrated_thresholds, model_sha256, img_size_tuple, transform, net
+
+        candidate_p = Path(model_path)
+        if not candidate_p.is_file():
+            base_cand = Path("models/base_model.pt")
+            if base_cand.is_file():
+                candidate_p = base_cand
+            else:
+                return
+        else:
+            if (
+                candidate_p == Path("models/base_model.pt")
+                and Path("models/global_model.pt").is_file()
+            ):
+                candidate_p = Path("models/global_model.pt")
+
+        current_mtime = candidate_p.stat().st_mtime
+        if not force and active_model_p == candidate_p and current_mtime == last_mtime:
+            return
+
+        state, b_meta = load_checkpoint_bundle(candidate_p, device=device)
+        sha = hashlib.sha256()
+        with candidate_p.open("rb") as handle:
+            while chunk := handle.read(65536):
+                sha.update(chunk)
+        model_sha256 = sha.hexdigest()
+
+        meta: dict[str, Any] = {}
+        if meta_p.is_file():
+            try:
+                meta = json.loads(meta_p.read_text(encoding="utf-8"))
+            except Exception:
+                meta = {}
+
+        classes = b_meta.get("classes") or meta.get("classes") or []
+        arch = (
+            architecture
+            or b_meta.get("architecture")
+            or meta.get("architecture")
+            or "resnet18"
+        )
+        num_classes = (
+            b_meta.get("num_classes")
+            or meta.get("num_classes")
+            or (len(classes) if classes else 9)
+        )
+        calibrated_thresholds = b_meta.get("calibrated_thresholds") or meta.get(
+            "calibrated_thresholds"
+        )
+
+        net = build_model(architecture=arch, num_classes=num_classes).to(device)
+        if state:
+            net.load_state_dict(state)
+            net.eval()
+
+        raw_img_size = b_meta.get("img_size") or meta.get("img_size") or 224
+        if isinstance(raw_img_size, int):
+            img_size_tuple = (raw_img_size, raw_img_size)
+        elif isinstance(raw_img_size, (list, tuple)) and len(raw_img_size) == 2:
+            img_size_tuple = (int(raw_img_size[0]), int(raw_img_size[1]))
+        else:
+            img_size_tuple = (224, 224)
+
+        transform = transforms.Compose(
+            [
+                transforms.Resize(img_size_tuple),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        )
+        active_model_p = candidate_p
+        last_mtime = current_mtime
+
+    _resolve_and_reload_model()
 
     def _infer_single(img_bytes: bytes, filename: str | None) -> dict[str, Any]:
+        _resolve_and_reload_model()
         try:
             img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
         except Image.DecompressionBombError as e:
@@ -235,9 +275,10 @@ def create_app(
 
     @app.get("/health")
     def health() -> dict[str, Any]:
+        _resolve_and_reload_model()
         return {
             "status": "online",
-            "model_path": str(model_p),
+            "model_path": str(active_model_p) if active_model_p else str(model_p),
             "model_sha256": model_sha256,
             "architecture": arch,
             "num_classes": num_classes,
@@ -298,13 +339,26 @@ def create_app(
     @app.get("/download-model")
     def download_model() -> FileResponse:
         """Endpoint to allow collaborative edge clients to download the model checkpoint bundle."""
-        if not model_p.is_file():
+        _resolve_and_reload_model()
+        target_file = active_model_p or (model_p if model_p.is_file() else None)
+        if not target_file or not target_file.is_file():
             raise HTTPException(status_code=404, detail="Model file not found on server")
         return FileResponse(
-            path=str(model_p),
-            filename=model_p.name,
+            path=str(target_file),
+            filename=target_file.name,
             media_type="application/octet-stream",
         )
+
+    @app.post("/reload-model")
+    def reload_model() -> dict[str, Any]:
+        """Manually trigger checkpoint reloading from disk."""
+        _resolve_and_reload_model(force=True)
+        return {
+            "status": "reloaded",
+            "model_path": str(active_model_p) if active_model_p else None,
+            "model_sha256": model_sha256,
+            "calibrated": calibrated_thresholds is not None,
+        }
 
     @app.post("/submit-update")
     async def submit_update(
