@@ -17,20 +17,39 @@ from pathlib import Path
 from PIL import Image
 
 
+def find_default_raw_dir() -> str:
+    candidates = [
+        Path("../olivefruit_v1.1/OliveFruit_v1.1/dataset"),
+        Path("/data/olivefruit_v1.1/OliveFruit_v1.1/dataset"),
+        Path("/data/OliveFruit_v1.1/dataset"),
+        Path("data/OliveFruit_v1.1/dataset"),
+        Path("/home/diego/agriKhaos/olivefruit_v1.1/OliveFruit_v1.1/dataset"),
+    ]
+    for c in candidates:
+        if c.is_dir():
+            return str(c)
+    return str(candidates[0])
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="AgriFed Domain-Agnostic Classification Crop Extractor"
     )
+    default_raw = find_default_raw_dir()
+    if Path(default_raw).is_dir():
+        default_out = str(Path(default_raw).parent.parent / "classification")
+    else:
+        default_out = "data/classification"
     parser.add_argument(
         "--raw-dir",
         type=str,
-        default="/home/diego/agriKhaos/olivefruit_v1.1/OliveFruit_v1.1/dataset",
+        default=default_raw,
         help="Path to raw dataset root containing split directories with labels.json and images/",
     )
     parser.add_argument(
         "--out-dir",
         type=str,
-        default="/home/diego/agriKhaos/olivefruit_v1.1/classification",
+        default=default_out,
         help="Output root directory where ImageFolder splits will be constructed",
     )
     parser.add_argument(

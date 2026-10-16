@@ -63,7 +63,11 @@ def main() -> None:
     total_samples = 0
     class_names: list[str] = []
     if args.data_dir:
-        data_p = Path(args.data_dir)
+        from agrifed_khaos.data import resolve_dataset_dir
+        try:
+            data_p = resolve_dataset_dir(args.data_dir, silent=True)
+        except Exception:
+            data_p = Path(args.data_dir)
         if data_p.is_dir():
             class_dirs = [d for d in data_p.iterdir() if d.is_dir()]
             num_classes = len(class_dirs)

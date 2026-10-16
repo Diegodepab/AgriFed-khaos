@@ -24,7 +24,7 @@ def audit_splits(dataset_root: Path) -> int:
         print(f"ERROR: El directorio no existe: {dataset_root}", file=sys.stderr)
         return 1
 
-    dataset_dir = dataset_root / "dataset"
+    dataset_dir = dataset_root / "dataset" if (dataset_root / "dataset").is_dir() else dataset_root
     detection_dir = dataset_root / "detection"
     labels_csv = dataset_root / "annotations" / "labels.csv"
 
@@ -108,10 +108,16 @@ def audit_splits(dataset_root: Path) -> int:
 
 
 if __name__ == "__main__":
-    default_path = (
-        Path("/data/EnfermedadesHoja_v1.0")
-        if Path("/data/EnfermedadesHoja_v1.0").is_dir()
-        else Path("../enfermedadeshoja_v1.0/EnfermedadesHoja_v1.0")
-    )
+    candidates = [
+        Path("/data/EnfermedadesHoja_v1.0"),
+        Path("../enfermedadeshoja_v1.0/EnfermedadesHoja_v1.0"),
+        Path("../enfermedadeshoja_v1.0"),
+        Path("dataset"),
+    ]
+    default_path = candidates[0]
+    for c in candidates:
+        if c.is_dir():
+            default_path = c
+            break
     root = Path(sys.argv[1]) if len(sys.argv) > 1 else default_path
     sys.exit(audit_splits(root))

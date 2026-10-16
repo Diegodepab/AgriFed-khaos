@@ -49,8 +49,18 @@ def run_3node_simulation(
     import torchvision.transforms as transforms
     from torch.utils.data import DataLoader, Subset
 
-    train_dir = dataset_root / "dataset" / "train"
-    test_dir = dataset_root / "dataset" / "test"
+    from agrifed_khaos.data import resolve_dataset_dir
+
+    try:
+        train_dir = resolve_dataset_dir(dataset_root, split="train", silent=True)
+        test_dir = resolve_dataset_dir(dataset_root, split="test", silent=True)
+    except FileNotFoundError:
+        if (dataset_root / "dataset" / "train").is_dir():
+            train_dir = dataset_root / "dataset" / "train"
+            test_dir = dataset_root / "dataset" / "test"
+        else:
+            train_dir = resolve_dataset_dir(None, split="train")
+            test_dir = resolve_dataset_dir(None, split="test")
 
     transform = transforms.Compose(
         [
