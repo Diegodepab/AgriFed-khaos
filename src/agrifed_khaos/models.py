@@ -154,8 +154,16 @@ def save_checkpoint_bundle(
 def load_checkpoint_bundle(
     path: Path | str,
     device: Any = "cpu",
+    allow_unsafe_legacy: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Load a checkpoint supporting both bundled dictionaries and legacy raw state_dicts.
+
+    Args:
+        path: Path to the checkpoint file (.pt)
+        device: Device to map tensors onto
+        allow_unsafe_legacy: If True, falls back to weights_only=False if weights_only=True fails.
+            Default is False to strictly prevent arbitrary code execution (CWE-502)
+            from untrusted client-supplied checkpoints.
 
     Returns:
         tuple (state_dict, metadata)
@@ -169,8 +177,15 @@ def load_checkpoint_bundle(
 
     try:
         checkpoint = torch.load(str(path), map_location=device, weights_only=True)
-    except Exception:
-        checkpoint = torch.load(str(path), map_location=device, weights_only=False)
+    except Exception as exc:
+        if allow_unsafe_legacy:
+            checkpoint = torch.load(str(path), map_location=device, weights_only=False)
+        else:
+            raise ValueError(
+                f"Failed to safely load checkpoint '{path}' with weights_only=True. "
+                "Arbitrary code execution protection is active. If this is a trusted local legacy "
+                "artifact, set allow_unsafe_legacy=True explicitly."
+            ) from exc
 
     if (
         isinstance(checkpoint, dict)

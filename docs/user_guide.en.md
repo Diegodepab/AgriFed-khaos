@@ -187,7 +187,7 @@ If your cooperative joins the federated collaboration network on a clean machine
      --server-url http://<MASTER_SERVER_IP>:8000
    ```
 
-*The process runs in under 1 minute, updates only the classifier head (~18 KB), and transmits the HMAC-signed bundle to the central server without a single photo leaving your facility.*
+*The process runs in under 1 minute, trains only the classifier head (~18 KB), and transmits the parameter bundle alongside its companion `.meta.json` manifest to the central server's `/submit-update` endpoint without a single photo leaving your facility.*
 </details>
 
 #### Automated Execution with Docker (Recommended):
@@ -209,10 +209,10 @@ python scripts/client_trainer.py \
   --server-url http://<MASTER_SERVER_IP>:8000
 ```
 
-### Technical Privacy Guarantees:
-* **0 Bytes of Images Transferred:** The trainer extracts gradients locally and exports only the numerical tensor bundle `models/client_parameters.pt` (~18 KB in classifier head mode).
-* **Automated Parameter Delivery:** Upon epoch completion, the local agent transmits numerical tensors directly to `/submit-update` (or via Flower gRPC in-memory streaming). The local farm operator never handles weight files manually.
-* **Formal Differential Privacy:** Optionally clips global L2 sensitivity and adds calibrated Gaussian noise ($\mathcal{N}(0, \sigma^2 C^2)$), mathematically safeguarding against Deep Leakage from Gradients and reconstruction attacks.
+### Technical Privacy & Ingestion Guarantees:
+* **0 Bytes of Images Transferred:** The trainer extracts gradients locally and exports only the numerical tensor bundle `models/client_parameters.pt` (~18 KB in classifier head mode) and its companion manifest `client_parameters.meta.json`.
+* **Automated Parameter & Manifest Delivery:** Upon local epoch completion, the agent transmits a multipart payload containing both the parameter bundle and its JSON manifest to `/submit-update`. The server verifies SHA-256 cross-integrity and (if configured) cryptographic HMAC signatures before queuing the update for aggregation.
+* **Parameter Perturbation (Gaussian Mechanism on ΔW):** Optionally clips global L2 sensitivity (`--dp-clip-norm`) and injects calibrated Gaussian noise (`--dp-noise-std`, $\mathcal{N}(0, \sigma^2 C^2 \mathbf{I})$), mitigating gradient inversion and reconstruction attacks. *(Note: Implements Gaussian perturbation on parameter deltas; does not evaluate an analytical $(\epsilon, \delta)$ differential privacy accountant).*
 
 > [!WARNING]
 > **Critical Governance Warning on Taxonomy Alignment (`--allow-new-classes`):**
@@ -222,8 +222,8 @@ python scripts/client_trainer.py \
 <summary>Advanced collaborator options</summary>
 
 * `--head-only`: *(Enabled by default)* Trains only the linear classifier head (~18 KB vs 42 MB transfer).
-* `--server-url <url>`: Central server endpoint for automated update transmission.
-* `--dp-clip-norm <float>` & `--dp-noise-std <float>`: Enforces formal Differential Privacy clipping and Gaussian perturbation.
+* `--server-url <url>`: Central server endpoint for automated update transmission (weights and companion manifest).
+* `--dp-clip-norm <float>` & `--dp-noise-std <float>`: Applies L2 norm clipping and Gaussian parameter perturbation over $\Delta W$ (must be specified together).
 * `--allow-new-classes`: Enables registration of emerging pathologies adhering to global AgriFed taxonomy.
 * `--client-id <name>`: Collaborator identifier included in manifest and cryptographic HMAC signature.
 </details>

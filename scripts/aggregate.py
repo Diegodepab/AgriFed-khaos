@@ -98,8 +98,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--server-momentum",
         type=float,
-        default=0.0,
-        help="Server momentum factor beta in [0, 1) for FedAvgM (default: 0.0, disabled)",
+        default=0.9,
+        help="Server momentum factor beta in [0, 1) for FedAvgM (default: 0.9)",
     )
     parser.add_argument(
         "--momentum-buffer",
@@ -437,16 +437,28 @@ def main() -> None:
             # 0.b Verify base model lineage
             expected_base_sha = client_meta.get("base_model_sha256")
             if expected_base_sha != actual_base_sha:
+                global_cand = Path("models/global_model.pt")
+                if global_cand.is_file() and compute_sha256(global_cand) == expected_base_sha:
+                    extra_hint = (
+                        f"\n    [HINT] Client update was trained on global model '{global_cand}' "
+                        f"({expected_base_sha[:16]}...).\n"
+                        "    For subsequent rounds (Round 2+), specify: "
+                        "'--base-model models/global_model.pt' to aggregate."
+                    )
+                else:
+                    extra_hint = ""
+
                 if args.skip_invalid_clients:
                     print(
-                        f"[!] WARNING: Skipping client '{client_path}': Base lineage mismatch.",
+                        f"[!] WARNING: Skipping client '{client_path}': "
+                        f"Base lineage mismatch.{extra_hint}",
                         file=sys.stderr,
                     )
                     continue
                 print(
                     f"[!] SECURITY REJECTION: Base model lineage mismatch!\n"
-                    f"    Client update was trained from base model: {expected_base_sha}\n"
-                    f"    Current server base model hash is:        {actual_base_sha}",
+                    f"    Client update was trained from model: {expected_base_sha}\n"
+                    f"    Target aggregation model hash is:     {actual_base_sha}{extra_hint}",
                     file=sys.stderr,
                 )
                 sys.exit(1)
@@ -1049,11 +1061,12 @@ def main() -> None:
     print(f"[*] Global SHA-256 Digest: {out_sha256}")
     print("=" * 65)
     print("PROXIMOS PASOS OPERATIVOS:")
-    print("  1. Re-calibrar umbrales de decisión sobre el nuevo modelo global:")
+    print("  1. Re-calibrar umbrales de decisión sobre partición de validación:")
     print(
         f"     python scripts/evaluate.py --model {out_path} "
-        f"--data-dir dataset/train --calibrate-threshold"
+        f"--data-dir dataset/val --calibrate-threshold"
     )
+    print("     [Nota: Usar siempre datos de validación separados para no sobreajustar umbrales]")
     print("")
     print("  2. Inferencia y Servicio REST:")
     print("     El microservicio (scripts/serve.py) detecta y recarga este modelo automáticamente.")

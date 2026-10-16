@@ -281,12 +281,15 @@ def main() -> None:
     print(f"[*] SHA-256 Digest:   {sha256_digest}")
     print(f"[*] Metadata saved:   {meta_file}")
     print("=" * 65)
+    val_cand = Path(args.data_dir).parent / "val"
+    val_dir_str = str(val_cand) if val_cand.is_dir() else args.data_dir
     print("PROXIMOS PASOS OPERATIVOS:")
-    print("  1. (Recomendado) Calibrar umbrales óptimos para optimizar diagnósticos:")
+    print("  1. (Recomendado) Calibrar umbrales sobre partición de validación:")
     print(
         f"     python scripts/evaluate.py --model {out_file} "
-        f"--data-dir {args.data_dir} --calibrate-threshold"
+        f"--data-dir {val_dir_str} --calibrate-threshold"
     )
+    print("     [Nota: Calibrar sobre datos de validación separados previene umbrales optimistas]")
     print("")
     print("  2. Iniciar el servicio REST de inferencia:")
     print(f"     python scripts/serve.py --model {out_file}")

@@ -138,20 +138,21 @@ docker compose exec agrifed bash
    </details>
 
 2. **Calibración Inicial One-vs-Rest (T0):**
-   Para optimizar la frontera de decisión frente al desbalance de clases antes de exponer el servicio, el maestro calibra los umbrales $\tau_c^*$:
+   Para optimizar la frontera de decisión frente al desbalance de clases antes de exponer el servicio, el maestro calibra los umbrales $\tau_c^*$ sobre la partición de validación:
    ```bash
    python scripts/evaluate.py \
      --model models/base_model.pt \
-     --data-dir dataset/train \
+     --data-dir dataset/val \
      --calibrate-threshold
    ```
+   *(Nota metodológica: Se recomienda calibrar siempre sobre `dataset/val` o una partición de control no utilizada durante el entrenamiento para evitar el sobreajuste de los umbrales de decisión).*
    *Inyecta los umbrales óptimos dentro de `metadata["calibrated_thresholds"]` en el propio archivo `.pt`.*
 
 3. **Levantar el Servicio de Diagnóstico REST:**
    ```bash
    python scripts/serve.py
    ```
-   *Queda escuchando en `http://0.0.0.0:8000` con recarga dinámica automática, endpoints para inferencia (`/predict`), descarga pública de pesos (`/download-model`) y recepción de actualizaciones (`/submit-update`).*
+   *Queda escuchando en `http://0.0.0.0:8000` con recarga dinámica automática, endpoints para inferencia (`/predict`), descarga pública de pesos (`/download-model`) y recepción segura de actualizaciones con manifiesto (`/submit-update`).*
 </details>
 
 <details open>
@@ -228,14 +229,14 @@ docker compose exec agrifed bash
 3. **Garantía Técnica de Cero Fuga y Payload Reducido:**
    - **Estrategia Head-Only:** El extractor convolucional (`resnet18`) permanece congelado y se ajusta únicamente la matriz de pesos del clasificador lineal final (`fc.weight`, `fc.bias`).
    - **Payload Ultraligero:** El tensor exportado pesa apenas **~18 KB** (frente a los ~42.7 MB del modelo convolucional completo).
-   - **Entrega Automatizada:** El argumento `--server-url` transmite el archivo numérico y su firma criptográfica HMAC directamente al endpoint `/submit-update` del servidor maestro. (En redes aisladas o *air-gapped*, se transfiere manualmente el archivo `models/client_parameters.pt` por canal seguro SFTP).
+   - **Entrega Automatizada con Manifiesto:** El argumento `--server-url` transmite automáticamente una petición multipart con los pesos (`client_parameters.pt`) y su manifiesto criptográfico (`client_parameters.meta.json`), validando la firma HMAC (`X-Client-HMAC`) y la correspondencia SHA-256 en `/submit-update`. (En redes aisladas o *air-gapped*, se transfiere manualmente la pareja de archivos `models/client_parameters.pt` y `models/client_parameters.meta.json` por SFTP).
    - **0 bytes de imágenes abandonaron la Máquina 2.**
 </details>
 
 <details open>
 <summary><strong>Fase D: En la Máquina 1 (Auditoría de Seguridad, Agregación Head-Only y Re-calibración T1)</strong></summary>
 
-El servidor maestro recibe `coop_sevilla_parameters.pt`, valida las compuertas de seguridad, aplica momento `FedAvgM` y re-calibra los umbrales:
+El servidor maestro recibe `coop_sevilla_parameters.pt` junto a su `coop_sevilla_parameters.meta.json`, valida las compuertas de seguridad, aplica momento `FedAvgM` y re-calibra los umbrales:
 
 1. **Agregación Federada Segura con Momento FedAvgM:**
    ```bash
@@ -245,18 +246,20 @@ El servidor maestro recibe `coop_sevilla_parameters.pt`, valida las compuertas d
      --output models/global_model.pt
    ```
 
+   *(Nota sobre linaje multi-ronda: En la Ronda 1, `--base-model` corresponde al modelo inicial `models/base_model.pt`. Para rondas federadas subsecuentes (Ronda 2+), tanto el cliente (`--weights-in`) como el agregador (`--base-model`) deben apuntar a `models/global_model.pt`, manteniendo el linaje ininterrumpido auditado por las compuertas de seguridad).*
+
    *Qué realiza internamente:*
    - **Compuerta de Linaje:** Comprueba que el hash `base_model_sha256` coincida exactamente con el modelo base original.
    - **Compuerta ParameterValidator (`head_only`):** Valida que el archivo contenga **estricta y exclusivamente los tensores del clasificador** (`fc.*`), sin claves convolucionales espurias ni faltantes, auditando ausencia de `NaN`/`Inf` y cota de divergencia ($\|\Delta W_{\text{head}}\|_2 = 12.00 \le 150.0$).
-   - **Momento FedAvgM Focalizado:** El momento del servidor ($\beta = 0.9$) se calcula y aplica **únicamente sobre los pesos de la capa clasificadora recibida**.
+   - **Momento FedAvgM Focalizado:** El momento del servidor ($\beta = 0.9$ por defecto) se calcula y aplica **únicamente sobre los pesos de la capa clasificadora recibida**.
    - **Invarianza del Extractor y BatchNorm:** Todas las capas convolucionales del backbone extractor y los buffers de normalización (`BatchNorm.running_mean` y `running_var`) se mantienen **100% intactos e idénticos al modelo base original**, evitando distorsiones por el sesgo local del cliente.
 
 2. **Re-calibración Rápida One-vs-Rest (Post-Agregación):**
-   Al modificarse los pesos del clasificador en $T_1$, el espacio de logits se desplaza. Para que las decisiones en producción sigan siendo óptimas, el servidor maestro ejecuta una re-calibración rápida sobre su partición:
+   Al modificarse los pesos del clasificador en $T_1$, el espacio de logits se desplaza. Para que las decisiones en producción sigan siendo óptimas, el servidor maestro ejecuta una re-calibración rápida sobre su partición de validación:
    ```bash
    python scripts/evaluate.py \
      --model models/global_model.pt \
-     --data-dir dataset/train \
+     --data-dir dataset/val \
      --calibrate-threshold
    ```
    *Calcula los nuevos umbrales óptimos $\tau_c^*$ sobre la nueva superficie de decisión y los actualiza directamente en el bundle `models/global_model.pt`.*

@@ -11,6 +11,7 @@ Covers:
 
 from __future__ import annotations
 
+import io
 import json
 import subprocess
 import sys
@@ -286,4 +287,130 @@ def test_gradcam_3d_transformer_support() -> None:
     heatmap, pred_idx, conf = cam.generate(dummy_input)
     assert heatmap.shape == (224, 224)
     assert 0.0 <= conf <= 1.0
+
+
+def test_safe_checkpoint_loading_blocks_arbitrary_code(tmp_path: Path) -> None:
+    from agrifed_khaos.models import load_checkpoint_bundle
+
+    class UnsafeObject:
+        def __reduce__(self):
+            return (eval, ("1 + 1",))
+
+    unsafe_file = tmp_path / "malicious.pt"
+    # Save a torch file containing custom non-tensor Python objects
+    torch.save({"data": UnsafeObject()}, str(unsafe_file))
+
+    # Safe loading (default) must strictly raise ValueError and forbid execution
+    with pytest.raises(ValueError, match="Arbitrary code execution protection is active"):
+        load_checkpoint_bundle(unsafe_file, allow_unsafe_legacy=False)
+
+    # Legacy explicit override allows loading
+    raw, _ = load_checkpoint_bundle(unsafe_file, allow_unsafe_legacy=True)
+    assert "data" in raw
+
+
+def test_submit_update_manifest_verification_and_storage(tmp_path: Path) -> None:
+    import hashlib
+
+    from fastapi.testclient import TestClient
+
+    from scripts.serve import create_app
+
+    # Create dummy base checkpoint and metadata
+    base_file = tmp_path / "base.pt"
+    torch.save({"state_dict": {"fc.weight": torch.randn(2, 2)}}, str(base_file))
+    meta_file = tmp_path / "metadata.json"
+    meta_file.write_text(json.dumps({"classes": ["c1", "c2"]}), encoding="utf-8")
+
+    app = create_app(str(base_file), str(meta_file))
+    client = TestClient(app)
+
+    # Generate dummy client weights
+    weights_bytes = b"agrifed_test_weights_payload"
+    weights_sha = hashlib.sha256(weights_bytes).hexdigest()
+
+    # 1. Valid submission with matching manifest
+    manifest_dict = {
+        "client_id": "coop_sevilla",
+        "sha256": weights_sha,
+        "base_model_sha256": "dummy_base_sha",
+        "num_samples": 100,
+    }
+    manifest_bytes = json.dumps(manifest_dict).encode("utf-8")
+
+    res = client.post(
+        "/submit-update?client_id=coop_sevilla",
+        files={
+            "file": (
+                "client_parameters.pt",
+                io.BytesIO(weights_bytes),
+                "application/octet-stream",
+            ),
+            "manifest": (
+                "client_parameters.meta.json",
+                io.BytesIO(manifest_bytes),
+                "application/json",
+            ),
+        },
+    )
+    assert res.status_code == 200
+    res_data = res.json()
+    assert res_data["status"] == "ready_for_aggregation"
+    assert res_data["has_manifest"] is True
+    assert res_data["manifest_verified"] is True
+    assert Path(res_data["saved_to"]).is_file()
+    assert Path(res_data["meta_saved_to"]).is_file()
+
+    # 2. Reject mismatched hash
+    bad_manifest = json.dumps({"sha256": "0" * 64}).encode("utf-8")
+    res_mismatch = client.post(
+        "/submit-update?client_id=coop_sevilla",
+        files={
+            "file": (
+                "client_parameters.pt",
+                io.BytesIO(weights_bytes),
+                "application/octet-stream",
+            ),
+            "manifest": (
+                "client_parameters.meta.json",
+                io.BytesIO(bad_manifest),
+                "application/json",
+            ),
+        },
+    )
+    assert res_mismatch.status_code == 400
+    assert "Integrity check failed" in res_mismatch.json()["detail"]
+
+    # 3. Reject invalid client ID (directory traversal or malformed characters)
+    res_bad_id = client.post(
+        "/submit-update?client_id=../../malicious",
+        files={"file": ("client.pt", io.BytesIO(weights_bytes), "application/octet-stream")},
+    )
+    assert res_bad_id.status_code == 400
+    assert "Invalid client_id" in res_bad_id.json()["detail"]
+
+
+def test_dp_argument_mutual_requirement() -> None:
+    from scripts.client_trainer import parse_args
+
+    # Providing only clip_norm without noise_std must exit with argument error
+    with pytest.raises(SystemExit):
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                sys,
+                "argv",
+                ["client_trainer.py", "--data-dir", "dummy", "--dp-clip-norm", "5.0"],
+            )
+            parse_args()
+
+    # Providing only noise_std without clip_norm must exit with argument error
+    with pytest.raises(SystemExit):
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                sys,
+                "argv",
+                ["client_trainer.py", "--data-dir", "dummy", "--dp-noise-std", "0.5"],
+            )
+            parse_args()
+
 

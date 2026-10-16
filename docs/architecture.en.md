@@ -227,7 +227,7 @@ To eliminate fragile external manifest paths, `.pt` checkpoints are serialized a
     }
 }
 ```
-[`load_checkpoint_bundle`](../src/agrifed_khaos/models.py) and [`save_checkpoint_bundle`](../src/agrifed_khaos/models.py) maintain transparent backward-compatibility with raw state dicts.
+[`load_checkpoint_bundle`](../src/agrifed_khaos/models.py) and [`save_checkpoint_bundle`](../src/agrifed_khaos/models.py) maintain transparent backward-compatibility with raw state dicts applying strict safe deserialization (`weights_only=True` by default), neutralizing arbitrary code injection vectors (CWE-502) in federated checkpoints.
 
 ### B. Canonical Remapping & Missing Class Guardrail
 1. **Canonical Remapping:** `torchvision.datasets.ImageFolder` assigns indices `0..K-1` alphabetically to local directories. If a client possesses only a subset of classes, these indices diverge from the baseline model. [`client_trainer.py`](../scripts/client_trainer.py) explicitly remaps `dataset.targets` against the canonical sequence `base_meta["classes"]`.
@@ -254,8 +254,8 @@ When an edge client discovers novel pathologies unobserved by the baseline model
    Both [`expand_model_classifier`](../src/agrifed_khaos/models.py) (client) and [`expand_state_dict_classifier`](../src/agrifed_khaos/models.py) (server) generate identical Kaiming Uniform initial weights, ensuring the security gate evaluates solely the client's genuine gradient updates.
 2. **Nominal Alignment:** In [`aggregate.py`](../scripts/aggregate.py), `align_client_head` aligns classifier rows by nominal class name (`target_idx = union_classes.index(cls)`), gracefully supporting concurrent disjoint expansions.
 
-### D. Formal Differential Privacy & FedAvgM
-1. **Global L2 Gaussian Mechanism:** In [`TorchModuleWrapper`](../src/agrifed_khaos/wrappers.py), concatenated trainable tensors are clipped when update norm exceeds threshold $C_{\text{clip}}$:
+### D. Parameter Perturbation (Gaussian Mechanism on ΔW) & FedAvgM
+1. **Global L2 Gaussian Mechanism:** In [`TorchModuleWrapper`](../src/agrifed_khaos/wrappers.py) and [`client_trainer.py`](../scripts/client_trainer.py), concatenated trainable tensors are clipped when update norm exceeds threshold $C_{\text{clip}}$:
 
    $$
    \|\Delta W\|_2 > C_{\text{clip}}
@@ -273,8 +273,8 @@ When an edge client discovers novel pathologies unobserved by the baseline model
    \mathcal{N}\left(0, \sigma^2 C_{\text{clip}}^2 \mathbf{I}\right)
    $$
 
-   With normalization buffers explicitly exempted to avoid corrupting BatchNorm running means and variances.
-2. **FedAvgM (Server Momentum):** [`aggregate.py`](../scripts/aggregate.py) and [`SanitizedFedProx`](../src/agrifed_khaos/federated.py) implement server-side momentum with velocity buffer $V_t$:
+   With normalization buffers explicitly exempted to avoid corrupting BatchNorm running means and variances. *(Methodological note: This mechanism injects Gaussian perturbation onto shared tensors; the framework does not compute a cumulative analytical $(\epsilon, \delta)$ privacy budget via Rényi/Moments accountants).*
+2. **FedAvgM (Server Momentum):** [`aggregate.py`](../scripts/aggregate.py) (enabled with $\beta = 0.9$ by default) and [`SanitizedFedProx`](../src/agrifed_khaos/federated.py) implement server-side momentum with velocity buffer $V_t$:
 
    $$
    V_t = \beta V_{t-1} + \Delta W_{\text{fed}}, \quad W_{\text{global}} = W_{\text{base}} + \eta V_t

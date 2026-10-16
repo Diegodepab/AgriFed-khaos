@@ -11,13 +11,16 @@ import argparse
 import hashlib
 import io
 import json
+import os
+import re
+import time
 from pathlib import Path
 from typing import Any
 
 import torch
 import torch.nn.functional as F
 import uvicorn
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from PIL import Image
@@ -382,28 +385,130 @@ def create_app(
     @app.post("/submit-update")
     async def submit_update(
         file: UploadFile = File(...),  # noqa: B008
+        manifest: UploadFile | None = File(None),  # noqa: B008
         client_id: str = "client",
+        authorization: str | None = Header(None),  # noqa: B008
     ) -> dict[str, Any]:
         """Automated ingestion endpoint for collaborative edge clients to upload
-        trained parameter bundles.
+        trained parameter bundles and companion cryptographic manifests.
         """
+        # 1. Optional client authentication via pre-shared Bearer token
+        server_token = os.getenv("AGRIFED_AUTH_TOKEN")
+        if server_token:
+            expected_auth = f"Bearer {server_token}"
+            if not authorization or authorization.strip() != expected_auth:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Unauthorized: invalid or missing Bearer token in Authorization header",
+                )
+
+        # 2. Client ID validation and normalization
+        trimmed_id = client_id.strip()
+        if not re.match(r"^[a-zA-Z0-9_\-]{1,64}$", trimmed_id):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid client_id: must match regex ^[a-zA-Z0-9_-]{1,64}$",
+            )
+        safe_client_id = trimmed_id
+
+        # 3. Read uploaded parameter file
         content = await file.read(50 * 1024 * 1024)  # 50 MB max limit for parameter tensors
         if not content:
             raise HTTPException(status_code=400, detail="Empty parameter file uploaded")
+        file_sha256 = hashlib.sha256(content).hexdigest()
 
+        # 4. Manifest processing & integrity validation
+        manifest_bytes: bytes | None = None
+        manifest_verified = False
+
+        if manifest is not None:
+            manifest_bytes = await manifest.read(1 * 1024 * 1024)  # 1 MB max for JSON manifest
+            if manifest_bytes:
+                try:
+                    manifest_data: dict[str, Any] = json.loads(manifest_bytes.decode("utf-8"))
+                except Exception as exc:
+                    raise HTTPException(
+                        status_code=400, detail=f"Malformed manifest JSON: {exc}"
+                    ) from exc
+
+                declared_sha = manifest_data.get("sha256") or manifest_data.get(
+                    "client_parameters_sha256"
+                )
+                if declared_sha and declared_sha.lower() != file_sha256.lower():
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            f"Integrity check failed: uploaded payload SHA-256 ({file_sha256}) "
+                            f"does not match manifest declared sha256 ({declared_sha})"
+                        ),
+                    )
+
+                server_hmac_key = os.getenv("AGRIFED_HMAC_KEY")
+                if server_hmac_key:
+                    from agrifed_khaos.security import verify_manifest_hmac
+
+                    sig = manifest_data.get("hmac_signature")
+                    if not sig:
+                        raise HTTPException(
+                            status_code=403,
+                            detail=(
+                                "Server requires HMAC signature in manifest, but none was provided."
+                            ),
+                        )
+                    if not verify_manifest_hmac(
+                        key=server_hmac_key,
+                        manifest=manifest_data,
+                        actual_client_sha256=file_sha256,
+                    ):
+                        raise HTTPException(
+                            status_code=403,
+                            detail=(
+                                "HMAC signature verification failed: invalid key or tampered "
+                                "metadata."
+                            ),
+                        )
+
+                manifest_verified = True
+
+        # 5. Persist weights and companion manifest atomically
         target_dir = Path("models/client_updates")
         target_dir.mkdir(parents=True, exist_ok=True)
-        safe_client_id = "".join(c for c in client_id if c.isalnum() or c in ("_", "-")) or "client"
+        archive_dir = target_dir / "archive"
+        archive_dir.mkdir(parents=True, exist_ok=True)
+
         dest_path = target_dir / f"{safe_client_id}_parameters.pt"
+        dest_meta = target_dir / f"{safe_client_id}_parameters.meta.json"
+
         dest_path.write_bytes(content)
 
-        file_sha256 = hashlib.sha256(content).hexdigest()
+        if manifest_bytes:
+            dest_meta.write_bytes(manifest_bytes)
+        else:
+            synth_meta = {
+                "client_id": safe_client_id,
+                "sha256": file_sha256,
+                "timestamp": time.time(),
+                "note": "Synthesized by server: client did not upload separate manifest",
+            }
+            dest_meta.write_text(json.dumps(synth_meta, indent=2), encoding="utf-8")
+
+        # Archive versioned copy to prevent silent loss or race condition overwrites
+        ts = int(time.time())
+        (archive_dir / f"{safe_client_id}_{ts}_parameters.pt").write_bytes(content)
+        if manifest_bytes:
+            (archive_dir / f"{safe_client_id}_{ts}_parameters.meta.json").write_bytes(
+                manifest_bytes
+            )
+
         return {
-            "status": "received",
+            "status": "ready_for_aggregation",
             "client_id": safe_client_id,
             "bytes_received": len(content),
             "sha256": file_sha256,
+            "has_manifest": manifest_bytes is not None,
+            "manifest_verified": manifest_verified,
             "saved_to": str(dest_path),
+            "meta_saved_to": str(dest_meta),
         }
 
     return app

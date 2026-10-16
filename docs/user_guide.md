@@ -187,7 +187,7 @@ Si tu cooperativa se une a la red de colaboración federada desde una máquina l
      --server-url http://<IP_SERVIDOR_MAESTRO>:8000
    ```
 
-*El proceso tarda menos de 1 minuto, actualiza únicamente la capa clasificadora (~18 KB), y envía el paquete con firma HMAC al servidor central sin que ninguna foto salga de tus instalaciones.*
+*El proceso tarda menos de 1 minuto, entrena únicamente la capa clasificadora (~18 KB) y transmite automáticamente el archivo de pesos junto con su manifiesto `.meta.json` al endpoint `/submit-update` del servidor central, sin que ninguna foto salga de tus instalaciones.*
 </details>
 
 #### Ejecución Automatizada con Docker (Recomendado):
@@ -209,10 +209,10 @@ python scripts/client_trainer.py \
   --server-url http://<IP_SERVIDOR_MAESTRO>:8000
 ```
 
-### Garantías Técnicas de Privacidad:
-* **0 Bytes de Imágenes Transferidas:** El script extrae gradientes localmente y genera únicamente el archivo numérico `models/client_parameters.pt` (~18 KB en modo clasificador).
-* **Transmisión Automatizada:** Al concluir las épocas locales, el agente transmite los tensores directamente al endpoint seguro `/submit-update` (o por streaming gRPC de Flower en memoria viva). El operador de la cooperativa no manipula archivos manualmente.
-* **Privacidad Diferencial Formal:** Opcionalmente recorta la norma L2 y añade ruido gaussiano ($\mathcal{N}(0, \sigma^2 C^2)$), impidiendo cualquier ataque de reconstrucción inversa de imágenes.
+### Garantías Técnicas de Privacidad y Entrega:
+* **0 Bytes de Imágenes Transferidas:** El script extrae gradientes localmente y genera únicamente el archivo numérico `models/client_parameters.pt` (~18 KB en modo clasificador) y su manifiesto `client_parameters.meta.json`.
+* **Entrega Automatizada de Pesos y Manifiesto:** Al concluir las épocas locales, el agente transmite mediante multipart el archivo de parámetros y su manifiesto al endpoint `/submit-update`. El servidor valida la integridad cruzada del hash SHA-256 y (si se configura la clave HMAC en el servidor) la firma criptográfica antes de habilitar la actualización para la agregación.
+* **Perturbación de Parámetros (Mecanismo Gaussiano sobre ΔW):** Opcionalmente recorta la norma L2 (`--dp-clip-norm`) y añade ruido gaussiano calibrado (`--dp-noise-std`, $\mathcal{N}(0, \sigma^2 C^2 \mathbf{I})$), mitigando riesgos de inversión de gradientes o reconstrucción de imágenes locales. *(Nota: Aplica perturbación gaussiana sobre tensores; no evalúa una cota analítica $(\epsilon, \delta)$ de privacidad diferencial formal).*
 
 > [!WARNING]
 > **Advertencia Crítica de Gobernanza y Alineación de Clases (`--allow-new-classes`):**
@@ -222,8 +222,8 @@ python scripts/client_trainer.py \
 <summary>Opciones avanzadas para el colaborador</summary>
 
 * `--head-only`: *(Activado por defecto)* Entrena solo el clasificador final (~18 KB frente a 42 MB de transferencia).
-* `--server-url <url>`: URL del servidor central para transmisión automatizada de la actualización.
-* `--dp-clip-norm <float>` y `--dp-noise-std <float>`: Aplica Privacidad Diferencial formal sobre los pesos.
+* `--server-url <url>`: URL del servidor central para transmisión automatizada de la actualización (pesos y manifiesto).
+* `--dp-clip-norm <float>` y `--dp-noise-std <float>`: Aplica recorte de norma L2 y perturbación gaussiana sobre $\Delta W$ (deben especificarse conjuntamente).
 * `--allow-new-classes`: Permite registrar clases emergentes respetando la taxonomía global de AgriFed.
 * `--client-id <nombre>`: Identificador del colaborador en el manifiesto y firma criptográfica HMAC.
 </details>

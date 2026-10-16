@@ -134,7 +134,15 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional central server URL (e.g. http://master:8000) for automated submission",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if (args.dp_clip_norm > 0.0 and args.dp_noise_std <= 0.0) or (
+        args.dp_clip_norm <= 0.0 and args.dp_noise_std > 0.0
+    ):
+        parser.error(
+            "Both --dp-clip-norm (> 0) and --dp-noise-std (> 0) must be specified together "
+            "to apply L2 clipping and Gaussian parameter perturbation."
+        )
+    return args
 
 
 def main() -> None:
@@ -450,8 +458,13 @@ def main() -> None:
 
     if args.dp_clip_norm > 0.0 and args.dp_noise_std > 0.0:
         print(
-            "[*] Applying Formal Differential Privacy on Update ΔW: "
-            f"L2 clip C={args.dp_clip_norm}, Gaussian noise sigma={args.dp_noise_std}..."
+            "[*] Applying Parameter Perturbation on Update ΔW: "
+            f"L2 clip bound C={args.dp_clip_norm}, "
+            f"Gaussian noise multiplier sigma={args.dp_noise_std}..."
+        )
+        print(
+            "    [Note: Parameter perturbation applies Gaussian noise over clipped parameter "
+            "deltas. No analytical (ε, δ) privacy accountant is evaluated.]"
         )
         apply_dp_gaussian_noise(
             trainable_params,
@@ -555,54 +568,81 @@ def main() -> None:
     if args.server_url:
         import urllib.request
         server_endpoint = f"{args.server_url.rstrip('/')}/submit-update"
-        print(f"[*] Automated FL Transmission: Uploading update to {server_endpoint}...")
+        print(
+            f"[*] Automated FL Transmission: Uploading weights and manifest to "
+            f"{server_endpoint}..."
+        )
         try:
-            with open(out_path, "rb") as f:
-                data = f.read()
+            pt_bytes = out_path.read_bytes()
+            meta_bytes = meta_path.read_bytes()
             boundary = f"----AgriFedBoundary{int(time.time())}"
-            header = (
+
+            part_file = (
                 f"--{boundary}\r\n"
                 f'Content-Disposition: form-data; name="file"; filename="{out_path.name}"\r\n'
                 f"Content-Type: application/octet-stream\r\n\r\n"
-            ).encode()
-            footer = f"\r\n--{boundary}--\r\n".encode()
-            body = header + data + footer
+            ).encode() + pt_bytes + b"\r\n"
+
+            part_manifest = (
+                f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="manifest"; filename="{meta_path.name}"\r\n'
+                f"Content-Type: application/json\r\n\r\n"
+            ).encode() + meta_bytes + b"\r\n"
+
+            footer = f"--{boundary}--\r\n".encode()
+            body = part_file + part_manifest + footer
+
+            req_headers = {
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+            }
+            if client_meta.get("hmac_signature"):
+                req_headers["X-Client-HMAC"] = client_meta["hmac_signature"]
 
             req = urllib.request.Request(
                 f"{server_endpoint}?client_id={args.client_id}",
                 data=body,
-                headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+                headers=req_headers,
                 method="POST",
             )
             with urllib.request.urlopen(req, timeout=30) as resp:
                 resp_text = resp.read().decode("utf-8")
-                print(f"[+] Automated transmission successful. Server response: {resp_text}")
+                print(
+                    "[+] Automated transmission successful "
+                    "(weights + companion manifest delivered)."
+                )
+                print(f"    Server response: {resp_text}")
         except Exception as exc:
             print(
                 f"[!] Warning: Automated transmission to {server_endpoint} failed ({exc}). "
-                f"Checkpoint is safely stored locally at {out_path}."
+                f"Checkpoint and manifest are safely stored locally at {out_path}."
             )
 
     print("=" * 65)
     print("PROXIMOS PASOS (LADO SERVIDOR MAESTRO):")
     if args.server_url:
         print(
-            f"  [+] El servidor maestro ya recibió tu actualización en: "
+            f"  [+] El servidor maestro ya recibió tus pesos y manifiesto en: "
             f"models/client_updates/{args.client_id}_parameters.pt"
         )
         print("  El Administrador maestro incorporará tus parámetros con:")
         print(
-            f"  python scripts/aggregate.py --base-model models/base_model.pt "
+            f"  python scripts/aggregate.py --base-model {args.weights_in} "
             f"--client-weights models/client_updates/{args.client_id}_parameters.pt "
             f"--output models/global_model.pt"
         )
     else:
-        print(f"  Transfiere el archivo {out_path} al servidor maestro (SFTP / SCP).")
+        print(f"  Transfiere {out_path} Y {meta_path} al servidor maestro (SFTP / SCP).")
         print("  El Administrador maestro incorporará tus parámetros con:")
         print(
-            f"  python scripts/aggregate.py --base-model models/base_model.pt "
+            f"  python scripts/aggregate.py --base-model {args.weights_in} "
             f"--client-weights {out_path} --output models/global_model.pt"
         )
+    print("")
+    print("  [Flujo Multi-Ronda]:")
+    print(f"  - Ronda 1: --weights-in fue '{args.weights_in}'")
+    print("  - Ronda 2+: Descargar el modelo global actualizado:")
+    print("    curl -o models/global_model.pt http://<IP_SERVIDOR>:8000/download-model")
+    print("    Y entrenar sobre él con: --weights-in models/global_model.pt")
     print("=" * 65)
 
 

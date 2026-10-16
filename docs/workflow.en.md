@@ -138,20 +138,21 @@ docker compose exec agrifed bash
    </details>
 
 2. **Initial One-vs-Rest Threshold Calibration (T0):**
-   To optimize the decision boundary against class imbalance prior to serving predictions, the orchestrator computes operating thresholds $\tau_c^*$:
+   To optimize the decision boundary against class imbalance prior to serving predictions, the orchestrator computes operating thresholds $\tau_c^*$ on the validation split:
    ```bash
    python scripts/evaluate.py \
      --model models/base_model.pt \
-     --data-dir dataset/train \
+     --data-dir dataset/val \
      --calibrate-threshold
    ```
+   *(Methodological note: It is strongly recommended to calibrate on `dataset/val` or a held-out split rather than the training set to prevent decision threshold overfitting).*
    *Injects optimal thresholds directly into `metadata["calibrated_thresholds"]` within the `.pt` bundle.*
 
 3. **Launch REST Diagnostic Service:**
    ```bash
    python scripts/serve.py
    ```
-   *Listens on `http://0.0.0.0:8000` with automatic dynamic model reloading, endpoints for inference (`/predict`), public model weights distribution (`/download-model`), and secure parameter ingestion (`/submit-update`).*
+   *Listens on `http://0.0.0.0:8000` with automatic dynamic model reloading, endpoints for inference (`/predict`), public model weights distribution (`/download-model`), and secure manifest-verified parameter ingestion (`/submit-update`).*
 </details>
 
 <details open>
@@ -228,14 +229,14 @@ docker compose exec agrifed bash
 3. **Technical Privacy & Bandwidth Guarantees:**
    - **Head-Only Fine-Tuning:** The convolutional feature backbone (`resnet18`) remains completely frozen; only the final linear classifier parameters (`fc.weight`, `fc.bias`) are updated.
    - **Ultra-Lightweight Payload:** The exported numerical tensor bundle weighs **~18 KB** (in contrast to the ~42.7 MB full convolutional model).
-   - **Automated Delivery:** `--server-url` transmits the numerical bundle and HMAC signature directly to the orchestrator's `/submit-update` endpoint. (In air-gapped networks, `models/client_parameters.pt` can be transferred via secure SFTP).
+   - **Automated Delivery with Manifest:** `--server-url` transmits a multipart request containing both the numerical tensor (`client_parameters.pt`) and companion manifest (`client_parameters.meta.json`), verifying SHA-256 payload integrity and HMAC signatures (`X-Client-HMAC`) at `/submit-update`. (In air-gapped networks, transfer both `models/client_parameters.pt` and `models/client_parameters.meta.json` via secure SFTP).
    - **0 bytes of imagery leave Machine 2.**
 </details>
 
 <details open>
 <summary><strong>Phase D: On Machine 1 (Security Auditing, Head-Only Aggregation & T1 Re-Calibration)</strong></summary>
 
-The master server receives `coop_sevilla_parameters.pt`, validates security gates, applies `FedAvgM` server momentum, and re-calibrates decision thresholds:
+The master server receives `coop_sevilla_parameters.pt` alongside `coop_sevilla_parameters.meta.json`, validates security gates, applies `FedAvgM` server momentum, and re-calibrates decision thresholds:
 
 1. **Secure Federated Aggregation with Server Momentum:**
    ```bash
@@ -245,10 +246,12 @@ The master server receives `coop_sevilla_parameters.pt`, validates security gate
      --output models/global_model.pt
    ```
 
+   *(Note on multi-round lineage: In Round 1, `--base-model` targets `models/base_model.pt`. For subsequent federated rounds (Round 2+), both client training (`--weights-in`) and the aggregator (`--base-model`) should point to `models/global_model.pt`, maintaining continuous auditable lineage across rounds).*
+
    *Internal Gate Verification:*
    - **Lineage Gate:** Confirms `base_model_sha256` hash matches the orchestrator's official baseline model.
    - **ParameterValidator (`head_only`):** Verifies the uploaded payload contains **strictly and exclusively linear classifier parameters** (`fc.*`), ensuring zero spurious convolutional keys, absolute finiteness (no `NaN`/`Inf`), and L2 divergence bounds ($\|\Delta W_{\text{head}}\|_2 = 12.00 \le 150.0$).
-   - **Targeted FedAvgM Momentum:** Server momentum ($\beta = 0.9$) is calculated and applied **strictly over the classifier head weights**.
+   - **Targeted FedAvgM Momentum:** Server momentum ($\beta = 0.9$ default) is calculated and applied **strictly over the classifier head weights**.
    - **Backbone & BatchNorm Invariance:** The entire convolutional feature extraction backbone and batch normalization statistics (`BatchNorm.running_mean`, `BatchNorm.running_var`) remain **100% frozen, invariant, and identical to the original baseline model**.
 
 2. **Rapid One-vs-Rest Re-Calibration (Post-Aggregation):**
@@ -256,7 +259,7 @@ The master server receives `coop_sevilla_parameters.pt`, validates security gate
    ```bash
    python scripts/evaluate.py \
      --model models/global_model.pt \
-     --data-dir dataset/train \
+     --data-dir dataset/val \
      --calibrate-threshold
    ```
    *Calculates fresh optimal thresholds $\tau_c^*$ on the updated decision boundary and updates `models/global_model.pt` directly.*

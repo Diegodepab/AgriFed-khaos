@@ -227,7 +227,7 @@ Para desacoplar el ciclo de inferencia y entrenamiento de dependencias de rutas 
     }
 }
 ```
-Las funciones [`load_checkpoint_bundle`](../src/agrifed_khaos/models.py) y [`save_checkpoint_bundle`](../src/agrifed_khaos/models.py) mantienen retrocompatibilidad transparente con tensores crudos (`state_dict` puro).
+Las funciones [`load_checkpoint_bundle`](../src/agrifed_khaos/models.py) y [`save_checkpoint_bundle`](../src/agrifed_khaos/models.py) mantienen retrocompatibilidad transparente con tensores crudos (`state_dict` puro) aplicando deserialización segura estricta (`weights_only=True` por defecto), neutralizando vectores de inyección de código arbitrario (CWE-502) en checkpoints federados.
 
 ### B. Remapeo Canónico y Protección de Clases Ausentes
 1. **Remapeo Canónico:** `torchvision.datasets.ImageFolder` asigna índices `0..K-1` alfabéticamente a las carpetas locales. Si el cliente solo posee un subconjunto de clases, estos índices no coincidirían con el modelo base. [`client_trainer.py`](../scripts/client_trainer.py) reasigna explícitamente `dataset.targets` contra la lista nominal canónica `base_meta["classes"]`.
@@ -254,8 +254,8 @@ Cuando un cliente perimetral descubre patologías no vistas en el modelo base:
    Tanto [`expand_model_classifier`](../src/agrifed_khaos/models.py) (cliente) como [`expand_state_dict_classifier`](../src/agrifed_khaos/models.py) (servidor) generan idénticos pesos de partida Kaiming Uniform, permitiendo que la compuerta de seguridad evalúe únicamente el gradiente genuino del cliente.
 2. **Alineación Nominal:** En [`aggregate.py`](../scripts/aggregate.py), la función `align_client_head` alinea las filas del clasificador por coincidencia nominal de clase (`target_idx = union_classes.index(cls)`), admitiendo expansiones disjuntas concurrentes.
 
-### D. Privacidad Diferencial Formal y FedAvgM
-1. **Mecanismo Gaussiano Global (L2):** En [`TorchModuleWrapper`](../src/agrifed_khaos/wrappers.py), los tensores entrenables concatenados se recortan si la norma excede el umbral de corte $C_{\text{clip}}$:
+### D. Perturbación de Parámetros (Mecanismo Gaussiano sobre ΔW) y FedAvgM
+1. **Mecanismo Gaussiano Global (L2):** En [`TorchModuleWrapper`](../src/agrifed_khaos/wrappers.py) y [`client_trainer.py`](../scripts/client_trainer.py), los tensores entrenables concatenados se recortan si la norma excede el umbral de corte $C_{\text{clip}}$:
 
    $$
    \|\Delta W\|_2 > C_{\text{clip}}
@@ -273,8 +273,8 @@ Cuando un cliente perimetral descubre patologías no vistas en el modelo base:
    \mathcal{N}\left(0, \sigma^2 C_{\text{clip}}^2 \mathbf{I}\right)
    $$
 
-   Con exención explícita de los buffers de normalización (evitando distorsionar medias y varianzas de BatchNorm).
-2. **FedAvgM (Server Momentum):** [`aggregate.py`](../scripts/aggregate.py) y [`SanitizedFedProx`](../src/agrifed_khaos/federated.py) implementan momento del servidor con amortiguador $V_t$:
+   Con exención explícita de los buffers de normalización (evitando distorsionar medias y varianzas de BatchNorm). *(Nota de rigor metodológico: Este mecanismo inyecta perturbación gaussiana sobre los tensores compartidos; el framework no evalúa una cota analítica acumulada $(\epsilon, \delta)$ mediante contabilidad de privacidad Rényi/Moments).*
+2. **FedAvgM (Server Momentum):** [`aggregate.py`](../scripts/aggregate.py) (activado con $\beta = 0.9$ por defecto) y [`SanitizedFedProx`](../src/agrifed_khaos/federated.py) implementan momento del servidor con amortiguador $V_t$:
 
    $$
    V_t = \beta V_{t-1} + \Delta W_{\text{fed}}, \quad W_{\text{global}} = W_{\text{base}} + \eta V_t
