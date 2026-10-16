@@ -988,8 +988,19 @@ def main() -> None:
     # 4. Regression Guardrail Verification (Optional Holdout Benchmark)
     guardrail_status = "NOT_EVALUATED"
     if args.val_dir:
-        val_path = Path(args.val_dir)
-        if val_path.is_dir():
+        from agrifed_khaos.data import resolve_dataset_dir
+
+        try:
+            val_path = resolve_dataset_dir(args.val_dir, split="val")
+        except FileNotFoundError:
+            val_path = Path(args.val_dir)
+        if not val_path.is_dir():
+            print(
+                f"[!] Warning: Validation directory for Regression Guardrail not found: "
+                f"{args.val_dir}",
+                file=sys.stderr,
+            )
+        else:
             print(f"[*] Running Regression Guardrail on benchmark: {val_path}...")
             num_classes = None
             if meta_file.is_file():
