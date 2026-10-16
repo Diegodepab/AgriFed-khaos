@@ -1,46 +1,95 @@
 {
   "architecture": "resnet18",
-  "num_classes": 2,
+  "num_classes": 9,
   "classes": [
-    "defectuosa",
-    "sana"
+    "aculus_olearius",
+    "antracnosis",
+    "cochinilla_tizne",
+    "deficiencia_nutricional",
+    "fumagina",
+    "repilo",
+    "sano",
+    "tuberculosis",
+    "virosis"
   ],
   "img_size": 224,
+  "calibrated_thresholds": {
+    "aculus_olearius": 0.63,
+    "antracnosis": 0.5,
+    "cochinilla_tizne": 0.44,
+    "deficiencia_nutricional": 0.19,
+    "fumagina": 0.51,
+    "repilo": 0.45,
+    "sano": 0.21,
+    "tuberculosis": 0.78,
+    "virosis": 0.87
+  },
   "target_client_tier": "cpu-low",
   "selection_mode": "manual",
   "selection_rationale": "User manually specified architecture.",
   "weights_file": "models/base_model.pt",
-  "sha256": "f7b488fe6f0ac0faaa5302b06636507d8c0d417fd7c3a94e2186436f3860c1d3",
   "hyperparameters": {
     "epochs": 3,
     "batch_size": 32,
     "learning_rate": 0.001,
-    "samples_trained": 2000
+    "samples_trained": 1800
   },
-  "dataset_source": "/home/diego/agriKhaos/olivefruit_v1.1/classification/train",
-  "created_at": "2026-10-14 11:41:39",
-  "latest_aggregated_checkpoint": "models/global_model.pt",
-  "latest_aggregated_sha256": "41e3de5a74f5dbb31ef5b2e0789ddac642ed4f0702864102eb6640afd78d5c2b",
+  "dataset_source": "/data/EnfermedadesHoja_v1.0/dataset/train",
+  "created_at": "2026-10-16 11:10:15",
+  "sha256": "3048740aba8b2d4c8cfbdf76dc4104da6497d5eda02194fc19ee6519e10ecaf8",
+  "latest_aggregated_checkpoint": "models/test_global.pt",
   "aggregation_history": [
     {
-      "timestamp": "2026-10-14 11:48:26",
-      "base_sha256": "f7b488fe6f0ac0faaa5302b06636507d8c0d417fd7c3a94e2186436f3860c1d3",
-      "client_sha256": "47d3491caa4acdfb8ccd1876d9b84143726ed282675491f1375715a944819723",
-      "delta_norm": 0.5791,
-      "relative_norm": 0.0068,
-      "eta": 0.35,
-      "scope": "full_model",
+      "timestamp": "2026-10-16 11:13:37",
+      "base_sha256": "a947ba6fa250c0bb0b9fe024245a9fd348ef46e66b1c0dfb12aef8fe7718aa6f",
+      "client_sha256": "09c1a56983ed8943b80d95def942d326f18c4473fa476775afec5048d271fffe",
+      "delta_norm": 0.2356,
+      "relative_norm": 0.1185,
+      "eta": 0.6,
+      "server_momentum": 0.9,
+      "scope": "head_only",
       "num_clients": 1,
-      "total_samples": 800,
+      "total_samples": 600,
       "clients": [
         {
-          "client_path": "models/client_parameters.pt",
-          "client_id": "client_2_khaosdev",
-          "client_sha256": "47d3491caa4acdfb8ccd1876d9b84143726ed282675491f1375715a944819723",
-          "num_samples": 800,
+          "client_path": "models/client2_parameters.pt",
+          "client_id": "coop_sevilla",
+          "client_sha256": "09c1a56983ed8943b80d95def942d326f18c4473fa476775afec5048d271fffe",
+          "num_samples": 600,
           "sample_weight": 1.0,
-          "delta_norm": 0.5791,
-          "relative_norm": 0.0068,
+          "delta_norm": 0.2356,
+          "relative_norm": 0.1185,
+          "scope": "head_only"
+        }
+      ],
+      "updated_tensors": [
+        "fc.bias",
+        "fc.weight"
+      ],
+      "status": "APPROVED",
+      "guardrail_status": "NOT_EVALUATED",
+      "global_sha256": "108155a959ccd00d8501b6fcc24f7b5ce6801b8d05d27852bb0306d685208856"
+    },
+    {
+      "timestamp": "2026-10-16 11:18:47",
+      "base_sha256": "a947ba6fa250c0bb0b9fe024245a9fd348ef46e66b1c0dfb12aef8fe7718aa6f",
+      "client_sha256": "694069449147a791aeed6ded76fd85a667e981f17b50c9bf85a3719b54114b12",
+      "delta_norm": 136.2353,
+      "relative_norm": 1.5986,
+      "eta": 0.6,
+      "server_momentum": 0.9,
+      "scope": "full_model",
+      "num_clients": 1,
+      "total_samples": 600,
+      "clients": [
+        {
+          "client_path": "models/client_adversarial.pt",
+          "client_id": "adversarial_node",
+          "client_sha256": "694069449147a791aeed6ded76fd85a667e981f17b50c9bf85a3719b54114b12",
+          "num_samples": 600,
+          "sample_weight": 1.0,
+          "delta_norm": 136.2363,
+          "relative_norm": 1.5986,
           "scope": "full_model"
         }
       ],
@@ -108,9 +157,10 @@
         "layer4.1.conv1.weight",
         "layer4.1.conv2.weight"
       ],
-      "global_sha256": "41e3de5a74f5dbb31ef5b2e0789ddac642ed4f0702864102eb6640afd78d5c2b",
       "status": "APPROVED",
-      "guardrail_status": "NOT_EVALUATED"
+      "guardrail_status": "NOT_EVALUATED",
+      "global_sha256": "d1a278dc24b53eb2bff5d18ad14332af1d2904b87d8e90961c276d047ae9828d"
     }
-  ]
+  ],
+  "latest_aggregated_sha256": "d1a278dc24b53eb2bff5d18ad14332af1d2904b87d8e90961c276d047ae9828d"
 }
