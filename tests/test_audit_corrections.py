@@ -654,3 +654,64 @@ def test_serve_and_client_trainer_ssl_options() -> None:
         assert c_args.insecure_skip_tls_verify is True
 
 
+def test_aggregate_directory_weights_discovery(tmp_path: Path) -> None:
+    from agrifed_khaos.crypto import compute_sha256
+    from agrifed_khaos.models import build_model, save_checkpoint_bundle
+
+    base_model = tmp_path / "base.pt"
+    out_model = tmp_path / "global.pt"
+    meta_file = tmp_path / "meta.json"
+
+    base_net = build_model("resnet18", num_classes=2)
+    save_checkpoint_bundle(
+        base_model,
+        base_net.state_dict(),
+        {"classes": ["c0", "c1"], "num_classes": 2, "architecture": "resnet18"},
+    )
+    meta_file.write_text(
+        json.dumps({"classes": ["c0", "c1"], "num_classes": 2, "architecture": "resnet18"}),
+        encoding="utf-8",
+    )
+    actual_base_sha = compute_sha256(base_model)
+
+    # Create immutable updates directory structure:
+    # <tmp>/client_updates/updates/coop_cordoba/stamp_1/parameters.pt + .meta.json
+    updates_root = tmp_path / "client_updates"
+    stamp_dir = updates_root / "updates" / "coop_cordoba" / "1729000_abc"
+    stamp_dir.mkdir(parents=True, exist_ok=True)
+
+    client_net = build_model("resnet18", num_classes=2)
+    client_pt = stamp_dir / "parameters.pt"
+    client_state = {
+        k: v for k, v in client_net.state_dict().items() if k.startswith(("fc.", "classifier."))
+    }
+    save_checkpoint_bundle(client_pt, client_state, {})
+    client_meta = {
+        "client_id": "coop_cordoba",
+        "sha256": compute_sha256(client_pt),
+        "base_model_sha256": actual_base_sha,
+        "training_scope": "head_only",
+        "num_samples": 50,
+    }
+    (stamp_dir / "parameters.meta.json").write_text(json.dumps(client_meta), encoding="utf-8")
+
+    # Run aggregate with --client-weights pointing to the root updates folder!
+    cmd = [
+        sys.executable,
+        "scripts/aggregate.py",
+        "--base-model",
+        str(base_model),
+        "--client-weights",
+        str(updates_root),
+        "--output",
+        str(out_model),
+        "--metadata",
+        str(meta_file),
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    assert "1 candidate checkpoint(s)" in res.stdout
+    assert "AGGREGATING 1 VALIDATED CLIENT(S)" in res.stdout
+    assert "Aggregation complete!" in res.stdout
+    assert out_model.is_file()
+
+

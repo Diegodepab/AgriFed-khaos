@@ -293,6 +293,36 @@ def main() -> None:
             if cand_named.is_file():
                 client_paths.append(cand_named)
                 continue
+            # Direct client parameter files in the directory
+            nested_pts = sorted([p for p in cp.glob("*.pt") if not p.name.startswith(".")])
+            if nested_pts:
+                client_paths.extend(nested_pts)
+                continue
+            # Updates folder with client stamp subdirectories
+            updates_folder = (
+                cp / "updates"
+                if (cp / "updates").is_dir()
+                else (cp if cp.name == "updates" else None)
+            )
+            if updates_folder and updates_folder.is_dir():
+                discovered: list[Path] = []
+                for client_dir in sorted(updates_folder.iterdir()):
+                    if client_dir.is_dir() and not client_dir.name.startswith("."):
+                        stamps = sorted(
+                            [
+                                d
+                                for d in client_dir.iterdir()
+                                if d.is_dir() and not d.name.startswith(".")
+                            ],
+                            key=lambda d: d.name,
+                        )
+                        if stamps:
+                            latest_param = stamps[-1] / "parameters.pt"
+                            if latest_param.is_file():
+                                discovered.append(latest_param)
+                if discovered:
+                    client_paths.extend(discovered)
+                    continue
         client_paths.append(cp)
 
     if not client_paths:
