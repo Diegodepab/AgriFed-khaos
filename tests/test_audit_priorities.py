@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pytest
@@ -288,9 +289,11 @@ def test_missing_class_masking_preserves_classifier_row() -> None:
         nn.Linear(8, 3),  # Classifier head: weight shape (3, 8), bias shape (3,)
     )
 
+    classifier = cast(nn.Linear, model[2])
     # Save initial baseline weights
-    base_head_weight = model[2].weight.detach().clone()
-    base_head_bias = model[2].bias.detach().clone()
+    base_head_weight = classifier.weight.detach().clone()
+    assert classifier.bias is not None
+    base_head_bias = classifier.bias.detach().clone()
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.05, weight_decay=1e-2)
     criterion = nn.CrossEntropyLoss()
@@ -319,8 +322,9 @@ def test_missing_class_masking_preserves_classifier_row() -> None:
     )
     assert stats.examples == 60  # 20 samples * 3 epochs
 
-    final_head_weight = model[2].weight.detach()
-    final_head_bias = model[2].bias.detach()
+    final_head_weight = classifier.weight.detach()
+    assert classifier.bias is not None
+    final_head_bias = classifier.bias.detach()
 
     # Classes 0 and 1 must have been updated by gradients
     assert not torch.allclose(final_head_weight[0], base_head_weight[0])

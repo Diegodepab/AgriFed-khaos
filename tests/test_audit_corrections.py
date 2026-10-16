@@ -16,6 +16,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 import torch
@@ -76,7 +77,7 @@ def test_torch_wrapper_sample_weighted_loss_and_clipping() -> None:
             self.fc = nn.Linear(4, 2)
 
         def forward(self, x: torch.Tensor) -> torch.Tensor:
-            return self.fc(x)
+            return cast(torch.Tensor, self.fc(x))
 
     model = LinearModel()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
@@ -277,7 +278,7 @@ def test_gradcam_3d_transformer_support() -> None:
             tokens = torch.randn(b, 197, 192, requires_grad=True)
             out_tokens = self.block(tokens)
             cls_token = out_tokens[:, 0, :]
-            return self.head(cls_token)
+            return cast(torch.Tensor, self.head(cls_token))
 
     model = DummyViT()
     cam = GradCAM(model, model.block)
@@ -293,7 +294,7 @@ def test_safe_checkpoint_loading_blocks_arbitrary_code(tmp_path: Path) -> None:
     from agrifed_khaos.models import load_checkpoint_bundle
 
     class UnsafeObject:
-        def __reduce__(self):
+        def __reduce__(self) -> tuple[Any, tuple[Any, ...]]:
             return (eval, ("1 + 1",))
 
     unsafe_file = tmp_path / "malicious.pt"
