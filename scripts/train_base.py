@@ -85,9 +85,12 @@ def main() -> None:
     else:
         device = torch.device("cpu")
 
-    data_path = Path(args.data_dir)
-    if not data_path.is_dir():
-        print(f"[!] Error: data directory not found: {data_path}", file=sys.stderr)
+    from agrifed_khaos.data import resolve_dataset_dir
+
+    try:
+        data_path = resolve_dataset_dir(args.data_dir, split="train")
+    except FileNotFoundError as exc:
+        print(f"[!] Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
     # 1. Inspect classes dynamically from subfolders (Domain-Agnostic)

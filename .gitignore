@@ -58,6 +58,10 @@ reports/
 artifacts/
 *.log
 
+# Datasets & Local Mounts
+dataset/
+data/
+
 # OS generated
 .DS_Store
 Thumbs.db

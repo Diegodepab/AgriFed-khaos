@@ -25,7 +25,7 @@ import torch.nn.functional as F
 import uvicorn
 from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from PIL import Image
 from torchvision import transforms
 
@@ -101,7 +101,7 @@ def parse_args() -> argparse.Namespace:
 
 def create_app(
     model_path: str,
-    metadata_path: str,
+    metadata_path: str = "models/metadata.json",
     architecture: str | None = None,
     device_name: str = "auto",
 ) -> FastAPI:
@@ -333,6 +333,10 @@ def create_app(
             },
         }
 
+    @app.get("/favicon.ico", include_in_schema=False)
+    def favicon() -> Response:
+        return Response(status_code=204)
+
     @app.get("/health")
     def health() -> dict[str, Any]:
         _resolve_and_reload_model()
@@ -515,7 +519,7 @@ def create_app(
         # 5. Persist weights and companion manifest atomically under per-client lock
         client_lock = await _get_client_lock(safe_client_id)
         async with client_lock:
-            target_dir = Path("models/client_updates")
+            target_dir = Path(os.getenv("AGRIFED_UPDATES_DIR", "models/client_updates"))
             target_dir.mkdir(parents=True, exist_ok=True)
             archive_dir = target_dir / "archive"
             archive_dir.mkdir(parents=True, exist_ok=True)

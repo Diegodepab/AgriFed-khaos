@@ -320,6 +320,7 @@ def test_submit_update_manifest_verification_and_storage(
 
     monkeypatch.setenv("AGRIFED_AUTH_TOKEN", "test-token")
     monkeypatch.delenv("AGRIFED_HMAC_KEY", raising=False)
+    monkeypatch.setenv("AGRIFED_UPDATES_DIR", str(tmp_path / "client_updates"))
     # Create dummy base checkpoint and metadata
     base_file = tmp_path / "base.pt"
     torch.save(build_model("resnet18", num_classes=2).state_dict(), str(base_file))
@@ -412,6 +413,7 @@ def test_submit_update_requires_manifest_and_verifies_hmac(
 
     monkeypatch.setenv("AGRIFED_AUTH_TOKEN", "test-token")
     monkeypatch.setenv("AGRIFED_HMAC_KEY", "shared-test-secret")
+    monkeypatch.setenv("AGRIFED_UPDATES_DIR", str(tmp_path / "client_updates"))
     base_file = tmp_path / "base.pt"
     torch.save(build_model("resnet18", num_classes=2).state_dict(), str(base_file))
     meta_file = tmp_path / "metadata.json"
@@ -499,6 +501,7 @@ def test_submit_update_atomic_immutable_directory(
 
     monkeypatch.setenv("AGRIFED_AUTH_TOKEN", "token-xyz")
     monkeypatch.delenv("AGRIFED_HMAC_KEY", raising=False)
+    monkeypatch.setenv("AGRIFED_UPDATES_DIR", str(tmp_path / "client_updates"))
 
     base_file = tmp_path / "base.pt"
     torch.save(build_model("resnet18", num_classes=2).state_dict(), str(base_file))
@@ -713,5 +716,36 @@ def test_aggregate_directory_weights_discovery(tmp_path: Path) -> None:
     assert "AGGREGATING 1 VALIDATED CLIENT(S)" in res.stdout
     assert "Aggregation complete!" in res.stdout
     assert out_model.is_file()
+
+
+def test_resolve_dataset_dir_and_favicon(tmp_path: Path) -> None:
+    import pytest
+    from starlette.testclient import TestClient
+
+    from agrifed_khaos.data import resolve_dataset_dir
+    from scripts.serve import create_app
+
+    # 1. Direct path exists
+    direct_dir = tmp_path / "custom_data" / "train"
+    (direct_dir / "class_a").mkdir(parents=True, exist_ok=True)
+    assert resolve_dataset_dir(direct_dir) == direct_dir
+
+    # 2. Non-existent path raises FileNotFoundError with helpful guidance
+    with pytest.raises(FileNotFoundError) as exc_info:
+        resolve_dataset_dir("non_existent_path_xyz_123")
+    assert "Dataset directory not found" in str(exc_info.value)
+    assert "Guidance:" in str(exc_info.value)
+
+    # 3. Favicon.ico endpoint returns 204
+    dummy_model = tmp_path / "dummy.pt"
+    from agrifed_khaos.models import build_model, save_checkpoint_bundle
+
+    m = build_model("resnet18", num_classes=2)
+    meta = {"classes": ["c1", "c2"], "architecture": "resnet18"}
+    save_checkpoint_bundle(dummy_model, m.state_dict(), meta)
+    app = create_app(str(dummy_model))
+    client = TestClient(app)
+    resp = client.get("/favicon.ico")
+    assert resp.status_code == 204
 
 

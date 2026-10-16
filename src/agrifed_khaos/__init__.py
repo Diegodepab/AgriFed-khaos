@@ -23,6 +23,7 @@ from .data import (
     load_inventory,
     load_records,
     partition_train_records,
+    resolve_dataset_dir,
 )
 from .federated import (
     AgrifedFlowerClient,
@@ -131,6 +132,7 @@ __all__ = [
     "load_inventory",
     "load_records",
     "partition_train_records",
+    "resolve_dataset_dir",
     "save_canary_history",
     "save_checkpoint_bundle",
     "validate_client_update",

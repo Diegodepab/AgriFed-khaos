@@ -35,8 +35,11 @@ RUN groupadd --gid 1000 agrifed 2>/dev/null || true \
         groupadd --gid ${USER_GID} agrifed-user 2>/dev/null || true && \
         useradd --uid ${USER_UID} --gid ${USER_GID} --create-home --shell /bin/bash agrifed-user 2>/dev/null || true ; \
     fi \
+    && chmod 666 /etc/passwd /etc/group \
     && mkdir -p /workspace /home/agrifed/.cache \
-    && chown -R 1000:1000 /workspace /home/agrifed
+    && chown -R 1000:1000 /workspace /home/agrifed \
+    && chmod -R 777 /home/agrifed \
+    && echo 'if ! whoami &>/dev/null; then echo "agrifed:x:$(id -u):$(id -g):agrifed:/workspace:/bin/bash" >> /etc/passwd; fi' >> /etc/bash.bashrc
 
 COPY pyproject.toml README.md ./
 COPY src ./src

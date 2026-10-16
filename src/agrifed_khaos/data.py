@@ -377,3 +377,87 @@ def compute_class_weights(
 
     return torch.tensor(weights, dtype=torch.float32)
 
+
+def resolve_dataset_dir(
+    data_dir: str | Path | None,
+    split: str | None = None,
+    silent: bool = False,
+) -> Path:
+    """Resolve a dataset directory path with ergonomic fallback heuristics.
+
+    Searches in order:
+    1. Direct directory path as requested.
+    2. Container mount paths: /workspace/dataset, /data/EnfermedadesHoja_v1.0/dataset, etc.
+    3. Host relative mount paths: ../enfermedadeshoja_v1.0/...
+    """
+    if data_dir is not None:
+        p = Path(data_dir)
+        if p.is_dir():
+            return p
+
+    target = ""
+    if data_dir is not None:
+        raw_name = Path(data_dir).name
+        if raw_name in ("train", "val", "test"):
+            target = raw_name
+        elif split in ("train", "val", "test"):
+            target = split
+        else:
+            target = raw_name
+    elif split is not None:
+        target = split
+
+    candidates: list[Path] = []
+    if target:
+        candidates.extend([
+            Path("dataset") / target,
+            Path("/workspace/dataset") / target,
+            Path("/data/EnfermedadesHoja_v1.0/dataset") / target,
+            Path("/data/EnfermedadesHoja_v1.0") / target,
+            Path("/data/enfermedadeshoja_v1.0/dataset") / target,
+            Path("/data/enfermedadeshoja_v1.0") / target,
+            Path("/data/dataset") / target,
+            Path("/data") / target,
+            Path("../enfermedadeshoja_v1.0/EnfermedadesHoja_v1.0/dataset") / target,
+            Path("../enfermedadeshoja_v1.0/dataset") / target,
+        ])
+    else:
+        candidates.extend([
+            Path("dataset"),
+            Path("/workspace/dataset"),
+            Path("/data/EnfermedadesHoja_v1.0/dataset"),
+            Path("/data/EnfermedadesHoja_v1.0"),
+            Path("/data/enfermedadeshoja_v1.0/dataset"),
+            Path("/data/enfermedadeshoja_v1.0"),
+            Path("/data/dataset"),
+            Path("/data"),
+            Path("../enfermedadeshoja_v1.0/EnfermedadesHoja_v1.0/dataset"),
+            Path("../enfermedadeshoja_v1.0/dataset"),
+        ])
+
+    for cand in candidates:
+        if cand.is_dir():
+            try:
+                subdirs = [d for d in cand.iterdir() if d.is_dir() and not d.name.startswith(".")]
+                if subdirs:
+                    if not silent and data_dir is not None and str(data_dir) != str(cand):
+                        print(
+                            f"[*] Auto-resolved dataset directory '{data_dir}' -> '{cand}'",
+                            flush=True,
+                        )
+                    return cand
+            except OSError:
+                continue
+
+    err_target = f"'{data_dir}'" if data_dir is not None else "(auto)"
+    checked_str = "\n".join(f"    • {c}" for c in candidates[:6])
+    raise FileNotFoundError(
+        f"Dataset directory not found: {err_target}.\n"
+        f"Checked candidate locations:\n{checked_str}\n"
+        "Guidance:\n"
+        "  1. If running inside Docker, ensure the dataset is mounted in compose.yaml\n"
+        "     (e.g., AGRIFED_DATASET_ROOT=../enfermedadeshoja_v1.0/EnfermedadesHoja_v1.0).\n"
+        "  2. Or create a symlink: 'ln -s /data/EnfermedadesHoja_v1.0/dataset dataset'.\n"
+        "  3. Verify with: ls -la dataset/"
+    )
+

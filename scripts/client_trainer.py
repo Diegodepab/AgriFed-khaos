@@ -230,7 +230,14 @@ def main() -> None:
         ]
     )
 
-    data_path = Path(args.data_dir)
+    from agrifed_khaos.data import resolve_dataset_dir
+
+    try:
+        data_path = resolve_dataset_dir(args.data_dir, split="val")
+    except FileNotFoundError as exc:
+        print(f"[!] Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
     dataset = datasets.ImageFolder(str(data_path), transform=transform)
     total_avail = len(dataset)
     print(f"[*] Private dataset located at {data_path} ({total_avail} samples)")
