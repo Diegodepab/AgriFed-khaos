@@ -78,10 +78,14 @@ python scripts/train_base.py --data-dir my_dataset/train
 Starts the zero-dependency HTTP microservice to serve real-time field diagnostics and accept automated collaborative parameter uploads:
 
 ```bash
+# Standard execution (development / private network)
 python scripts/serve.py
+
+# Or with native TLS termination (production)
+python scripts/serve.py --ssl-keyfile /path/to/privkey.pem --ssl-certfile /path/to/fullchain.pem
 ```
 
-*Listens on `http://0.0.0.0:8000`. Automatically loads `models/global_model.pt` (or `base_model.pt`), applies calibrated One-vs-Rest thresholding, exposes `/download-model` for client bootstrap, and activates the ingestion endpoint `/submit-update`.*
+*Listens on `0.0.0.0:8000`. Automatically hot-reloads `models/global_model.pt` (or `base_model.pt`), applies calibrated One-vs-Rest thresholding, exposes `/download-model` for client bootstrap, and activates secure atomic ingestion at `/submit-update`.*
 
 ### Step 4: Parameter Aggregation with FedAvgM Server Momentum
 The Administrator aggregates parameter bundles received from network clients using **FedAvgM (Federated Averaging with Server Momentum)**:
@@ -90,13 +94,14 @@ The Administrator aggregates parameter bundles received from network clients usi
 python scripts/aggregate.py --client-weights models/client_updates/*.pt
 ```
 
-* **Server Momentum ($\beta = 0.9$):** In contrast to passive arithmetic averaging, FedAvgM maintains a momentum velocity buffer $V_t = \beta V_{t-1} + \Delta W_{\text{fed}}$, dampening oscillations and accelerating global convergence under heavy Non-IID client distributions.
+* **Server Momentum ($\beta = 0.9$):** In contrast to passive arithmetic averaging, FedAvgM maintains a momentum velocity buffer $V_t = \beta V_{t-1} + \Delta W_{\text{fed}}$, dampening oscillations and accelerating global convergence under heavy Non-IID client distributions (Hsu et al., 2019).
+* **Buffer Lineage & Provenance:** `server_momentum.pt` is stored as a versioned bundle (`format_version: 2`) cryptographically bound to `parent_base_sha256` and `produced_global_sha256`. If aggregation begins from an unrelated base model, the buffer discards obsolete momentum and resets velocity to zero. The buffer is persisted atomically strictly *after* the global model checkpoint is committed to disk.
 * **Security & Quality Gates ([`ParameterValidator`](../src/agrifed_khaos/wrappers.py)):** Enforces numeric finiteness (rejecting `NaN` / `Inf`), strict structural parameter schemas, absolute and relative L2 divergence bounds, and HMAC cryptographic authentication.
 
 <details>
 <summary>Advanced aggregation options</summary>
 
-* `--server-momentum <float>`: Server momentum factor $\beta \in [0, 1)$ (default: 0.9).
+* `--server-momentum <float>`: Server momentum factor $\beta \in [0, 1)$ (default: 0.9; tunable to 0.0 for standard FedAvg).
 * `--eta <float>`: Server learning rate step size (default: 0.6).
 * `--allow-new-classes`: Enables dynamic classifier expansion when clients discover novel pathologies conforming to global taxonomy.
 * `--max-norm <float>`: Maximum absolute L2 perturbation norm permitted before rejection (default: 150.0).
@@ -211,8 +216,10 @@ python scripts/client_trainer.py \
 
 ### Technical Privacy & Ingestion Guarantees:
 * **0 Bytes of Images Transferred:** The trainer extracts gradients locally and exports only the numerical tensor bundle `models/client_parameters.pt` (~18 KB in classifier head mode) and its companion manifest `client_parameters.meta.json`.
-* **Automated Parameter & Manifest Delivery:** Upon local epoch completion, the agent transmits a multipart payload containing both the parameter bundle and its JSON manifest to `/submit-update`. The server verifies SHA-256 cross-integrity and (if configured) cryptographic HMAC signatures before queuing the update for aggregation.
+* **Atomic Ingestion Transactions:** `/submit-update` serializes client uploads via asynchronous locks (`asyncio.Lock`) and publishes each update atomically to an immutable directory `models/client_updates/updates/{client_id}/{stamp}/` via `os.replace`, guaranteeing weights and manifests appear simultaneously.
+* **Transport Layer Security (TLS/HTTPS Required in Production):** Ingestion credentials `AGRIFED_AUTH_TOKEN` (Bearer) and `AGRIFED_HMAC_KEY` (integrity signature) travel in plaintext without TLS. Outside isolated local subnets, terminate TLS natively using `--ssl-*` in `serve.py` or behind an HTTPS reverse proxy (Nginx/Caddy). Clients can specify `--ca-bundle` and `--insecure-skip-tls-verify` for custom or testing PKI.
 * **Parameter Perturbation (Gaussian Mechanism on ΔW):** Optionally clips global L2 sensitivity (`--dp-clip-norm`) and injects calibrated Gaussian noise (`--dp-noise-std`, $\mathcal{N}(0, \sigma^2 C^2 \mathbf{I})$), mitigating gradient inversion and reconstruction attacks. *(Note: Implements Gaussian perturbation on parameter deltas; does not evaluate an analytical $(\epsilon, \delta)$ differential privacy accountant).*
+* **Threat Model Boundaries:** The framework assumes an honest, authorized orchestrator; cryptographic multi-party computation (*SecAgg*) masking weights from the server is not included. See [Threat Model & Privacy Boundaries](architecture.en.md#5-threat-model--privacy-boundaries) for the full specification.
 
 > [!WARNING]
 > **Critical Governance Warning on Taxonomy Alignment (`--allow-new-classes`):**
@@ -223,6 +230,8 @@ python scripts/client_trainer.py \
 
 * `--head-only`: *(Enabled by default)* Trains only the linear classifier head (~18 KB vs 42 MB transfer).
 * `--server-url <url>`: Central server endpoint for automated update transmission (weights and companion manifest).
+* `--ca-bundle <path>`: Path to custom CA certificate bundle for corporate HTTPS deployments.
+* `--insecure-skip-tls-verify`: Skips TLS certificate verification (development/testing environments only).
 * `--dp-clip-norm <float>` & `--dp-noise-std <float>`: Applies L2 norm clipping and Gaussian parameter perturbation over $\Delta W$ (must be specified together).
 * `--allow-new-classes`: Enables registration of emerging pathologies adhering to global AgriFed taxonomy.
 * `--client-id <name>`: Collaborator identifier included in manifest and cryptographic HMAC signature.

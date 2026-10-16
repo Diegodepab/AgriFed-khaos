@@ -56,3 +56,36 @@ def compute_manifest_hmac(
         hashlib.sha256,
     ).hexdigest()
 
+
+def verify_manifest_hmac(
+    key: str,
+    manifest: dict[str, object],
+    actual_client_sha256: str,
+) -> bool:
+    """Verify a manifest signature against the received checkpoint digest."""
+    signature = manifest.get("hmac_signature")
+    base_sha = manifest.get("base_model_sha256")
+    scope = manifest.get("training_scope")
+    client_id = manifest.get("client_id")
+    num_samples = manifest.get("num_samples")
+    if not isinstance(signature, str):
+        return False
+    if not isinstance(base_sha, str) or not isinstance(scope, str):
+        return False
+    if not isinstance(client_id, str):
+        return False
+    if not isinstance(num_samples, int) or isinstance(num_samples, bool):
+        return False
+    try:
+        expected = compute_manifest_hmac(
+            key=key,
+            client_sha256=actual_client_sha256,
+            base_model_sha256=base_sha,
+            training_scope=scope,
+            client_id=client_id,
+            num_samples=num_samples,
+        )
+    except ValueError:
+        return False
+    return hmac.compare_digest(signature, expected)
+

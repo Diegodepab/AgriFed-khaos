@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -276,9 +278,22 @@ def main() -> None:
 
     raw_client_weights = args.client_weights
     if isinstance(raw_client_weights, str):
-        client_paths = [Path(raw_client_weights)]
+        candidate_paths = [Path(raw_client_weights)]
     else:
-        client_paths = [Path(p) for p in raw_client_weights]
+        candidate_paths = [Path(p) for p in raw_client_weights]
+
+    client_paths: list[Path] = []
+    for cp in candidate_paths:
+        if cp.is_dir():
+            cand_param = cp / "parameters.pt"
+            if cand_param.is_file():
+                client_paths.append(cand_param)
+                continue
+            cand_named = cp / f"{cp.name}_parameters.pt"
+            if cand_named.is_file():
+                client_paths.append(cand_named)
+                continue
+        client_paths.append(cp)
 
     if not client_paths:
         print("[!] Error: No client parameter files provided.", file=sys.stderr)
@@ -853,13 +868,49 @@ def main() -> None:
         )
         if momentum_buffer_path.is_file():
             try:
-                prev_momentum = torch.load(
+                raw_loaded = torch.load(
                     str(momentum_buffer_path), map_location=device, weights_only=True
                 )
-                print(
-                    f"[*] Loaded server momentum buffer from {momentum_buffer_path} "
-                    f"(FedAvgM beta={args.server_momentum:.2f})"
-                )
+                if isinstance(raw_loaded, dict) and "velocity" in raw_loaded:
+                    stored_parent = raw_loaded.get("parent_base_sha256")
+                    stored_global = raw_loaded.get("produced_global_sha256")
+                    stored_arch = raw_loaded.get("architecture")
+
+                    lineage_match = (
+                        actual_base_sha in (stored_parent, stored_global)
+                        if (stored_parent or stored_global)
+                        else True
+                    )
+                    arch_match = (stored_arch == arch) if stored_arch else True
+
+                    if not lineage_match:
+                        print(
+                            f"[!] Lineage Notice: Momentum buffer at {momentum_buffer_path} "
+                            f"was generated for model {stored_global or stored_parent} "
+                            f"(current base is {actual_base_sha}).\n"
+                            "    Resetting velocity buffer to zero to prevent stale momentum drift."
+                        )
+                        prev_momentum = {}
+                    elif not arch_match:
+                        print(
+                            f"[!] Warning: Server momentum buffer architecture '{stored_arch}' "
+                            f"does not match current '{arch}'. Discarding buffer."
+                        )
+                        prev_momentum = {}
+                    else:
+                        prev_momentum = raw_loaded.get("velocity", {})
+                        print(
+                            f"[*] Loaded server momentum buffer from {momentum_buffer_path} "
+                            f"(FedAvgM beta={args.server_momentum:.2f}, lineage verified)"
+                        )
+                elif isinstance(raw_loaded, dict):
+                    print(
+                        f"[*] Loaded legacy server momentum buffer from {momentum_buffer_path} "
+                        f"(FedAvgM beta={args.server_momentum:.2f})"
+                    )
+                    prev_momentum = raw_loaded
+                else:
+                    prev_momentum = {}
             except Exception as e:
                 print(
                     f"[!] Warning: Failed to load server momentum buffer ({e}), initializing fresh."
@@ -876,6 +927,8 @@ def main() -> None:
             delta_k = delta_fed_accum[k]
             if args.server_momentum > 0.0:
                 v_prev = prev_momentum.get(k, torch.zeros_like(delta_k))
+                if v_prev.shape != delta_k.shape:
+                    v_prev = torch.zeros_like(delta_k)
                 v_t = args.server_momentum * v_prev.to(device) + delta_k
                 new_momentum_buffer[k] = v_t.cpu()
                 new_state[k] = base_state[k] + args.eta * v_t
@@ -883,11 +936,6 @@ def main() -> None:
                 new_state[k] = base_state[k] + args.eta * delta_k
         else:
             new_state[k] = base_state[k]
-
-    if args.server_momentum > 0.0 and momentum_buffer_path is not None:
-        momentum_buffer_path.parent.mkdir(parents=True, exist_ok=True)
-        torch.save(new_momentum_buffer, str(momentum_buffer_path))
-        print(f"[*] Persisted updated server momentum buffer to {momentum_buffer_path}")
 
     # Compute aggregated delta norm ||ΔW_fed||_2 and relative norm
     agg_delta_sq = 0.0
@@ -1056,6 +1104,29 @@ def main() -> None:
         print(f"[*] Metadata updated at:   {meta_file}")
     except (OSError, PermissionError) as exc:
         print(f"[!] Warning: Unable to update metadata file at {meta_file}: {exc}", file=sys.stderr)
+
+    # Do not advance optimizer state until the candidate checkpoint has been safely committed.
+    if args.server_momentum > 0.0 and momentum_buffer_path is not None:
+        momentum_bundle = {
+            "format_version": 2,
+            "parent_base_sha256": actual_base_sha,
+            "produced_global_sha256": out_sha256,
+            "architecture": arch,
+            "classes": union_classes,
+            "beta": args.server_momentum,
+            "velocity": new_momentum_buffer,
+            "updated_at": time.time(),
+        }
+        momentum_buffer_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_momentum = momentum_buffer_path.with_name(
+            f".{momentum_buffer_path.name}.{uuid.uuid4().hex}.tmp"
+        )
+        torch.save(momentum_bundle, str(temp_momentum))
+        os.replace(temp_momentum, momentum_buffer_path)
+        print(
+            f"[*] Persisted verified server momentum buffer (bound to global {out_sha256[:16]}...) "
+            f"to {momentum_buffer_path}"
+        )
 
     print(f"[*] Aggregation complete! Saved updated global model: {out_path}")
     print(f"[*] Global SHA-256 Digest: {out_sha256}")

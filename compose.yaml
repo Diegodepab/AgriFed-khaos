@@ -20,6 +20,8 @@ services:
       RUFF_CACHE_DIR: /tmp/ruff_cache
       MYPY_CACHE_DIR: /tmp/mypy_cache
       PYTEST_ADDOPTS: "-o cache_dir=/tmp/pytest_cache"
+      AGRIFED_AUTH_TOKEN: ${AGRIFED_AUTH_TOKEN:-}
+      AGRIFED_HMAC_KEY: ${AGRIFED_HMAC_KEY:-}
     volumes:
       - .:/workspace
       - ${AGRIFED_DATASET_ROOT:-../enfermedadeshoja_v1.0/EnfermedadesHoja_v1.0}:/data/EnfermedadesHoja_v1.0:ro

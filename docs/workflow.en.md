@@ -228,8 +228,7 @@ docker compose exec agrifed bash
 
 3. **Technical Privacy & Bandwidth Guarantees:**
    - **Head-Only Fine-Tuning:** The convolutional feature backbone (`resnet18`) remains completely frozen; only the final linear classifier parameters (`fc.weight`, `fc.bias`) are updated.
-   - **Ultra-Lightweight Payload:** The exported numerical tensor bundle weighs **~18 KB** (in contrast to the ~42.7 MB full convolutional model).
-   - **Automated Delivery with Manifest:** `--server-url` transmits a multipart request containing both the numerical tensor (`client_parameters.pt`) and companion manifest (`client_parameters.meta.json`), verifying SHA-256 payload integrity and HMAC signatures (`X-Client-HMAC`) at `/submit-update`. (In air-gapped networks, transfer both `models/client_parameters.pt` and `models/client_parameters.meta.json` via secure SFTP).
+   - **Automated Delivery with Manifest:** `--server-url` transmits the parameter file and manifest as multipart; the server validates SHA-256 and verifies HMAC when `AGRIFED_HMAC_KEY` is configured. Ingestion executes as an atomic transaction via per-client asynchronous locks (`asyncio.Lock`), committing the indivisible file pair to an immutable directory `models/client_updates/updates/{client_id}/{stamp}/`. Configure either `AGRIFED_AUTH_TOKEN` or `AGRIFED_HMAC_KEY` on server and client. Deploy behind HTTPS (natively via `--ssl-*` or an HTTPS reverse proxy) for all connections outside a trusted local network. For air-gapped setups, transfer both files through a secure channel.
    - **0 bytes of imagery leave Machine 2.**
 </details>
 
@@ -249,7 +248,7 @@ The master server receives `coop_sevilla_parameters.pt` alongside `coop_sevilla_
    *(Note on multi-round lineage: In Round 1, `--base-model` targets `models/base_model.pt`. For subsequent federated rounds (Round 2+), both client training (`--weights-in`) and the aggregator (`--base-model`) should point to `models/global_model.pt`, maintaining continuous auditable lineage across rounds).*
 
    *Internal Gate Verification:*
-   - **Lineage Gate:** Confirms `base_model_sha256` hash matches the orchestrator's official baseline model.
+   - **Lineage Gate:** Confirms `base_model_sha256` matches the exact checkpoint selected by `--base-model` for that round.
    - **ParameterValidator (`head_only`):** Verifies the uploaded payload contains **strictly and exclusively linear classifier parameters** (`fc.*`), ensuring zero spurious convolutional keys, absolute finiteness (no `NaN`/`Inf`), and L2 divergence bounds ($\|\Delta W_{\text{head}}\|_2 = 12.00 \le 150.0$).
    - **Targeted FedAvgM Momentum:** Server momentum ($\beta = 0.9$ default) is calculated and applied **strictly over the classifier head weights**.
    - **Backbone & BatchNorm Invariance:** The entire convolutional feature extraction backbone and batch normalization statistics (`BatchNorm.running_mean`, `BatchNorm.running_var`) remain **100% frozen, invariant, and identical to the original baseline model**.

@@ -309,18 +309,24 @@ def test_safe_checkpoint_loading_blocks_arbitrary_code(tmp_path: Path) -> None:
     assert "data" in raw
 
 
-def test_submit_update_manifest_verification_and_storage(tmp_path: Path) -> None:
+def test_submit_update_manifest_verification_and_storage(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import hashlib
 
     from fastapi.testclient import TestClient
 
     from scripts.serve import create_app
 
+    monkeypatch.setenv("AGRIFED_AUTH_TOKEN", "test-token")
+    monkeypatch.delenv("AGRIFED_HMAC_KEY", raising=False)
     # Create dummy base checkpoint and metadata
     base_file = tmp_path / "base.pt"
-    torch.save({"state_dict": {"fc.weight": torch.randn(2, 2)}}, str(base_file))
+    torch.save(build_model("resnet18", num_classes=2).state_dict(), str(base_file))
     meta_file = tmp_path / "metadata.json"
-    meta_file.write_text(json.dumps({"classes": ["c1", "c2"]}), encoding="utf-8")
+    meta_file.write_text(
+        json.dumps({"classes": ["c1", "c2"], "architecture": "resnet18"}), encoding="utf-8"
+    )
 
     app = create_app(str(base_file), str(meta_file))
     client = TestClient(app)
@@ -333,7 +339,8 @@ def test_submit_update_manifest_verification_and_storage(tmp_path: Path) -> None
     manifest_dict = {
         "client_id": "coop_sevilla",
         "sha256": weights_sha,
-        "base_model_sha256": "dummy_base_sha",
+        "base_model_sha256": "a" * 64,
+        "training_scope": "head_only",
         "num_samples": 100,
     }
     manifest_bytes = json.dumps(manifest_dict).encode("utf-8")
@@ -352,6 +359,7 @@ def test_submit_update_manifest_verification_and_storage(tmp_path: Path) -> None
                 "application/json",
             ),
         },
+        headers={"Authorization": "Bearer test-token"},
     )
     assert res.status_code == 200
     res_data = res.json()
@@ -377,6 +385,7 @@ def test_submit_update_manifest_verification_and_storage(tmp_path: Path) -> None
                 "application/json",
             ),
         },
+        headers={"Authorization": "Bearer test-token"},
     )
     assert res_mismatch.status_code == 400
     assert "Integrity check failed" in res_mismatch.json()["detail"]
@@ -385,9 +394,74 @@ def test_submit_update_manifest_verification_and_storage(tmp_path: Path) -> None
     res_bad_id = client.post(
         "/submit-update?client_id=../../malicious",
         files={"file": ("client.pt", io.BytesIO(weights_bytes), "application/octet-stream")},
+        headers={"Authorization": "Bearer test-token"},
     )
     assert res_bad_id.status_code == 400
     assert "Invalid client_id" in res_bad_id.json()["detail"]
+
+
+def test_submit_update_requires_manifest_and_verifies_hmac(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import hashlib
+
+    from fastapi.testclient import TestClient
+
+    from agrifed_khaos.crypto import compute_manifest_hmac
+    from scripts.serve import create_app
+
+    monkeypatch.setenv("AGRIFED_AUTH_TOKEN", "test-token")
+    monkeypatch.setenv("AGRIFED_HMAC_KEY", "shared-test-secret")
+    base_file = tmp_path / "base.pt"
+    torch.save(build_model("resnet18", num_classes=2).state_dict(), str(base_file))
+    meta_file = tmp_path / "metadata.json"
+    meta_file.write_text(
+        json.dumps({"classes": ["c1", "c2"], "architecture": "resnet18"}), encoding="utf-8"
+    )
+    client = TestClient(create_app(str(base_file), str(meta_file)))
+
+    weights = b"signed client update"
+    digest = hashlib.sha256(weights).hexdigest()
+    base_sha = "a" * 64
+    signature = compute_manifest_hmac(
+        key="shared-test-secret",
+        client_sha256=digest,
+        base_model_sha256=base_sha,
+        training_scope="head_only",
+        client_id="coop_sevilla",
+        num_samples=12,
+    )
+    manifest: dict[str, object] = {
+        "client_id": "coop_sevilla",
+        "sha256": digest,
+        "base_model_sha256": base_sha,
+        "training_scope": "head_only",
+        "num_samples": 12,
+        "hmac_signature": signature,
+    }
+    manifest_bytes = json.dumps(manifest).encode("utf-8")
+
+    missing = client.post(
+        "/submit-update?client_id=coop_sevilla",
+        files={"file": ("client.pt", weights, "application/octet-stream")},
+        headers={"Authorization": "Bearer test-token"},
+    )
+    assert missing.status_code == 400
+
+    accepted = client.post(
+        "/submit-update?client_id=coop_sevilla",
+        files={
+            "file": ("client.pt", weights, "application/octet-stream"),
+            "manifest": ("client.meta.json", manifest_bytes, "application/json"),
+        },
+        headers={
+            "Authorization": "Bearer test-token",
+            "X-Client-HMAC": signature,
+        },
+    )
+    assert accepted.status_code == 200
+    assert accepted.json()["manifest_verified"] is True
+    assert accepted.json()["hmac_verified"] is True
 
 
 def test_dp_argument_mutual_requirement() -> None:
@@ -412,5 +486,171 @@ def test_dp_argument_mutual_requirement() -> None:
                 ["client_trainer.py", "--data-dir", "dummy", "--dp-noise-std", "0.5"],
             )
             parse_args()
+
+
+def test_submit_update_atomic_immutable_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import hashlib
+
+    from fastapi.testclient import TestClient
+
+    from scripts.serve import create_app
+
+    monkeypatch.setenv("AGRIFED_AUTH_TOKEN", "token-xyz")
+    monkeypatch.delenv("AGRIFED_HMAC_KEY", raising=False)
+
+    base_file = tmp_path / "base.pt"
+    torch.save(build_model("resnet18", num_classes=2).state_dict(), str(base_file))
+    meta_file = tmp_path / "metadata.json"
+    meta_file.write_text(
+        json.dumps({"classes": ["c1", "c2"], "architecture": "resnet18"}), encoding="utf-8"
+    )
+    client = TestClient(create_app(str(base_file), str(meta_file)))
+
+    weights = b"atomic transaction test weights"
+    digest = hashlib.sha256(weights).hexdigest()
+    manifest = {
+        "client_id": "coop_granada",
+        "sha256": digest,
+        "base_model_sha256": "b" * 64,
+        "training_scope": "head_only",
+        "num_samples": 42,
+    }
+    manifest_bytes = json.dumps(manifest).encode("utf-8")
+
+    res = client.post(
+        "/submit-update?client_id=coop_granada",
+        files={
+            "file": ("client.pt", weights, "application/octet-stream"),
+            "manifest": ("client.meta.json", manifest_bytes, "application/json"),
+        },
+        headers={"Authorization": "Bearer token-xyz"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert "update_dir" in data
+    update_dir = Path(data["update_dir"])
+    assert update_dir.is_dir()
+
+    # Both parameters.pt and parameters.meta.json exist together in the immutable directory
+    param_file = update_dir / "parameters.pt"
+    param_meta = update_dir / "parameters.meta.json"
+    assert param_file.is_file()
+    assert param_meta.is_file()
+    assert param_file.read_bytes() == weights
+    assert json.loads(param_meta.read_text(encoding="utf-8"))["sha256"] == digest
+
+
+def test_server_momentum_provenance_and_mismatch_reset(tmp_path: Path) -> None:
+    from agrifed_khaos.crypto import compute_sha256
+    from agrifed_khaos.models import save_checkpoint_bundle
+
+    base_model = tmp_path / "base.pt"
+    out_model = tmp_path / "global.pt"
+    meta_file = tmp_path / "meta.json"
+    momentum_file = tmp_path / "momentum.pt"
+
+    state = {
+        "fc.weight": torch.tensor([[1.0, 0.0], [0.0, 1.0]]),
+        "fc.bias": torch.tensor([0.0, 0.0]),
+    }
+    metadata = {"classes": ["c0", "c1"], "num_classes": 2, "architecture": "resnet18"}
+    save_checkpoint_bundle(base_model, state, metadata)
+    meta_file.write_text(json.dumps(metadata), encoding="utf-8")
+    actual_base_sha = compute_sha256(base_model)
+
+    # 1. Create a synthetic momentum buffer bound to a DIFFERENT parent model
+    fake_momentum = {
+        "format_version": 2,
+        "parent_base_sha256": "0" * 64,
+        "produced_global_sha256": "1" * 64,
+        "architecture": "resnet18",
+        "velocity": {"fc.weight": torch.ones(2, 2) * 50.0},
+    }
+    torch.save(fake_momentum, str(momentum_file))
+
+    # Create a client update
+    client_pt = tmp_path / "client.pt"
+    client_state = {
+        "fc.weight": torch.tensor([[1.1, 0.0], [0.0, 1.1]]),
+        "fc.bias": torch.tensor([0.05, -0.05]),
+    }
+    torch.save(client_state, str(client_pt))
+    client_meta = {
+        "client_id": "test_client",
+        "sha256": compute_sha256(client_pt),
+        "base_model_sha256": actual_base_sha,
+        "training_scope": "head_only",
+        "num_samples": 20,
+    }
+    (tmp_path / "client.meta.json").write_text(json.dumps(client_meta), encoding="utf-8")
+
+    # Run aggregate via subprocess
+    cmd = [
+        sys.executable,
+        "scripts/aggregate.py",
+        "--base-model",
+        str(base_model),
+        "--client-weights",
+        str(client_pt),
+        "--output",
+        str(out_model),
+        "--metadata",
+        str(meta_file),
+        "--server-momentum",
+        "0.9",
+        "--momentum-buffer",
+        str(momentum_file),
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    assert "Lineage Notice: Momentum buffer" in res.stdout
+    assert "Resetting velocity buffer to zero" in res.stdout
+
+    # Now verify the newly saved momentum buffer has format_version 2 and points to actual_base_sha
+    saved_momentum = torch.load(str(momentum_file), weights_only=True)
+    assert saved_momentum["format_version"] == 2
+    assert saved_momentum["parent_base_sha256"] == actual_base_sha
+    assert saved_momentum["produced_global_sha256"] == compute_sha256(out_model)
+
+
+def test_serve_and_client_trainer_ssl_options() -> None:
+    from scripts.client_trainer import parse_args as parse_client_args
+    from scripts.serve import parse_args as parse_serve_args
+
+    # Check serve args
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(
+            sys,
+            "argv",
+            [
+                "serve.py",
+                "--ssl-keyfile",
+                "/etc/ssl/privkey.pem",
+                "--ssl-certfile",
+                "/etc/ssl/fullchain.pem",
+            ],
+        )
+        s_args = parse_serve_args()
+        assert s_args.ssl_keyfile == "/etc/ssl/privkey.pem"
+        assert s_args.ssl_certfile == "/etc/ssl/fullchain.pem"
+
+    # Check client_trainer args
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(
+            sys,
+            "argv",
+            [
+                "client_trainer.py",
+                "--data-dir",
+                "dummy",
+                "--ca-bundle",
+                "/etc/ssl/custom-ca.pem",
+                "--insecure-skip-tls-verify",
+            ],
+        )
+        c_args = parse_client_args()
+        assert c_args.ca_bundle == "/etc/ssl/custom-ca.pem"
+        assert c_args.insecure_skip_tls_verify is True
 
 

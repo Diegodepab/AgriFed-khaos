@@ -8,12 +8,15 @@ via HTTP REST API without cloning the repository or installing PyTorch.
 from __future__ import annotations
 
 import argparse
+import asyncio
 import hashlib
 import io
 import json
 import os
 import re
+import shutil
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +32,29 @@ from torchvision import transforms
 # Defend against Decompression Bomb Denial-of-Service attacks (CWE-400)
 Image.MAX_IMAGE_PIXELS = 25_000_000  # Max 25 megapixels (~5000x5000)
 MAX_UPLOAD_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB limit per image
+MAX_UPDATE_SIZE_BYTES = 50 * 1024 * 1024
+MAX_MANIFEST_SIZE_BYTES = 1 * 1024 * 1024
+
+_client_locks: dict[str, asyncio.Lock] = {}
+_client_locks_guard = asyncio.Lock()
+
+
+async def _get_client_lock(client_id: str) -> asyncio.Lock:
+    """Acquire or allocate an async lock dedicated to a client_id to serialize writes."""
+    async with _client_locks_guard:
+        if client_id not in _client_locks:
+            _client_locks[client_id] = asyncio.Lock()
+        return _client_locks[client_id]
+
+
+def _atomic_write(path: Path, content: bytes) -> None:
+    """Replace one file atomically so readers never observe a partial write."""
+    temp_path = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        temp_path.write_bytes(content)
+        os.replace(temp_path, path)
+    finally:
+        temp_path.unlink(missing_ok=True)
 
 
 
@@ -57,6 +83,18 @@ def parse_args() -> argparse.Namespace:
         choices=["auto", "cpu", "cuda"],
         default="auto",
         help="Inference hardware device: auto, cpu, cuda (default: auto)",
+    )
+    parser.add_argument(
+        "--ssl-keyfile",
+        type=str,
+        default=os.getenv("AGRIFED_SSL_KEYFILE"),
+        help="Path to SSL private key file for HTTPS (default: $AGRIFED_SSL_KEYFILE)",
+    )
+    parser.add_argument(
+        "--ssl-certfile",
+        type=str,
+        default=os.getenv("AGRIFED_SSL_CERTFILE"),
+        help="Path to SSL certificate file for HTTPS (default: $AGRIFED_SSL_CERTFILE)",
     )
     return parser.parse_args()
 
@@ -388,12 +426,21 @@ def create_app(
         manifest: UploadFile | None = File(None),  # noqa: B008
         client_id: str = "client",
         authorization: str | None = Header(None),  # noqa: B008
+        client_hmac: str | None = Header(None, alias="X-Client-HMAC"),  # noqa: B008
     ) -> dict[str, Any]:
         """Automated ingestion endpoint for collaborative edge clients to upload
         trained parameter bundles and companion cryptographic manifests.
         """
-        # 1. Optional client authentication via pre-shared Bearer token
+        # Require at least one shared-secret mechanism before accepting updates.
         server_token = os.getenv("AGRIFED_AUTH_TOKEN")
+        server_hmac_key = os.getenv("AGRIFED_HMAC_KEY")
+        if not server_token and not server_hmac_key:
+            raise HTTPException(
+                status_code=503,
+                detail="Update ingestion is disabled until an auth token or HMAC key is configured",
+            )
+
+        # 1. Optional client authentication via pre-shared Bearer token
         if server_token:
             expected_auth = f"Bearer {server_token}"
             if not authorization or authorization.strip() != expected_auth:
@@ -412,104 +459,109 @@ def create_app(
         safe_client_id = trimmed_id
 
         # 3. Read uploaded parameter file
-        content = await file.read(50 * 1024 * 1024)  # 50 MB max limit for parameter tensors
+        content = await file.read(MAX_UPDATE_SIZE_BYTES + 1)
+        if len(content) > MAX_UPDATE_SIZE_BYTES:
+            raise HTTPException(status_code=413, detail="Parameter file exceeds 50 MB limit")
         if not content:
             raise HTTPException(status_code=400, detail="Empty parameter file uploaded")
         file_sha256 = hashlib.sha256(content).hexdigest()
 
         # 4. Manifest processing & integrity validation
-        manifest_bytes: bytes | None = None
-        manifest_verified = False
+        if manifest is None:
+            raise HTTPException(status_code=400, detail="A client manifest is required")
+        manifest_bytes = await manifest.read(MAX_MANIFEST_SIZE_BYTES + 1)
+        if len(manifest_bytes) > MAX_MANIFEST_SIZE_BYTES:
+            raise HTTPException(status_code=413, detail="Manifest exceeds 1 MB limit")
+        try:
+            manifest_data = json.loads(manifest_bytes.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise HTTPException(status_code=400, detail="Malformed manifest JSON") from exc
+        if not isinstance(manifest_data, dict):
+            raise HTTPException(status_code=400, detail="Manifest must be a JSON object")
 
-        if manifest is not None:
-            manifest_bytes = await manifest.read(1 * 1024 * 1024)  # 1 MB max for JSON manifest
-            if manifest_bytes:
-                try:
-                    manifest_data: dict[str, Any] = json.loads(manifest_bytes.decode("utf-8"))
-                except Exception as exc:
-                    raise HTTPException(
-                        status_code=400, detail=f"Malformed manifest JSON: {exc}"
-                    ) from exc
-
-                declared_sha = manifest_data.get("sha256") or manifest_data.get(
-                    "client_parameters_sha256"
-                )
-                if declared_sha and declared_sha.lower() != file_sha256.lower():
-                    raise HTTPException(
-                        status_code=400,
-                        detail=(
-                            f"Integrity check failed: uploaded payload SHA-256 ({file_sha256}) "
-                            f"does not match manifest declared sha256 ({declared_sha})"
-                        ),
-                    )
-
-                server_hmac_key = os.getenv("AGRIFED_HMAC_KEY")
-                if server_hmac_key:
-                    from agrifed_khaos.security import verify_manifest_hmac
-
-                    sig = manifest_data.get("hmac_signature")
-                    if not sig:
-                        raise HTTPException(
-                            status_code=403,
-                            detail=(
-                                "Server requires HMAC signature in manifest, but none was provided."
-                            ),
-                        )
-                    if not verify_manifest_hmac(
-                        key=server_hmac_key,
-                        manifest=manifest_data,
-                        actual_client_sha256=file_sha256,
-                    ):
-                        raise HTTPException(
-                            status_code=403,
-                            detail=(
-                                "HMAC signature verification failed: invalid key or tampered "
-                                "metadata."
-                            ),
-                        )
-
-                manifest_verified = True
-
-        # 5. Persist weights and companion manifest atomically
-        target_dir = Path("models/client_updates")
-        target_dir.mkdir(parents=True, exist_ok=True)
-        archive_dir = target_dir / "archive"
-        archive_dir.mkdir(parents=True, exist_ok=True)
-
-        dest_path = target_dir / f"{safe_client_id}_parameters.pt"
-        dest_meta = target_dir / f"{safe_client_id}_parameters.meta.json"
-
-        dest_path.write_bytes(content)
-
-        if manifest_bytes:
-            dest_meta.write_bytes(manifest_bytes)
-        else:
-            synth_meta = {
-                "client_id": safe_client_id,
-                "sha256": file_sha256,
-                "timestamp": time.time(),
-                "note": "Synthesized by server: client did not upload separate manifest",
-            }
-            dest_meta.write_text(json.dumps(synth_meta, indent=2), encoding="utf-8")
-
-        # Archive versioned copy to prevent silent loss or race condition overwrites
-        ts = int(time.time())
-        (archive_dir / f"{safe_client_id}_{ts}_parameters.pt").write_bytes(content)
-        if manifest_bytes:
-            (archive_dir / f"{safe_client_id}_{ts}_parameters.meta.json").write_bytes(
-                manifest_bytes
+        declared_sha = manifest_data.get("sha256")
+        if not isinstance(declared_sha, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", declared_sha):
+            raise HTTPException(status_code=400, detail="Manifest must include a valid sha256")
+        if declared_sha.lower() != file_sha256:
+            raise HTTPException(
+                status_code=400,
+                detail="Integrity check failed: uploaded payload SHA-256 does not match manifest",
+            )
+        if manifest_data.get("client_id") != safe_client_id:
+            raise HTTPException(status_code=400, detail="Manifest client_id does not match request")
+        base_sha = manifest_data.get("base_model_sha256")
+        if not isinstance(base_sha, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", base_sha):
+            raise HTTPException(status_code=400, detail="Manifest has an invalid base_model_sha256")
+        if manifest_data.get("training_scope") not in ("head_only", "full"):
+            raise HTTPException(status_code=400, detail="Manifest has an invalid training_scope")
+        sample_count = manifest_data.get("num_samples")
+        if not isinstance(sample_count, int) or isinstance(sample_count, bool) or sample_count < 1:
+            raise HTTPException(
+                status_code=400, detail="Manifest num_samples must be a positive integer"
             )
 
-        return {
-            "status": "ready_for_aggregation",
-            "client_id": safe_client_id,
-            "bytes_received": len(content),
-            "sha256": file_sha256,
-            "has_manifest": manifest_bytes is not None,
-            "manifest_verified": manifest_verified,
-            "saved_to": str(dest_path),
-            "meta_saved_to": str(dest_meta),
-        }
+        manifest_verified = True
+        hmac_verified = False
+        signature = manifest_data.get("hmac_signature")
+        if client_hmac and client_hmac != signature:
+            raise HTTPException(status_code=403, detail="HMAC header does not match manifest")
+        if server_hmac_key:
+            from agrifed_khaos.crypto import verify_manifest_hmac
+
+            if not verify_manifest_hmac(server_hmac_key, manifest_data, file_sha256):
+                raise HTTPException(status_code=403, detail="HMAC signature verification failed")
+            hmac_verified = True
+
+        # 5. Persist weights and companion manifest atomically under per-client lock
+        client_lock = await _get_client_lock(safe_client_id)
+        async with client_lock:
+            target_dir = Path("models/client_updates")
+            target_dir.mkdir(parents=True, exist_ok=True)
+            archive_dir = target_dir / "archive"
+            archive_dir.mkdir(parents=True, exist_ok=True)
+
+            updates_dir = target_dir / "updates" / safe_client_id
+            updates_dir.mkdir(parents=True, exist_ok=True)
+
+            stamp = f"{time.time_ns()}_{uuid.uuid4().hex[:8]}"
+            final_update_dir = updates_dir / stamp
+            staging_dir = updates_dir / f".staging_{stamp}"
+            staging_dir.mkdir(parents=True, exist_ok=True)
+
+            try:
+                (staging_dir / "parameters.meta.json").write_bytes(manifest_bytes)
+                (staging_dir / "parameters.pt").write_bytes(content)
+                # POSIX directory rename: atomic publication of both files simultaneously
+                os.replace(staging_dir, final_update_dir)
+            except Exception:
+                shutil.rmtree(staging_dir, ignore_errors=True)
+                raise
+
+            dest_path = target_dir / f"{safe_client_id}_parameters.pt"
+            dest_meta = target_dir / f"{safe_client_id}_parameters.meta.json"
+
+            # Stage both files; publish the manifest before the checkpoint so a
+            # crash between renames fails the aggregator's hash check closed.
+            _atomic_write(dest_meta, manifest_bytes)
+            _atomic_write(dest_path, content)
+
+            _atomic_write(
+                archive_dir / f"{safe_client_id}_{stamp}_parameters.meta.json", manifest_bytes
+            )
+            _atomic_write(archive_dir / f"{safe_client_id}_{stamp}_parameters.pt", content)
+
+            return {
+                "status": "ready_for_aggregation",
+                "client_id": safe_client_id,
+                "bytes_received": len(content),
+                "sha256": file_sha256,
+                "has_manifest": True,
+                "manifest_verified": manifest_verified,
+                "hmac_verified": hmac_verified,
+                "saved_to": str(dest_path),
+                "meta_saved_to": str(dest_meta),
+                "update_dir": str(final_update_dir),
+            }
 
     return app
 
@@ -517,8 +569,32 @@ def create_app(
 def main() -> None:
     args = parse_args()
     app = create_app(args.model, args.metadata, architecture=args.arch, device_name=args.device)
-    print(f"[*] Starting AgriFed REST Inference Server on {args.host}:{args.port}")
-    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+
+    if args.ssl_keyfile and args.ssl_certfile:
+        print(
+            f"[*] Starting AgriFed REST Inference Server on https://{args.host}:{args.port} "
+            "(TLS enabled)"
+        )
+        uvicorn.run(
+            app,
+            host=args.host,
+            port=args.port,
+            ssl_keyfile=args.ssl_keyfile,
+            ssl_certfile=args.ssl_certfile,
+            log_level="info",
+        )
+    else:
+        auth_configured = bool(os.getenv("AGRIFED_AUTH_TOKEN") or os.getenv("AGRIFED_HMAC_KEY"))
+        if args.host not in ("127.0.0.1", "localhost") and auth_configured:
+            print(
+                "[!] SECURITY NOTICE: Server is listening on unencrypted HTTP with "
+                "authentication/HMAC enabled.\n"
+                "    Bearer tokens and HMAC signatures travel in plaintext unless encrypted.\n"
+                "    Outside a trusted network, provide --ssl-certfile and --ssl-keyfile or run\n"
+                "    behind an HTTPS reverse proxy (e.g., Nginx, Caddy) terminating TLS."
+            )
+        print(f"[*] Starting AgriFed REST Inference Server on http://{args.host}:{args.port}")
+        uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
 
 if __name__ == "__main__":

@@ -78,10 +78,14 @@ python scripts/train_base.py --data-dir mi_dataset/train
 Inicia el microservicio HTTP tanto para atender diagnósticos de campo como para recibir actualizaciones automáticas de los colaboradores:
 
 ```bash
+# Ejecución estándar (desarrollo / red privada)
 python scripts/serve.py
+
+# O con terminación TLS nativa (producción)
+python scripts/serve.py --ssl-keyfile /ruta/privkey.pem --ssl-certfile /ruta/fullchain.pem
 ```
 
-*Escucha en `http://0.0.0.0:8000`. Carga automáticamente `models/global_model.pt` (o `base_model.pt`) con inferencia calibrada One-vs-Rest y habilita el endpoint de recepción `/submit-update`.*
+*Escucha en `0.0.0.0:8000`. Carga dinámicamente `models/global_model.pt` (o `base_model.pt`) con inferencia calibrada One-vs-Rest y habilita el endpoint de recepción `/submit-update` con transacciones atómicas por cliente.*
 
 ### Paso 4: Fusión de Parámetros con Servidor FedAvgM
 El Administrador fusiona las actualizaciones recibidas de los colaboradores utilizando el algoritmo **FedAvgM (Federated Averaging con Momento del Servidor)**:
@@ -90,13 +94,14 @@ El Administrador fusiona las actualizaciones recibidas de los colaboradores util
 python scripts/aggregate.py --client-weights models/client_updates/*.pt
 ```
 
-* **Momento del Servidor ($\beta = 0.9$):** A diferencia de un promedio aritmético pasivo, FedAvgM mantiene un buffer de velocidad $V_t = \beta V_{t-1} + \Delta W_{\text{fed}}$, estabilizando y acelerando la trayectoria de convergencia global frente a la heterogeneidad extrema de los datos de cada agricultor.
+* **Momento del Servidor ($\beta = 0.9$):** A diferencia de un promedio aritmético pasivo, FedAvgM mantiene un buffer de velocidad $V_t = \beta V_{t-1} + \Delta W_{\text{fed}}$, estabilizando la convergencia frente a la dispersión no-IID (Hsu et al., 2019).
+* **Buffer con Linaje Criptográfico:** `server_momentum.pt` se almacena como un bundle versionado (`format_version: 2`) ligado a los hashes `parent_base_sha256` y `produced_global_sha256`. Si se inicia un experimento con un modelo base diferente, el buffer descarta inercias previas y reinicia la velocidad a cero. Se persiste atómicamente únicamente *después* de consolidar con éxito el modelo global.
 * **Compuertas de Seguridad ([`ParameterValidator`](../src/agrifed_khaos/wrappers.py)):** Audita finitud numérica (sin `NaN` ni `Inf`), cotas de divergencia L2 absolutas y relativas, y autenticidad criptográfica HMAC.
 
 <details>
 <summary>Opciones avanzadas de agregación</summary>
 
-* `--server-momentum <float>`: Factor de momento del servidor $\beta$ en $[0, 1)$ (defecto: 0.9).
+* `--server-momentum <float>`: Factor de momento del servidor $\beta$ en $[0, 1)$ (defecto: 0.9; sintonizable a 0.0 para FedAvg estándar).
 * `--eta <float>`: Tasa de aprendizaje del servidor (defecto: 0.6).
 * `--allow-new-classes`: Permite expandir dinámicamente el clasificador si los colaboradores descubrieron patologías nuevas registradas en la taxonomía global.
 * `--max-norm <float>`: Límite de norma L2 para rechazar actualizaciones anómalas (defecto: 150.0).
@@ -211,8 +216,10 @@ python scripts/client_trainer.py \
 
 ### Garantías Técnicas de Privacidad y Entrega:
 * **0 Bytes de Imágenes Transferidas:** El script extrae gradientes localmente y genera únicamente el archivo numérico `models/client_parameters.pt` (~18 KB en modo clasificador) y su manifiesto `client_parameters.meta.json`.
-* **Entrega Automatizada de Pesos y Manifiesto:** Al concluir las épocas locales, el agente transmite mediante multipart el archivo de parámetros y su manifiesto al endpoint `/submit-update`. El servidor valida la integridad cruzada del hash SHA-256 y (si se configura la clave HMAC en el servidor) la firma criptográfica antes de habilitar la actualización para la agregación.
+* **Transacciones Atómicas de Actualización:** El endpoint `/submit-update` serializa peticiones por cliente con cerrojos asíncronos (`asyncio.Lock`) y publica atómicamente cada entrega en un directorio inmutable `models/client_updates/updates/{client_id}/{stamp}/` vía `os.replace`, garantizando que pesos y manifiesto aparezcan de forma simultánea.
+* **Seguridad en la Capa de Transporte (TLS/HTTPS Obligatorio en Producción):** Las credenciales `AGRIFED_AUTH_TOKEN` (Bearer) y `AGRIFED_HMAC_KEY` (firma de integridad) viajan en texto claro si no se usa TLS. Fuera de redes aisladas, despliega el servidor con `--ssl-*` o bajo un proxy inverso HTTPS (Nginx/Caddy). Los clientes disponen de `--ca-bundle` y `--insecure-skip-tls-verify` para entornos con certificados corporativos o de prueba.
 * **Perturbación de Parámetros (Mecanismo Gaussiano sobre ΔW):** Opcionalmente recorta la norma L2 (`--dp-clip-norm`) y añade ruido gaussiano calibrado (`--dp-noise-std`, $\mathcal{N}(0, \sigma^2 C^2 \mathbf{I})$), mitigando riesgos de inversión de gradientes o reconstrucción de imágenes locales. *(Nota: Aplica perturbación gaussiana sobre tensores; no evalúa una cota analítica $(\epsilon, \delta)$ de privacidad diferencial formal).*
+* **Modelo de Amenazas:** El sistema asume un servidor orquestador honesto y autorizado; no incluye protocolos criptográficos de agregación multipartita (*SecAgg*) que encripten los gradientes frente al servidor. Consulta los [Límites del Modelo de Amenazas](architecture.md#5-modelo-de-amenazas-y-límites-de-privacidad-threat-model--boundaries) para más detalles.
 
 > [!WARNING]
 > **Advertencia Crítica de Gobernanza y Alineación de Clases (`--allow-new-classes`):**
@@ -223,6 +230,8 @@ python scripts/client_trainer.py \
 
 * `--head-only`: *(Activado por defecto)* Entrena solo el clasificador final (~18 KB frente a 42 MB de transferencia).
 * `--server-url <url>`: URL del servidor central para transmisión automatizada de la actualización (pesos y manifiesto).
+* `--ca-bundle <path>`: Ruta a certificado CA personalizado para conexiones HTTPS corporativas.
+* `--insecure-skip-tls-verify`: Omite validación de certificados TLS (únicamente para entornos locales de prueba).
 * `--dp-clip-norm <float>` y `--dp-noise-std <float>`: Aplica recorte de norma L2 y perturbación gaussiana sobre $\Delta W$ (deben especificarse conjuntamente).
 * `--allow-new-classes`: Permite registrar clases emergentes respetando la taxonomía global de AgriFed.
 * `--client-id <nombre>`: Identificador del colaborador en el manifiesto y firma criptográfica HMAC.

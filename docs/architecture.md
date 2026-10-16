@@ -273,15 +273,21 @@ Cuando un cliente perimetral descubre patologías no vistas en el modelo base:
    \mathcal{N}\left(0, \sigma^2 C_{\text{clip}}^2 \mathbf{I}\right)
    $$
 
-   Con exención explícita de los buffers de normalización (evitando distorsionar medias y varianzas de BatchNorm). *(Nota de rigor metodológico: Este mecanismo inyecta perturbación gaussiana sobre los tensores compartidos; el framework no evalúa una cota analítica acumulada $(\epsilon, \delta)$ mediante contabilidad de privacidad Rényi/Moments).*
-2. **FedAvgM (Server Momentum):** [`aggregate.py`](../scripts/aggregate.py) (activado con $\beta = 0.9$ por defecto) y [`SanitizedFedProx`](../src/agrifed_khaos/federated.py) implementan momento del servidor con amortiguador $V_t$:
+   Con exención explícita de los buffers de normalización (evitando distorsionar medias y varianzas de BatchNorm).
+   *(Nota metodológica: Este mecanismo perturba heurísticamente los parámetros compartidos frente a reconstrucción directa; no evalúa una cota analítica formal $(\epsilon, \delta)$ mediante contabilidad Rényi/Moments).*
+
+2. **FedAvgM (Server Momentum) con Linaje Criptográfico:** [`aggregate.py`](../scripts/aggregate.py) implementa momento del servidor para mitigar el sesgo local (*client drift*) bajo distribuciones no-IID (Hsu et al., 2019):
 
    $$
    V_t = \beta V_{t-1} + \Delta W_{\text{fed}}, \quad W_{\text{global}} = W_{\text{base}} + \eta V_t
    $$
 
+   * **Configuración y Calibración:** El factor $\beta = 0.9$ es el valor estándar recomendado en la literatura empírica federada, pero constituye un hiperparámetro sintonizable (`--server-momentum`). En fases piloto, se recomienda validar valores $\beta \in \{0.0, 0.5, 0.9\}$ evaluando la estabilidad en `delta_norm` y el guardarraíl de regresión.
+   * **Gobernanza del Buffer de Momento:** El archivo `server_momentum.pt` se guarda como un bundle versionado (`format_version: 2`) que vincula la velocidad a la arquitectura, clases y los hashes criptográficos `parent_base_sha256` y `produced_global_sha256`. Si se ejecuta una agregación sobre un modelo base que no coincide con la cadena histórica, el agregador detecta la divergencia, notifica en logs y reinicia la velocidad a cero para no contaminar el nuevo modelo con inercias de experimentos previos.
+   * **Persistencia Segura Post-Commit:** El buffer de momento se escribe atómicamente (vía archivo temporal y `os.replace`) **estrictamente después** de que el checkpoint del modelo global ha sido validado y almacenado en disco.
+
 ### E. Calibración Multiclase One-vs-Rest e Inferencia Calibrada
-1. **Calibración OvR en `evaluate.py`:** Determina el umbral $\tau_c^*$ que maximiza el F1-Score / Youden para cada una de las $C$ clases independientemente.
+1. **Calibración OvR en `evaluate.py`:** Determina el umbral $\tau_c^*$ que maximiza el F1-Score / Youden para cada una de las $C$ clases independientemente sobre un split de validación (`dataset/val`).
 2. **Escalado en `serve.py`:** En `/predict`, las probabilidades se reescalan:
 
    $$
@@ -289,4 +295,53 @@ Cuando un cliente perimetral descubre patologías no vistas en el modelo base:
    $$
 
    Asegurando detección equitativa en clases minoritarias severamente desbalanceadas.
+
+### F. Ingestión Concurrente Atómica de Actualizaciones
+Para garantizar la integridad ante múltiples clientes concurrentes:
+1. **Serialización por Cliente:** [`serve.py`](../scripts/serve.py) gestiona un cerrojo asíncrono (`asyncio.Lock`) exclusivo por `client_id`, serializando las peticiones del mismo colaborador y previniendo colisiones de carrera.
+2. **Directorio Inmutable Atómico:** Cada actualización se ensambla primero en un directorio temporal `.staging_{stamp}` y se publica atómicamente mediante `os.replace` hacia `models/client_updates/updates/{client_id}/{stamp}/`. Ambos archivos (`parameters.pt` y `parameters.meta.json`) aparecen de forma simultánea e indivisible a nivel de sistema de ficheros POSIX.
+3. **Compatibilidad:** El servidor mantiene punteros actualizados atómicamente en `{client_id}_parameters.pt` y archiva copias históricas inmutables en `archive/`.
+
+---
+
+## 5. Modelo de Amenazas y Límites de Privacidad (Threat Model & Boundaries)
+
+Para mantener una transparencia técnica y académica rigurosa, se especifican con precisión las garantías proporcionadas y las limitaciones fuera de alcance del sistema:
+
+### A. Garantías Cubiertas (In-Scope)
+* **Cero Fuga de Imágenes en Bruto:** Las imágenes físicas y etiquetas de entrenamiento jamás abandonan la infraestructura perimetral del cliente (`0 bytes` de datos multimedia transferidos).
+* **Superficie de Exposición Mínima (Head-Only):** En el ajuste de cabeza (`--head-only`), el 100% del extractor convolucional permanece congelado en el cliente; únicamente se exporta la matriz lineal de clasificación ($\approx 18\text{ KB}$), eliminando vectores de inversión sobre activaciones profundas.
+* **Perturbación Heurística Local:** El recorte L2 ($C_{\text{clip}}$) y la inyección gaussiana ($\sigma$) sobre $\Delta W$ distorsionan las actualizaciones locales antes de salir del nodo perimetral.
+* **Autenticidad e Integridad Criptográfica:** El cálculo de digests SHA-256 en memoria y la firma HMAC-SHA256 con clave compartida certifican que los parámetros no han sido manipulados en tránsito ni inyectados por actores no autorizados.
+
+### B. Limitaciones Conocidas y Fuera de Alcance (Known Limitations)
+1. **Ausencia de Secure Multi-Party Aggregation (SecAgg):**
+   El servidor orquestador recibe las actualizaciones de pesos $\Delta W_k$ de cada cliente de forma individual y en claro antes de sumarlas. Por tanto, el orquestador se asume **autorizado y confiable**. Un servidor malicioso o intervenido administrativamente puede inspeccionar los pesos aislados de un cliente. No se implementa un protocolo criptográfico SecAgg (como Bonawitz et al., 2017) basado en secreto compartido u homomórfico.
+2. **Sin Garantía Formal $(\epsilon, \delta)$ de Privacidad Diferencial:**
+   La adición de ruido gaussiano sobre $\Delta W$ constituye una perturbación de parámetros heurística. El framework no incorpora un contador de privacidad formal (como Rényi DP o Moments Accountant) calibrado con el tamaño del dataset, ratio de muestreo por batch y número total de épocas.
+3. **Alcance de la Firma HMAC:**
+   La firma HMAC en el manifiesto provee autenticación de origen e integridad de datos; **no proporciona cifrado ni confidencialidad**.
+4. **Seguridad en la Capa de Transporte (TLS/HTTPS Obligatorio en Producción):**
+   Las cabeceras `Authorization: Bearer <token>` y `X-Client-HMAC` viajan en texto plano a través de la red si se utiliza HTTP estándar. En redes externas o no confiables, el servicio debe desplegarse con TLS nativo (`--ssl-certfile` y `--ssl-keyfile` en [`serve.py`](../scripts/serve.py)) o detrás de un proxy inverso HTTPS (Nginx, Caddy o Traefik).
+
+```nginx
+# Ejemplo de configuración recomendada para Nginx Reverse Proxy con TLS
+server {
+    listen 443 ssl http2;
+    server_name agrifed.mi-organizacion.es;
+
+    ssl_certificate /etc/letsencrypt/live/agrifed/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/agrifed/privkey.pem;
+
+    client_max_body_size 60M; # Permite subida de parámetros y manifiestos
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+```
 

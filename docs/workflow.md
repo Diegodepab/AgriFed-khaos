@@ -228,8 +228,7 @@ docker compose exec agrifed bash
 
 3. **Garantía Técnica de Cero Fuga y Payload Reducido:**
    - **Estrategia Head-Only:** El extractor convolucional (`resnet18`) permanece congelado y se ajusta únicamente la matriz de pesos del clasificador lineal final (`fc.weight`, `fc.bias`).
-   - **Payload Ultraligero:** El tensor exportado pesa apenas **~18 KB** (frente a los ~42.7 MB del modelo convolucional completo).
-   - **Entrega Automatizada con Manifiesto:** El argumento `--server-url` transmite automáticamente una petición multipart con los pesos (`client_parameters.pt`) y su manifiesto criptográfico (`client_parameters.meta.json`), validando la firma HMAC (`X-Client-HMAC`) y la correspondencia SHA-256 en `/submit-update`. (En redes aisladas o *air-gapped*, se transfiere manualmente la pareja de archivos `models/client_parameters.pt` y `models/client_parameters.meta.json` por SFTP).
+   - **Entrega Automatizada con Manifiesto:** `--server-url` transmite los pesos y el manifiesto multipart; el servidor valida SHA-256 y valida HMAC si `AGRIFED_HMAC_KEY` está configurada. La ingesta se ejecuta como una transacción atómica mediante cerrojos por cliente (`asyncio.Lock`) y publica la pareja indivisible en el directorio inmutable `models/client_updates/updates/{client_id}/{stamp}/`. Debe configurarse `AGRIFED_AUTH_TOKEN` o `AGRIFED_HMAC_KEY` en el servidor y cliente. Para conexiones fuera de una red local aislada, es obligatorio desplegar bajo HTTPS (nativamente con `--ssl-*` o vía proxy inverso TLS). En redes *air-gapped*, se transfiere la pareja de ficheros manualmente por canal seguro.
    - **0 bytes de imágenes abandonaron la Máquina 2.**
 </details>
 
@@ -249,7 +248,7 @@ El servidor maestro recibe `coop_sevilla_parameters.pt` junto a su `coop_sevilla
    *(Nota sobre linaje multi-ronda: En la Ronda 1, `--base-model` corresponde al modelo inicial `models/base_model.pt`. Para rondas federadas subsecuentes (Ronda 2+), tanto el cliente (`--weights-in`) como el agregador (`--base-model`) deben apuntar a `models/global_model.pt`, manteniendo el linaje ininterrumpido auditado por las compuertas de seguridad).*
 
    *Qué realiza internamente:*
-   - **Compuerta de Linaje:** Comprueba que el hash `base_model_sha256` coincida exactamente con el modelo base original.
+   - **Compuerta de Linaje:** Comprueba que el hash `base_model_sha256` coincida exactamente con el modelo indicado en `--base-model` para esa ronda.
    - **Compuerta ParameterValidator (`head_only`):** Valida que el archivo contenga **estricta y exclusivamente los tensores del clasificador** (`fc.*`), sin claves convolucionales espurias ni faltantes, auditando ausencia de `NaN`/`Inf` y cota de divergencia ($\|\Delta W_{\text{head}}\|_2 = 12.00 \le 150.0$).
    - **Momento FedAvgM Focalizado:** El momento del servidor ($\beta = 0.9$ por defecto) se calcula y aplica **únicamente sobre los pesos de la capa clasificadora recibida**.
    - **Invarianza del Extractor y BatchNorm:** Todas las capas convolucionales del backbone extractor y los buffers de normalización (`BatchNorm.running_mean` y `running_var`) se mantienen **100% intactos e idénticos al modelo base original**, evitando distorsiones por el sesgo local del cliente.

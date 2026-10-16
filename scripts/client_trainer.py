@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -133,6 +134,18 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help="Optional central server URL (e.g. http://master:8000) for automated submission",
+    )
+    parser.add_argument(
+        "--ca-bundle",
+        type=str,
+        default=os.getenv("AGRIFED_CA_BUNDLE"),
+        help="Path to CA certificate bundle for HTTPS server verification",
+    )
+    parser.add_argument(
+        "--insecure-skip-tls-verify",
+        action="store_true",
+        default=os.getenv("AGRIFED_INSECURE_SKIP_TLS", "").lower() in ("1", "true", "yes"),
+        help="Skip TLS certificate verification (testing/self-signed certs only)",
     )
     args = parser.parse_args()
     if (args.dp_clip_norm > 0.0 and args.dp_noise_std <= 0.0) or (
@@ -540,9 +553,10 @@ def main() -> None:
     out_sha256 = compute_sha256(out_path)
     client_meta["sha256"] = out_sha256
 
-    if args.hmac_key:
+    hmac_key = args.hmac_key or os.getenv("AGRIFED_HMAC_KEY")
+    if hmac_key:
         client_meta["hmac_signature"] = compute_manifest_hmac(
-            key=args.hmac_key,
+            key=hmac_key,
             client_sha256=out_sha256,
             base_model_sha256=base_sha256,
             training_scope=training_scope,
@@ -597,6 +611,9 @@ def main() -> None:
             }
             if client_meta.get("hmac_signature"):
                 req_headers["X-Client-HMAC"] = client_meta["hmac_signature"]
+            auth_token = os.getenv("AGRIFED_AUTH_TOKEN")
+            if auth_token:
+                req_headers["Authorization"] = f"Bearer {auth_token}"
 
             req = urllib.request.Request(
                 f"{server_endpoint}?client_id={args.client_id}",
@@ -604,7 +621,15 @@ def main() -> None:
                 headers=req_headers,
                 method="POST",
             )
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            import ssl
+            ssl_ctx: ssl.SSLContext | None = None
+            if args.insecure_skip_tls_verify:
+                ssl_ctx = ssl._create_unverified_context()
+                print("    [!] Notice: TLS certificate verification is disabled for testing.")
+            elif args.ca_bundle:
+                ssl_ctx = ssl.create_default_context(cafile=args.ca_bundle)
+
+            with urllib.request.urlopen(req, timeout=30, context=ssl_ctx) as resp:
                 resp_text = resp.read().decode("utf-8")
                 print(
                     "[+] Automated transmission successful "
