@@ -122,21 +122,14 @@ def save_checkpoint_bundle(
     state_dict: dict[str, Any],
     metadata: dict[str, Any] | None = None,
 ) -> None:
-    """Save model weights and metadata into a self-contained bundle.
+    """Save model weights and metadata atomically into a self-contained bundle.
 
-    Structure:
-    {
-        "state_dict": dict[str, torch.Tensor],
-        "metadata": {
-            "architecture": str,
-            "num_classes": int,
-            "classes": list[str],
-            "img_size": int,
-            "calibrated_thresholds": dict[str, Any] | None,
-            ...
-        }
-    }
+    Writes to a temporary file in the same directory and commits via POSIX os.replace
+    so concurrent readers (e.g. serve.py hot-reload watcher) never observe a partial write.
     """
+    import os
+    import uuid
+
     try:
         import torch
     except ImportError as exc:
@@ -148,7 +141,17 @@ def save_checkpoint_bundle(
         "state_dict": state_dict,
         "metadata": metadata or {},
     }
-    torch.save(bundle, str(p))
+    tmp_path = p.with_name(f".{p.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        torch.save(bundle, str(tmp_path))
+        os.replace(tmp_path, p)
+    except Exception:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+        raise
 
 
 def load_checkpoint_bundle(
