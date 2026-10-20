@@ -13,18 +13,20 @@ Demuestra cómo una cooperativa agrícola entrena sobre sus datos privados en su
 
 En un despliegue de producción real, cada entidad u organización colaboradora opera de forma totalmente aislada con su propia recolección de imágenes en sus instalaciones locales (distintas fincas, cámaras y servidores perimetrales), mientras que el servidor central dispone de sus propios datos históricos.
 
-Para garantizar la **reproducibilidad determinista inmediata** de este tutorial sin exigir el acceso a múltiples bases de datos externas privadas, se divide el conjunto abierto oficial `EnfermedadesHoja_v1.0` (ISIDROS-OpenData / Khaos, Universidad de Málaga) simulando dicho ecosistema en dos máquinas físicas o entornos independientes:
+Para garantizar la **reproducibilidad determinista inmediata** de este tutorial sin exigir el acceso a múltiples bases de datos externas privadas, se divide el conjunto abierto oficial `EnfermedadesHoja_v1.0` (ISIDROS-OpenData / Khaos, Universidad de Málaga) simulando dicho ecosistema en dos máquinas físicas o entornos independientes. Antes de entrenar, el conjunto original `train/` del maestro debe separarse en dos subconjuntos sin solapamiento: `train_master/` y `val_master/`. La separación debe hacerse por unidad de origen (por ejemplo, planta, hoja, finca o sesión de captura) cuando esa información exista, no solo por archivo, para reducir fugas entre imágenes correlacionadas.
 
 ```text
 Dataset Oficial EnfermedadesHoja_v1.0 (12.157 imágenes, 9 clases)
-├── train/ (9.809 fotos) ──► Asignado a Máquina 1 (Servidor Maestro: Modelo Base y Calibración)
-├── val/   (1.178 fotos) ──► Asignado a Máquina 2 (Simulación del Silo Privado de la Cooperativa)
+├── train_master/ ──► Máquina 1: entrenamiento del modelo base
+├── val_master/   ──► Máquina 1: calibración retenida, no usada para entrenar ni enviada al cliente
+├── val/ (1.178 fotos) ──► Máquina 2: simulación del silo privado de la cooperativa
 └── test/  (1.170 fotos) ──► Reservado para Cliente Consumidor (Auditoría Independiente T0 vs T1)
 ```
 
 1. **Máquina 1 (Servidor Maestro):**
-   - Dispone localmente de las imágenes de `train/`.
-   - Entrena el modelo base inicial, calibra los umbrales de decisión y aloja el microservicio REST.
+   - Dispone localmente de `train_master/` y de `val_master/`, retenido a partir de su propio conjunto original `train/`.
+   - Entrena exclusivamente con `train_master/`; calibra los umbrales de decisión sobre `val_master/` y aloja el microservicio REST.
+   - No comparte `val_master/` con el cliente ni usa esos datos en entrenamiento.
    - Jamás tiene acceso físico ni de red a las fotos de la Máquina 2.
 2. **Máquina 2 (Cliente Colaborador / Cooperativa Perimetral):**
    - Dispone en su disco local únicamente de las imágenes de `val/`, actuando como su repositorio privado y confidencial.
@@ -103,10 +105,12 @@ Asegúrese de que el directorio `dataset/` contiene las tres particiones:
 ```bash
 ls -l dataset/
 # Debe mostrar exactamente:
-# train/  (9.809 fotos, 9 clases) -> Asignado a Máquina 1 (Servidor Maestro)
-# val/    (1.178 fotos, 9 clases) -> Asignado a Máquina 2 (Cooperativa On-Premise)
+# train_master/ (parte del train original) -> Entrenamiento de Máquina 1
+# val_master/   (retenido del train original, disjunto) -> Calibración de Máquina 1
+# val/          (1.178 fotos) -> Silo privado simulado de Máquina 2
 # test/   (1.170 fotos, 9 clases) -> Asignado a Auditoría de Consumidor
 ```
+`train_master/` y `val_master/` se deben crear antes del entrenamiento, moviendo o copiando grupos de origen completos desde el `train/` original. No mantengas una copia de las mismas imágenes en ambas carpetas. En producción, sustituye `val/` por la partición privada propia del cliente; nunca uses `val_master/` como datos federados.
 
 #### 4. Entrar al contenedor Docker:
 ```bash
@@ -123,9 +127,9 @@ docker compose exec agrifed bash
 <summary><strong>Fase A: En la Máquina 1 (Servidor Maestro - Modelo Base y Servicio T0)</strong></summary>
 
 1. **Entrenar el Modelo Base:**
-   El maestro entrena únicamente sobre su partición local `train/`:
+   El maestro entrena únicamente sobre `train_master/`; `val_master/` queda fuera del entrenamiento:
    ```bash
-   python scripts/train_base.py --data-dir dataset/train
+   python scripts/train_base.py --data-dir dataset/train_master
    ```
    *Auto-FL selecciona `resnet18` (~42.7 MB) y genera el bundle autocontenido `models/base_model.pt`.*
 
@@ -138,14 +142,14 @@ docker compose exec agrifed bash
    </details>
 
 2. **Calibración Inicial One-vs-Rest (T0):**
-   Para optimizar la frontera de decisión frente al desbalance de clases antes de exponer el servicio, el maestro calibra los umbrales $\tau_c^*$ sobre la partición de validación:
+   Para optimizar la frontera de decisión frente al desbalance de clases antes de exponer el servicio, el maestro calibra los umbrales $\tau_c^*$ sobre `val_master/`, retenido de sus propios datos y disjunto de `train_master/`:
    ```bash
    python scripts/evaluate.py \
      --model models/base_model.pt \
-     --data-dir dataset/val \
+     --data-dir dataset/val_master \
      --calibrate-threshold
    ```
-   *(Nota metodológica: Se recomienda calibrar siempre sobre `dataset/val` o una partición de control no utilizada durante el entrenamiento para evitar el sobreajuste de los umbrales de decisión).*
+   *(Nota metodológica: `val_master/` pertenece exclusivamente al maestro. El cliente entrena en su partición privada independiente (`val/` en esta simulación); ninguna imagen puede solaparse con `val_master/`. En producción, calibra sobre una muestra propia retenida del maestro, nunca sobre datos del cliente ni sobre imágenes usadas para entrenar.)*
    *Inyecta los umbrales óptimos dentro de `metadata["calibrated_thresholds"]` en el propio archivo `.pt`.*
 
 3. **Levantar el Servicio de Diagnóstico REST:**
@@ -201,7 +205,8 @@ cp .env.example .env
 make up
 
 # 2. Copiar sus imágenes privadas a dataset/val dentro de la carpeta clonada
-# (en este caso de estudio, la partición val/ con 1.178 imágenes privadas)
+# Esta ruta es local al cliente y no es la dataset/val_master del servidor.
+# En producción, use la partición privada de entrenamiento de la cooperativa.
 
 # 3. Entrar al contenedor:
 docker compose exec agrifed bash
@@ -258,10 +263,10 @@ El servidor maestro recibe `coop_sevilla_parameters.pt` junto a su `coop_sevilla
    ```bash
    python scripts/evaluate.py \
      --model models/global_model.pt \
-     --data-dir dataset/val \
+     --data-dir dataset/val_master \
      --calibrate-threshold
    ```
-   *Calcula los nuevos umbrales óptimos $\tau_c^*$ sobre la nueva superficie de decisión y los actualiza directamente en el bundle `models/global_model.pt`.*
+   *Calcula los nuevos umbrales óptimos $\tau_c^*$ sobre la nueva superficie de decisión usando únicamente `val_master/` del maestro (sin solapamiento con el silo privado del cliente ni con `train_master/`) y los actualiza directamente en el bundle `models/global_model.pt`.*
 
 3. **Recarga Dinámica en el Servicio de Inferencia:**
    El servicio REST en `scripts/serve.py` detecta automáticamente que `models/global_model.pt` ha sido creado o actualizado en disco y recarga los pesos y umbrales calibrados en la siguiente petición (también puede forzarse manualmente con `curl -X POST http://localhost:8000/reload-model` o reiniciando el servicio). Ahora el indicador `"threshold_applied": "calibrated"` refleja la calibración matemática sobre el modelo global actualizado.

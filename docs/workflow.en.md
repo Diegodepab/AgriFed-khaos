@@ -13,18 +13,20 @@ It demonstrates how an agricultural cooperative trains over its confidential on-
 
 In real-world production deployments, each collaborating cooperative or enterprise operates in complete isolation with its own private image repository collected locally across its farms and facilities, while the orchestrator maintains its own institutional data.
 
-To ensure **immediate deterministic reproducibility** across this walkthrough without requiring access to disparate private databases or proprietary field credentials, we partition the official open benchmark `EnfermedadesHoja_v1.0` (ISIDROS-OpenData / Khaos research group, University of Málaga) simulating this exact two-machine ecosystem:
+To ensure **immediate deterministic reproducibility** across this walkthrough without requiring access to disparate private databases or proprietary field credentials, we partition the official open benchmark `EnfermedadesHoja_v1.0` (ISIDROS-OpenData / Khaos research group, University of Málaga) simulating this exact two-machine ecosystem. Before training, split the master's original `train/` into two disjoint subsets: `train_master/` and `val_master/`. When source identifiers exist, split by source unit (e.g. plant, leaf, farm, or capture session), not just by file, to reduce leakage among correlated images.
 
 ```text
 Official Dataset EnfermedadesHoja_v1.0 (12,157 images, 9 classes)
-├── train/ (9,809 photos) ──► Assigned to Machine 1 (Master Server: Baseline Training & Calibration)
-├── val/   (1,178 photos) ──► Assigned to Machine 2 (Simulated Private On-Premise Cooperative Silo)
+├── train_master/ ──► Machine 1: baseline model training
+├── val_master/   ──► Machine 1: held-out calibration, never used for training or sent to the client
+├── val/ (1,178 photos) ──► Machine 2: simulated private cooperative silo
 └── test/  (1,170 photos) ──► Reserved for Consumer Client (Independent T0 vs T1 Auditing)
 ```
 
 1. **Machine 1 (Master Orchestrator):**
-   - Holds the `train/` directory on local disk.
-   - Trains the baseline model, tunes decision thresholds, and hosts the REST microservice.
+   - Holds `train_master/` and `val_master/`, both derived from its own original `train/` partition.
+   - Trains exclusively on `train_master/`, calibrates decision thresholds on `val_master/`, and hosts the REST microservice.
+   - Never shares `val_master/` with the client or uses it for training.
    - Possesses zero physical or network access to raw imagery on Machine 2.
 2. **Machine 2 (Collaborator Client / Edge Cooperative):**
    - Holds the `val/` partition locally, acting as its confidential field silo.
@@ -103,10 +105,12 @@ Verify that `dataset/` contains all three standard partitions:
 ```bash
 ls -l dataset/
 # Must display:
-# train/  (9,809 photos across class subdirectories) -> Assigned to Machine 1 (Master)
-# val/    (1,178 photos across class subdirectories) -> Assigned to Machine 2 (Edge Silo)
+# train_master/ (part of original train) -> Machine 1 training
+# val_master/   (held out from original train, disjoint) -> Machine 1 calibration
+# val/          (1,178 photos) -> Machine 2 simulated private silo
 # test/   (1,170 photos across class subdirectories) -> Assigned to Independent Auditing
 ```
+Create `train_master/` and `val_master/` before training by moving or copying complete source groups from the original `train/`. Do not retain the same images in both directories. In production, replace `val/` with the client's own private partition; never use `val_master/` as federated client data.
 
 #### 4. Enter the Docker container:
 ```bash
@@ -123,9 +127,9 @@ docker compose exec agrifed bash
 <summary><strong>Phase A: On Machine 1 (Master Server - Baseline Model & T0 Service)</strong></summary>
 
 1. **Train the Baseline Model:**
-   The master trains exclusively on its local `train/` partition:
+   The master trains exclusively on `train_master/`; `val_master/` remains held out:
    ```bash
-   python scripts/train_base.py --data-dir dataset/train
+   python scripts/train_base.py --data-dir dataset/train_master
    ```
    *Auto-FL selects `resnet18` (~42.7 MB) and serializes the self-contained bundle `models/base_model.pt`.*
 
@@ -138,14 +142,14 @@ docker compose exec agrifed bash
    </details>
 
 2. **Initial One-vs-Rest Threshold Calibration (T0):**
-   To optimize the decision boundary against class imbalance prior to serving predictions, the orchestrator computes operating thresholds $\tau_c^*$ on the validation split:
+   To optimize the decision boundary against class imbalance before serving predictions, the orchestrator computes thresholds $\tau_c^*$ on `val_master/`, held out from its own data and disjoint from `train_master/`:
    ```bash
    python scripts/evaluate.py \
      --model models/base_model.pt \
-     --data-dir dataset/val \
+     --data-dir dataset/val_master \
      --calibrate-threshold
    ```
-   *(Methodological note: It is strongly recommended to calibrate on `dataset/val` or a held-out split rather than the training set to prevent decision threshold overfitting).*
+   *(Methodological note: `val_master/` belongs exclusively to the master. The client trains on its independent private partition (`val/` in this simulation); no image may overlap with `val_master/`. In production, calibrate on a held-out subset owned by the master, never on client data or training images).*
    *Injects optimal thresholds directly into `metadata["calibrated_thresholds"]` within the `.pt` bundle.*
 
 3. **Launch REST Diagnostic Service:**
@@ -201,6 +205,8 @@ cp .env.example .env
 make up
 
 # 2. Place private local photos into dataset/val inside the cloned directory:
+# This is client-local data, not the server's dataset/val_master.
+# In production, use the cooperative's private training partition.
 # (in this empirical study, the 1,178 val/ images)
 
 # 3. Enter container:
@@ -258,10 +264,10 @@ The master server receives `coop_sevilla_parameters.pt` alongside `coop_sevilla_
    ```bash
    python scripts/evaluate.py \
      --model models/global_model.pt \
-     --data-dir dataset/val \
+     --data-dir dataset/val_master \
      --calibrate-threshold
    ```
-   *Calculates fresh optimal thresholds $\tau_c^*$ on the updated decision boundary and updates `models/global_model.pt` directly.*
+   *Calculates fresh optimal thresholds $\tau_c^*$ on the updated decision boundary using only the master's `val_master/` (disjoint from both `train_master/` and the client's private silo), then updates `models/global_model.pt` directly.*
 
 3. **Dynamic Hot-Reload in REST Service:**
    The service in `scripts/serve.py` automatically detects when `models/global_model.pt` is created or updated on disk and hot-reloads the weights and calibrated thresholds on the next incoming request (or triggered manually via `curl -X POST http://localhost:8000/reload-model`). The indicator `"threshold_applied": "calibrated"` now reflects genuine calibrated probabilities on the updated model.
