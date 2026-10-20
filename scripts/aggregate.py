@@ -623,9 +623,12 @@ def main() -> None:
             sys.exit(1)
 
         c_classes = client_meta.get("classes") or client_bundle_meta.get("classes")
-        if c_classes is None:
+        if not c_classes:
             c_classes = list(base_classes)
-        if args.allow_new_classes and union_classes:
+        if union_classes and (
+            args.allow_new_classes
+            or (c_classes and set(c_classes).issubset(set(union_classes)))
+        ):
             client_state = align_client_head(client_state, c_classes, base_state, union_classes)
 
         client_keys = set(client_state.keys())
@@ -849,7 +852,10 @@ def main() -> None:
             c_state = c.state_dict
         else:
             c_state, _ = load_checkpoint_bundle(str(c.path), device=device)
-            if args.allow_new_classes and union_classes:
+            if union_classes and (
+                args.allow_new_classes
+                or (c.classes and set(c.classes).issubset(set(union_classes)))
+            ):
                 c_state = align_client_head(c_state, c.classes, base_state, union_classes)
 
         for k in round_trainable_keys:
@@ -866,12 +872,14 @@ def main() -> None:
                 and delta_k.shape[0] == num_union_classes
             ):
                 for idx_cls, cls_name in enumerate(union_classes):
-                    if (
-                        c.classes
-                        and cls_name in c.classes
-                        and total_samples_per_class[idx_cls] > 0
-                    ):
-                        weight_kc = c.num_samples / total_samples_per_class[idx_cls]
+                    denom = total_samples_per_class[idx_cls]
+                    if denom <= 0:
+                        # S_c = empty set: class c absent across all participating clients.
+                        # Avoid division by zero; delta_fed_accum[k][idx_cls] remains 0.0
+                        # so base row + momentum velocity are preserved cleanly.
+                        continue
+                    if c.classes and cls_name in c.classes:
+                        weight_kc = c.num_samples / denom
                         delta_fed_accum[k][idx_cls] += weight_kc * delta_k[idx_cls]
             else:
                 delta_fed_accum[k] += weight_k * delta_k
@@ -883,6 +891,7 @@ def main() -> None:
     momentum_buffer_path: Path | None = None
     prev_momentum: dict[str, torch.Tensor] = {}
     new_momentum_buffer: dict[str, torch.Tensor] = {}
+    stored_momentum_classes: list[str] = list(base_classes)
 
     if args.server_momentum > 0.0:
         if not 0.0 <= args.server_momentum < 1.0:
@@ -905,13 +914,24 @@ def main() -> None:
                     stored_parent = raw_loaded.get("parent_base_sha256")
                     stored_global = raw_loaded.get("produced_global_sha256")
                     stored_arch = raw_loaded.get("architecture")
+                    raw_stored_cls = raw_loaded.get("classes")
+                    if isinstance(raw_stored_cls, list) and raw_stored_cls:
+                        stored_momentum_classes = [str(x) for x in raw_stored_cls]
 
+                    arch_match = (stored_arch == arch) if stored_arch else True
+                    classes_subset_match = bool(
+                        union_classes
+                        and stored_momentum_classes
+                        and set(stored_momentum_classes).issubset(set(union_classes))
+                    )
                     lineage_match = (
-                        actual_base_sha in (stored_parent, stored_global)
+                        (
+                            actual_base_sha in (stored_parent, stored_global)
+                            or (args.allow_new_classes and classes_subset_match)
+                        )
                         if (stored_parent or stored_global)
                         else True
                     )
-                    arch_match = (stored_arch == arch) if stored_arch else True
 
                     if not lineage_match:
                         print(
@@ -958,8 +978,38 @@ def main() -> None:
             if args.server_momentum > 0.0:
                 v_prev = prev_momentum.get(k, torch.zeros_like(delta_k))
                 if v_prev.shape != delta_k.shape:
-                    v_prev = torch.zeros_like(delta_k)
-                v_t = args.server_momentum * v_prev.to(device) + delta_k
+                    is_head_key = any(k.startswith(pfx) for pfx in HEAD_PREFIXES)
+                    if (
+                        is_head_key
+                        and v_prev.dim() == delta_k.dim()
+                        and v_prev.dim() in (1, 2)
+                        and (v_prev.dim() == 1 or v_prev.shape[1:] == delta_k.shape[1:])
+                    ):
+                        v_projected = torch.zeros_like(delta_k)
+                        src_classes = (
+                            stored_momentum_classes
+                            if len(stored_momentum_classes) == v_prev.shape[0]
+                            else base_classes
+                        )
+                        if (
+                            src_classes
+                            and union_classes
+                            and set(src_classes).issubset(set(union_classes))
+                        ):
+                            for src_idx, c_name in enumerate(src_classes):
+                                if src_idx < v_prev.shape[0] and c_name in union_classes:
+                                    dst_idx = union_classes.index(c_name)
+                                    v_projected[dst_idx] = v_prev[src_idx].to(
+                                        device=delta_k.device, dtype=delta_k.dtype
+                                    )
+                        elif v_prev.shape[0] < delta_k.shape[0]:
+                            v_projected[: v_prev.shape[0]] = v_prev.to(
+                                device=delta_k.device, dtype=delta_k.dtype
+                            )
+                        v_prev = v_projected
+                    else:
+                        v_prev = torch.zeros_like(delta_k)
+                v_t = args.server_momentum * v_prev.to(device=device, dtype=delta_k.dtype) + delta_k
                 new_momentum_buffer[k] = v_t.cpu()
                 new_state[k] = base_state[k] + args.eta * v_t
             else:
@@ -1141,7 +1191,9 @@ def main() -> None:
 
     try:
         meta_file.parent.mkdir(parents=True, exist_ok=True)
-        meta_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        temp_meta = meta_file.with_name(f".{meta_file.name}.{uuid.uuid4().hex}.tmp")
+        temp_meta.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        os.replace(temp_meta, meta_file)
         print(f"[*] Metadata updated at:   {meta_file}")
     except (OSError, PermissionError) as exc:
         print(f"[!] Warning: Unable to update metadata file at {meta_file}: {exc}", file=sys.stderr)
