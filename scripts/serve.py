@@ -190,8 +190,9 @@ def create_app(
         )
         num_classes = (
             b_meta.get("num_classes")
+            or (len(classes) if classes else None)
             or meta.get("num_classes")
-            or (len(classes) if classes else 9)
+            or 9
         )
         calibrated_thresholds = b_meta.get("calibrated_thresholds") or meta.get(
             "calibrated_thresholds"
