@@ -746,6 +746,10 @@ def test_resolve_dataset_dir_and_favicon(tmp_path: Path) -> None:
     save_checkpoint_bundle(dummy_model, m.state_dict(), meta)
     app = create_app(str(dummy_model))
     client = TestClient(app)
+    health = client.get("/health")
+    assert health.status_code == 200
+    assert health.json()["num_classes"] == 2
+    assert health.json()["classes"] == ["c1", "c2"]
     resp = client.get("/favicon.ico")
     assert resp.status_code == 204
 
