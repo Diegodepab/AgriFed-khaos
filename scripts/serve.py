@@ -134,11 +134,14 @@ def create_app(
     arch: str = architecture or "resnet18"
     num_classes: int = 9
     calibrated_thresholds: Any = None
+    temperature: float = 1.0
     model_sha256: str = ""
     img_size_tuple: tuple[int, int] = (224, 224)
+    resize_tuple: tuple[int, int] = (256, 256)
     transform = transforms.Compose(
         [
-            transforms.Resize(img_size_tuple),
+            transforms.Resize(resize_tuple),
+            transforms.CenterCrop(img_size_tuple),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
@@ -147,7 +150,7 @@ def create_app(
 
     def _resolve_and_reload_model(force: bool = False) -> None:
         nonlocal active_model_p, last_mtime, bundle_meta, classes, arch, num_classes
-        nonlocal calibrated_thresholds, model_sha256, img_size_tuple, transform, net
+        nonlocal calibrated_thresholds, temperature, model_sha256, img_size_tuple, transform, net
 
         candidate_p = Path(model_path)
         if not candidate_p.is_file():
@@ -197,6 +200,7 @@ def create_app(
         calibrated_thresholds = b_meta.get("calibrated_thresholds") or meta.get(
             "calibrated_thresholds"
         )
+        temperature = float(b_meta.get("temperature") or meta.get("temperature") or 1.0)
 
         net = build_model(architecture=arch, num_classes=num_classes).to(device)
         if state:
@@ -211,9 +215,14 @@ def create_app(
         else:
             img_size_tuple = (224, 224)
 
+        resize_dim = (
+            int(round(img_size_tuple[0] * 256 / 224)),
+            int(round(img_size_tuple[1] * 256 / 224)),
+        )
         transform = transforms.Compose(
             [
-                transforms.Resize(img_size_tuple),
+                transforms.Resize(resize_dim),
+                transforms.CenterCrop(img_size_tuple),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ]
@@ -242,7 +251,7 @@ def create_app(
 
         with torch.no_grad():
             logits = net(tensor)
-            probs = F.softmax(logits, dim=1)[0]
+            probs = F.softmax(logits / max(temperature, 1e-3), dim=1)[0]
 
             # Apply calibrated decision thresholds if present
             pred_idx = int(probs.argmax().item())

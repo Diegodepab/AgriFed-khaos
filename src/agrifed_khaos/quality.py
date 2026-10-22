@@ -424,3 +424,231 @@ def compute_multiclass_calibrated_thresholds(
 
 
 
+# ---------------------------------------------------------------------------
+# Imbalance-aware training utilities & post-hoc probability calibration
+# ---------------------------------------------------------------------------
+
+
+def compute_effective_number_weights(
+    class_counts: list[int] | Any,
+    beta: float = 0.999,
+) -> list[float]:
+    """Class-Balanced weights from the Effective Number of Samples (Cui et al., 2019).
+
+    w_c ∝ (1 - beta) / (1 - beta ** n_c), normalized so the mean weight across
+    present classes equals 1.0. Classes with zero observed samples receive weight 0.0
+    so label-smoothing never pulls features toward unobserved classes.
+    """
+    import numpy as np
+
+    raw_counts = np.asarray(class_counts, dtype=float)
+    present_mask = raw_counts > 0.0
+    counts = np.maximum(raw_counts, 1.0)
+    eff_num = 1.0 - np.power(beta, counts)
+    weights = (1.0 - beta) / np.maximum(eff_num, 1e-12)
+    weights = np.where(present_mask, weights, 0.0)
+    present_sum = float(weights[present_mask].sum())
+    present_count = int(present_mask.sum())
+    if present_count > 0 and present_sum > 0.0:
+        weights = weights * (present_count / present_sum)
+    return [float(w) for w in weights]
+
+
+def build_imbalance_loss(
+    class_counts: list[int] | Any,
+    *,
+    label_smoothing: float = 0.05,
+    logit_adjust_tau: float = 0.0,
+    beta: float = 0.999,
+    use_class_weights: bool = True,
+    device: Any = None,
+) -> Any:
+    """Build a Logit-Adjusted, label-smoothed, Effective-Number weighted CE loss.
+
+    Training-time logit adjustment (Menon et al., 2021) adds tau * log(prior_c) to the
+    logits inside the loss only, so raw model logits at inference are already
+    balanced-error optimal: no change is needed in evaluation or serving code.
+
+    To avoid double-compensating class priors, multiplicative Effective-Number weights
+    are disabled whenever logit_adjust_tau > 0 (pure Logit Adjustment + Label Smoothing).
+    With the default tau = 0.0, only Effective-Number weights + Label Smoothing apply.
+    When classes have zero observed samples (Non-IID client partitions), smoothed target
+    mass is distributed exclusively across present classes.
+    """
+    import torch
+    import torch.nn.functional as F
+
+    raw_counts = torch.as_tensor(class_counts, dtype=torch.float32)
+    present_mask = raw_counts > 0.0
+    clamped = raw_counts.clamp_min(1.0)
+    total_present = raw_counts[present_mask].sum().clamp_min(1.0)
+    log_prior = torch.where(
+        present_mask,
+        torch.log(clamped / total_present),
+        torch.zeros_like(raw_counts),
+    )
+    use_class_weights = use_class_weights and float(logit_adjust_tau) <= 0.0
+    if use_class_weights:
+        weights_t = torch.tensor(
+            compute_effective_number_weights(class_counts, beta), dtype=torch.float32
+        )
+    elif not bool(present_mask.all()):
+        # Even without class rebalancing, mask out absent classes from label-smoothing pull
+        n_pres = float(int(present_mask.sum()))
+        weights_t = present_mask.to(torch.float32)
+        if n_pres > 0.0:
+            weights_t = weights_t * ( float(len(raw_counts)) / n_pres )
+    else:
+        weights_t = None
+
+    class LogitAdjustedCrossEntropyLoss(torch.nn.Module):
+        log_prior: torch.Tensor
+        class_weight: torch.Tensor | None
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.register_buffer("log_prior", log_prior)
+            self.register_buffer("class_weight", weights_t)
+            self.tau = float(logit_adjust_tau)
+            self.label_smoothing = float(label_smoothing)
+
+        def forward(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+            adjusted = logits + self.tau * self.log_prior.to(logits.dtype)
+            return F.cross_entropy(
+                adjusted,
+                target,
+                weight=self.class_weight,
+                label_smoothing=self.label_smoothing,
+            )
+
+    module = LogitAdjustedCrossEntropyLoss()
+    if device is not None:
+        module = module.to(device)
+    return module
+
+
+def build_warmup_cosine_scheduler(
+    optimizer: Any,
+    total_steps: int,
+    warmup_steps: int,
+    min_lr_ratio: float = 0.01,
+) -> Any:
+    """Per-step LambdaLR: linear warmup followed by cosine annealing to min_lr_ratio."""
+    import math
+
+    import torch
+
+    total_steps = max(int(total_steps), 1)
+    warmup_steps = max(min(int(warmup_steps), total_steps - 1), 0)
+
+    def _lr_lambda(step: int) -> float:
+        if warmup_steps > 0 and step < warmup_steps:
+            return float(step + 1) / float(warmup_steps + 1)
+        progress = (step - warmup_steps) / max(total_steps - warmup_steps, 1)
+        progress = min(max(progress, 0.0), 1.0)
+        return min_lr_ratio + (1.0 - min_lr_ratio) * 0.5 * (1.0 + math.cos(math.pi * progress))
+
+    return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=_lr_lambda)
+
+
+def softmax_with_temperature(logits: Any, temperature: float = 1.0) -> Any:
+    """Numerically stable softmax(z / T) over the last axis (NumPy)."""
+    import numpy as np
+
+    z = np.asarray(logits, dtype=float) / max(float(temperature), 1e-6)
+    z = z - z.max(axis=-1, keepdims=True)
+    e = np.exp(z)
+    return e / e.sum(axis=-1, keepdims=True)
+
+
+def fit_temperature(
+    logits: list[list[float]] | Any,
+    y_true: list[int] | Any,
+    bounds: tuple[float, float] = (0.5, 3.0),
+    tol: float = 1e-4,
+) -> float:
+    """Fit a scalar temperature T* in `bounds` minimizing validation NLL.
+
+    Uses golden-section search (NLL(T) is unimodal for scalar temperature scaling).
+    Temperature scaling preserves argmax, so accuracy is unchanged; only confidence
+    calibration (and thus OvR threshold sweeps) is affected.
+    """
+    import numpy as np
+
+    z = np.asarray(logits, dtype=float)
+    y = np.asarray(y_true, dtype=int)
+    if z.ndim != 2 or z.shape[0] == 0:
+        return 1.0
+
+    def _nll(t: float) -> float:
+        zt = z / t
+        zt = zt - zt.max(axis=1, keepdims=True)
+        log_norm = np.log(np.exp(zt).sum(axis=1))
+        return float(np.mean(log_norm - zt[np.arange(len(y)), y]))
+
+    lo, hi = float(bounds[0]), float(bounds[1])
+    gr = (5**0.5 - 1) / 2
+    c = hi - gr * (hi - lo)
+    d = lo + gr * (hi - lo)
+    fc, fd = _nll(c), _nll(d)
+    while hi - lo > tol:
+        if fc < fd:
+            hi, d, fd = d, c, fc
+            c = hi - gr * (hi - lo)
+            fc = _nll(c)
+        else:
+            lo, c, fc = c, d, fd
+            d = lo + gr * (hi - lo)
+            fd = _nll(d)
+    best = (lo + hi) / 2
+    # Guard: never return a temperature worse than the identity at T=1.0
+    if bounds[0] <= 1.0 <= bounds[1] and _nll(1.0) <= _nll(best):
+        best = 1.0
+    return round(float(best), 4)
+
+
+def calibrate_temperature_and_thresholds(
+    logits: list[list[float]] | Any,
+    y_true: list[int] | Any,
+    class_names: list[str],
+    metadata: dict[str, Any] | None = None,
+    bounds: tuple[float, float] = (0.5, 3.0),
+) -> tuple[float, dict[str, float]]:
+    """Fit T* on validation logits, then sweep OvR thresholds on softmax(z / T*).
+
+    If `metadata` is given, stores `"temperature"` and `"calibrated_thresholds"` in it.
+    """
+    temperature = fit_temperature(logits, y_true, bounds=bounds)
+    probs = softmax_with_temperature(logits, temperature)
+    tau_map = compute_multiclass_calibrated_thresholds(y_true, probs, class_names)
+    if metadata is not None:
+        metadata["temperature"] = temperature
+        metadata["calibrated_thresholds"] = tau_map
+    return temperature, tau_map
+
+
+def find_last_block_prefix(param_names: list[str]) -> str | None:
+    """Locate the parameter-name prefix of the final feature stage of a backbone.
+
+    Handles ResNet (`layer4.`), torchvision MobileNet/EfficientNet/ConvNeXt
+    (`features.<N>.`) and timm-style (`stages.<N>.` / `blocks.<N>.` / `layers.<N>.`),
+    optionally nested under a wrapper prefix such as `model.`.
+    """
+    import re
+
+    for name in param_names:
+        m = re.match(r"^((?:.*\.)?layer4\.)", name)
+        if m:
+            return m.group(1)
+    for key in ("stages", "features", "blocks", "layers"):
+        pattern = re.compile(rf"^((?:.*\.)?{key}\.)(\d+)\.")
+        best: tuple[int, str] | None = None
+        for name in param_names:
+            m = pattern.match(name)
+            if m:
+                idx = int(m.group(2))
+                if best is None or idx > best[0]:
+                    best = (idx, f"{m.group(1)}{idx}.")
+        if best is not None:
+            return best[1]
+    return None

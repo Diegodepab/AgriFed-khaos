@@ -32,8 +32,10 @@ from agrifed_khaos.quality import (
     CanaryAlarmReport,
     CanaryRoundRecord,
     audit_canary_telemetry,
+    fit_temperature,
     load_canary_history,
     save_canary_history,
+    softmax_with_temperature,
 )
 
 
@@ -113,10 +115,16 @@ def parse_args() -> argparse.Namespace:
 
 
 def get_transforms(img_size: tuple[int, int] | int = (224, 224)) -> transforms.Compose:
-    size = (img_size, img_size) if isinstance(img_size, int) else img_size
+    size = (
+        (img_size, img_size)
+        if isinstance(img_size, int)
+        else (int(img_size[0]), int(img_size[1]))
+    )
+    resize_dim = (int(round(size[0] * 256 / 224)), int(round(size[1] * 256 / 224)))
     return transforms.Compose(
         [
-            transforms.Resize(size),
+            transforms.Resize(resize_dim),
+            transforms.CenterCrop(size),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
@@ -124,9 +132,12 @@ def get_transforms(img_size: tuple[int, int] | int = (224, 224)) -> transforms.C
 
 
 class GradCAM:
-    def __init__(self, model: nn.Module, target_layer: nn.Module) -> None:
+    def __init__(
+        self, model: nn.Module, target_layer: nn.Module, temperature: float = 1.0
+    ) -> None:
         self.model = model
         self.target_layer = target_layer
+        self.temperature = max(float(temperature), 1e-3)
         self.activations: torch.Tensor | None = None
         self.gradients: torch.Tensor | None = None
         self.target_layer.register_forward_hook(self._fwd)
@@ -143,7 +154,7 @@ class GradCAM:
     ) -> tuple[np.ndarray, int, float]:
         self.model.eval()
         logits = self.model(x)
-        probs = F.softmax(logits, dim=1)
+        probs = F.softmax(logits / self.temperature, dim=1)
         if class_idx is None:
             class_idx = int(logits.argmax(dim=1).item())
 
@@ -379,7 +390,8 @@ def main() -> None:
         tensor = eval_tf(raw_img).unsqueeze(0).to(device)
 
         target_layer = get_cam_target_layer(model, architecture=arch)
-        cam = GradCAM(model, target_layer)
+        single_temp = float(bundle_meta.get("temperature") or meta.get("temperature") or 1.0)
+        cam = GradCAM(model, target_layer, temperature=single_temp)
         mask, pred_idx, conf = cam.generate(tensor)
         pred_label = (
             classes[pred_idx] if classes and pred_idx < len(classes) else f"Class_{pred_idx}"
@@ -445,6 +457,8 @@ def main() -> None:
         y_true: list[int] = []
         y_pred: list[int] = []
         y_probs: list[list[float]] = []
+        y_logits: list[list[float]] = []
+        temperature = float(bundle_meta.get("temperature") or 1.0)
         criterion = nn.CrossEntropyLoss()
 
         with torch.no_grad():
@@ -453,7 +467,7 @@ def main() -> None:
                 out = model(x)
                 loss = criterion(out, y)
                 total_loss += loss.item() * x.size(0)
-                probs = F.softmax(out, dim=1)
+                probs = F.softmax(out / max(temperature, 1e-3), dim=1)
                 if args.eval_threshold is not None and out.shape[1] == 2:
                     preds = (probs[:, 1] >= args.eval_threshold).long()
                 else:
@@ -463,8 +477,62 @@ def main() -> None:
                 y_true.extend(y.cpu().tolist())
                 y_pred.extend(preds.cpu().tolist())
                 y_probs.extend(probs.cpu().tolist())
+                y_logits.extend(out.cpu().tolist())
 
         avg_loss = total_loss / max(total, 1)
+
+        # Post-hoc temperature scaling: fit T* (NLL) before the OvR threshold sweeps
+        fitted_temperature: float | None = None
+        if args.calibrate_threshold and len(class_names) >= 2 and y_logits:
+            fitted_temperature = fit_temperature(y_logits, y_true)
+            temperature = fitted_temperature
+            y_probs = softmax_with_temperature(y_logits, temperature).tolist()
+            print(f"[*] Temperature scaling: T* = {temperature:.4f} (NLL-optimal on this split)")
+
+        # Resolve or compute decision thresholds before computing final predictions
+        calibration_results: dict[str, Any] | None = None
+        active_thresholds: Any = bundle_meta.get("calibrated_thresholds") or (
+            meta.get("calibrated_thresholds") if meta else None
+        )
+        if args.calibrate_threshold and len(class_names) == 2:
+            calibration_results = calibrate_binary_thresholds(y_true, y_probs, positive_class_idx=1)
+            cal_f1_val = calibration_results.get("calibrated_f1", {})
+            cal_j_val = calibration_results.get("calibrated_youden", {})
+            active_thresholds = {
+                class_names[0]: 0.50,
+                class_names[1]: float(cal_f1_val.get("optimal_threshold", 0.50)),
+                "calibrated_f1": cal_f1_val,
+                "calibrated_youden": cal_j_val,
+            }
+        elif args.calibrate_threshold and len(class_names) > 2:
+            calibration_results = calibrate_multiclass_ovr_thresholds(y_true, y_probs, class_names)
+            active_thresholds = {
+                c_name: float(c_res["optimal_threshold"])
+                for c_name, c_res in calibration_results.items()
+            }
+
+        # Apply calibrated thresholds (matching serve.py decision rule) when available
+        if args.eval_threshold is None and active_thresholds and y_probs:
+            probs_np = np.asarray(y_probs, dtype=float)
+            if len(class_names) == 2 and isinstance(active_thresholds, dict):
+                tau_pos = float(
+                    active_thresholds.get("calibrated_f1", {}).get(
+                        "optimal_threshold",
+                        active_thresholds.get(class_names[1], 0.50),
+                    )
+                )
+                y_pred = (probs_np[:, 1] >= tau_pos).astype(int).tolist()
+            elif isinstance(active_thresholds, dict):
+                taus = np.array(
+                    [
+                        max(float(active_thresholds.get(c_name, 0.50)), 1e-6)
+                        for c_name in class_names
+                    ],
+                    dtype=float,
+                )
+                y_pred = (probs_np / taus[np.newaxis, :]).argmax(axis=1).tolist()
+            correct = int((np.asarray(y_pred) == np.asarray(y_true)).sum())
+
         acc = (correct / max(total, 1)) * 100
 
         # Macro metrics
@@ -585,9 +653,7 @@ def main() -> None:
         print(f"[*] Confusion matrix plot saved: {cm_file}")
 
         # 3. Decision Threshold Calibration (Optimal F1 & Youden's J)
-        calibration_results: dict[str, Any] | None = None
-        if args.calibrate_threshold and len(class_names) == 2:
-            calibration_results = calibrate_binary_thresholds(y_true, y_probs, positive_class_idx=1)
+        if args.calibrate_threshold and len(class_names) == 2 and calibration_results is not None:
             nom = calibration_results["nominal"]
             cal_f1 = calibration_results["calibrated_f1"]
             cal_j = calibration_results["calibrated_youden"]
@@ -692,8 +758,7 @@ def main() -> None:
             plt.close()
             print(f"[*] Threshold calibration curve saved: {curve_file}")
 
-        elif args.calibrate_threshold and len(class_names) > 2:
-            calibration_results = calibrate_multiclass_ovr_thresholds(y_true, y_probs, class_names)
+        elif args.calibrate_threshold and len(class_names) > 2 and calibration_results is not None:
             try:
                 from rich.console import Console
                 from rich.table import Table
@@ -740,11 +805,15 @@ def main() -> None:
                 }
 
             bundle_meta["calibrated_thresholds"] = tau_map
+            if fitted_temperature is not None:
+                bundle_meta["temperature"] = fitted_temperature
             save_checkpoint_bundle(model_path, state, bundle_meta)
             print(f"[*] Injected calibrated thresholds into checkpoint bundle: {model_path}")
             if meta_path.is_file():
                 try:
                     meta["calibrated_thresholds"] = tau_map
+                    if fitted_temperature is not None:
+                        meta["temperature"] = fitted_temperature
                     meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
                     print(f"[*] Updated metadata mirror with calibrated thresholds: {meta_path}")
                 except Exception as exc:
@@ -776,6 +845,7 @@ def main() -> None:
                 for i, cname in enumerate(class_names)
             },
             "confusion_matrix_raw": cm_raw.tolist(),
+            "temperature": temperature,
             "calibration": calibration_results,
         }
 

@@ -74,6 +74,35 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--threads", type=int, default=8, help="PyTorch CPU intra-op threads (default: 8)"
     )
+    parser.add_argument(
+        "--unfreeze-last-block",
+        action="store_true",
+        help="Train only the final feature stage + head (last_block_lr = lr * 0.2), frozen BN",
+    )
+    parser.add_argument(
+        "--label-smoothing", type=float, default=0.05, help="Label smoothing (default: 0.05)"
+    )
+    parser.add_argument(
+        "--logit-adjust-tau",
+        type=float,
+        default=0.0,
+        help=(
+            "Logit-adjustment strength tau on log class priors (default: 0.0 = off; "
+            "tau > 0 disables Effective-Number weights to avoid double-compensation)"
+        ),
+    )
+    parser.add_argument(
+        "--cb-beta",
+        type=float,
+        default=0.999,
+        help="Effective-Number class-balanced weighting beta (default: 0.999)",
+    )
+    parser.add_argument(
+        "--warmup-epochs",
+        type=float,
+        default=0.5,
+        help="Linear LR warmup length in epochs before cosine annealing (default: 0.5)",
+    )
     return parser.parse_args()
 
 
@@ -96,11 +125,14 @@ def main() -> None:
     # 1. Inspect classes dynamically from subfolders (Domain-Agnostic)
     transform = transforms.Compose(
         [
-            transforms.Resize((args.img_size, args.img_size)),
+            # Pathology-preserving augmentation: crops keep >=75% of the leaf area so
+            # small lesions are not cropped out; colour jitter stays gentle so
+            # chlorosis/necrosis hues are not altered. Val/test pipelines (evaluate.py)
+            # remain deterministic Resize + CenterCrop + ImageNet Normalize.
+            transforms.RandomResizedCrop((args.img_size, args.img_size), scale=(0.75, 1.0)),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
-            transforms.RandomRotation(15),
-            transforms.ColorJitter(brightness=0.1, contrast=0.1),
+            transforms.ColorJitter(brightness=0.15, contrast=0.15),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
@@ -187,15 +219,43 @@ def main() -> None:
     model = build_model(
         architecture=selected_arch, num_classes=num_classes, pretrained=True
     ).to(device)
-    head_params = [
-        p for n, p in model.named_parameters() if any(k in n for k in ("fc", "classifier", "head"))
-    ]
-    bb_params = [
-        p
-        for n, p in model.named_parameters()
-        if not any(k in n for k in ("fc", "classifier", "head"))
-    ]
-    if head_params and bb_params:
+    def _is_head(n: str) -> bool:
+        return any(k in n for k in ("fc", "classifier", "head", "norm_pre")) or n.startswith(
+            "norm."
+        )
+
+    head_params = [p for n, p in model.named_parameters() if _is_head(n)]
+    bb_params = [p for n, p in model.named_parameters() if not _is_head(n)]
+
+    from agrifed_khaos.quality import find_last_block_prefix
+
+    last_block_prefix = (
+        find_last_block_prefix([n for n, _ in model.named_parameters() if not _is_head(n)])
+        if args.unfreeze_last_block
+        else None
+    )
+    if args.unfreeze_last_block and last_block_prefix is None:
+        print("[!] WARNING: Could not locate final feature stage; training full model.")
+
+    if last_block_prefix is not None:
+        last_block_params = []
+        for n, p in model.named_parameters():
+            if _is_head(n):
+                p.requires_grad = True
+            elif n.startswith(last_block_prefix):
+                p.requires_grad = True
+                last_block_params.append(p)
+            else:
+                p.requires_grad = False
+        param_groups = [
+            {"params": last_block_params, "lr": args.lr * 0.2},
+            {"params": head_params, "lr": args.lr},
+        ]
+        print(
+            f"[*] Partial Unfreezing: '{last_block_prefix}*' (lr={args.lr * 0.2:.1e}) + "
+            f"head (lr={args.lr:.1e}); rest of backbone frozen, BN stats frozen."
+        )
+    elif head_params and bb_params:
         param_groups = [
             {"params": bb_params, "lr": args.lr * 0.1},
             {"params": head_params, "lr": args.lr},
@@ -205,25 +265,54 @@ def main() -> None:
         param_groups = [{"params": model.parameters(), "lr": args.lr}]
 
     optimizer = torch.optim.AdamW(param_groups, weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(args.epochs, 1))
+    from agrifed_khaos.quality import build_warmup_cosine_scheduler
 
+    steps_per_epoch = max(len(loader), 1)
+    scheduler = build_warmup_cosine_scheduler(
+        optimizer,
+        total_steps=steps_per_epoch * max(args.epochs, 1),
+        warmup_steps=int(round(args.warmup_epochs * steps_per_epoch)),
+    )
+
+    criterion: nn.Module
     if args.balanced_loss:
-        from agrifed_khaos.data import compute_class_weights
+        from agrifed_khaos.data import get_dataset_targets
+        from agrifed_khaos.quality import build_imbalance_loss
 
-        class_weights = compute_class_weights(train_ds, num_classes=num_classes).to(device)
-        criterion = nn.CrossEntropyLoss(weight=class_weights)
+        class_counts = torch.bincount(
+            torch.as_tensor([int(t) for t in get_dataset_targets(train_ds)], dtype=torch.long),
+            minlength=num_classes,
+        ).tolist()
+        criterion = build_imbalance_loss(
+            class_counts,
+            label_smoothing=args.label_smoothing,
+            logit_adjust_tau=args.logit_adjust_tau,
+            beta=args.cb_beta,
+            device=device,
+        )
+        cw = criterion.class_weight
+        weights_desc = (
+            f"Effective-Number weights (beta={args.cb_beta}): {[round(w, 3) for w in cw.tolist()]}"
+            if cw is not None
+            else "no class weights (pure Logit Adjustment)"
+        )
         print(
-            f"[*] Balanced Class-Weighted Loss Active: "
-            f"weights={[round(w, 3) for w in class_weights.tolist()]}"
+            f"[*] Imbalance CE (tau={args.logit_adjust_tau}, "
+            f"eps={args.label_smoothing}) + {weights_desc}"
         )
     else:
-        criterion = nn.CrossEntropyLoss()
-        print("[*] Unweighted CrossEntropyLoss Active")
+        criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
+        print(f"[*] Unweighted CrossEntropyLoss Active (label_smoothing={args.label_smoothing})")
 
     # 4. Training Loop
+    from agrifed_khaos.wrappers import freeze_bn_stats
+
     model.train()
     t0 = time.time()
     for ep in range(args.epochs):
+        model.train()
+        if last_block_prefix is not None:
+            freeze_bn_stats(model)
         ep_loss = 0.0
         correct = 0
         total = 0
@@ -234,13 +323,13 @@ def main() -> None:
             loss = criterion(out, y)
             loss.backward()
             optimizer.step()
+            scheduler.step()
 
             ep_loss += loss.item() * x.size(0)
             preds = out.argmax(dim=1)
             correct += (preds == y).sum().item()
             total += x.size(0)
 
-        scheduler.step()
         avg_loss = ep_loss / max(total, 1)
         acc = (correct / max(total, 1)) * 100
         print(f"  [Epoch {ep + 1}/{args.epochs}] Train Loss: {avg_loss:.4f} | Accuracy: {acc:.2f}%")
@@ -262,6 +351,7 @@ def main() -> None:
         "classes": classes,
         "img_size": args.img_size,
         "calibrated_thresholds": None,
+        "temperature": None,
         "target_client_tier": args.target_client_tier,
         "selection_mode": "auto" if is_auto else "manual",
         "selection_rationale": selection_rationale,
@@ -271,6 +361,12 @@ def main() -> None:
             "batch_size": args.batch_size,
             "learning_rate": args.lr,
             "samples_trained": len(train_ds),
+            "balanced_loss": args.balanced_loss,
+            "label_smoothing": args.label_smoothing,
+            "logit_adjust_tau": args.logit_adjust_tau,
+            "cb_beta": args.cb_beta,
+            "warmup_epochs": args.warmup_epochs,
+            "unfreeze_last_block": last_block_prefix,
         },
         "dataset_source": str(data_path),
         "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),

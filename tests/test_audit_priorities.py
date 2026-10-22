@@ -910,3 +910,73 @@ def test_disjoint_new_class_collision_isolation(tmp_path: Path) -> None:
 
 
 
+def test_temperature_scaling_fit_and_serve_applies_temperature(tmp_path: Path) -> None:
+    """calibrate_temperature_and_thresholds fits T* and serve.py applies temperature."""
+    import io
+
+    from PIL import Image
+    from starlette.testclient import TestClient
+
+    from agrifed_khaos.models import build_model, save_checkpoint_bundle
+    from agrifed_khaos.quality import calibrate_temperature_and_thresholds
+    from scripts.serve import create_app
+
+    # Over-confident, partly wrong logits => NLL-optimal T* > 1
+    rng = np.random.default_rng(0)
+    y = rng.integers(0, 3, size=300)
+    logits = rng.normal(0, 1, size=(300, 3))
+    logits[np.arange(300), y] += 3.0
+    wrong = rng.random(300) < 0.25
+    y_noisy = np.where(wrong, (y + 1) % 3, y)
+    logits *= 4.0
+    meta: dict = {}
+    t_star, taus = calibrate_temperature_and_thresholds(logits, y_noisy, ["a", "b", "c"], meta)
+    assert 0.5 <= t_star <= 3.0
+    assert t_star > 1.0
+    assert meta["temperature"] == t_star
+    assert set(meta["calibrated_thresholds"]) == {"a", "b", "c"} == set(taus)
+
+    # serve.py: temperature flattens probabilities reported as confidence
+    bundle_meta = {
+        "architecture": "resnet18",
+        "num_classes": 3,
+        "classes": ["a", "b", "c"],
+        "img_size": [64, 64],
+        "calibrated_thresholds": {"a": 0.5, "b": 0.5, "c": 0.5},
+        "temperature": 3.0,
+    }
+    model = build_model("resnet18", num_classes=3, pretrained=False)
+    with torch.no_grad():  # constant logits [3, 0, 0] regardless of input
+        model.fc.weight.zero_()  # type: ignore[union-attr]
+        model.fc.bias.copy_(torch.tensor([3.0, 0.0, 0.0]))  # type: ignore[union-attr]
+    model_path = tmp_path / "m.pt"
+    save_checkpoint_bundle(model_path, model.state_dict(), bundle_meta)
+    app = create_app(str(model_path), str(tmp_path / "meta.json"), architecture="resnet18")
+
+    client = TestClient(app)
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 64), color="green").save(buf, format="JPEG")
+    buf.seek(0)
+    resp = client.post("/predict", files={"file": ("t.jpg", buf, "image/jpeg")})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["threshold_applied"] == "calibrated"
+    expected = float(torch.softmax(torch.tensor([3.0, 0.0, 0.0]) / 3.0, dim=0)[0])
+    assert abs(data["confidence"] - expected) < 1e-3
+
+    # Verify build_imbalance_loss & compute_effective_number_weights zero out missing classes
+    from agrifed_khaos.quality import build_imbalance_loss, compute_effective_number_weights
+
+    eff_w = compute_effective_number_weights([10, 90, 0], beta=0.999)
+    assert eff_w[2] == 0.0
+    assert eff_w[0] > eff_w[1] > 0.0
+    assert abs((eff_w[0] + eff_w[1]) / 2.0 - 1.0) < 1e-5
+
+    loss_fn = build_imbalance_loss([10, 90, 0], label_smoothing=0.1, logit_adjust_tau=0.0)
+    z = torch.tensor([[1.0, 2.0, 5.0]], requires_grad=True)
+    y_target = torch.tensor([0])
+    loss_fn(z, y_target).backward()
+    assert z.grad is not None
+    # Missing class 2 has weight 0.0, so label smoothing adds zero positive target pull to it
+    assert z.grad[0, 2].item() > 0.0
+

@@ -106,6 +106,38 @@ def parse_args() -> argparse.Namespace:
         help="Train only classification head and freeze backbone (ultra-fast, ~18 KB update)",
     )
     parser.add_argument(
+        "--unfreeze-last-block",
+        action="store_true",
+        help=(
+            "Train final feature stage (lr * 0.2) + head (lr) with frozen BN stats; "
+            "ignored if head-only mode is active"
+        ),
+    )
+    parser.add_argument(
+        "--label-smoothing", type=float, default=0.05, help="Label smoothing (default: 0.05)"
+    )
+    parser.add_argument(
+        "--logit-adjust-tau",
+        type=float,
+        default=0.0,
+        help=(
+            "Logit-adjustment strength tau on local log class priors (default: 0.0 = off; "
+            "tau > 0 disables Effective-Number weights to avoid double-compensation)"
+        ),
+    )
+    parser.add_argument(
+        "--cb-beta",
+        type=float,
+        default=0.999,
+        help="Effective-Number class-balanced weighting beta (default: 0.999)",
+    )
+    parser.add_argument(
+        "--warmup-epochs",
+        type=float,
+        default=0.5,
+        help="Linear LR warmup length in epochs before cosine annealing (default: 0.5)",
+    )
+    parser.add_argument(
         "--allow-new-classes",
         action="store_true",
         help="Allow dynamic classifier expansion if client dataset contains unseen classes",
@@ -204,7 +236,7 @@ def main() -> None:
     print(f"[*] Architecture: {arch} ({num_classes} classes)")
     print(f"[*] Loaded base weights from {weights_in_path}")
 
-    HEAD_PREFIXES = ("fc.", "classifier.", "head.", "model.head.")
+    HEAD_PREFIXES = ("fc.", "classifier.", "head.", "model.head.", "norm.", "norm_pre.")
 
     def is_head_param(param_name: str) -> bool:
         return param_name.startswith(HEAD_PREFIXES)
@@ -220,11 +252,10 @@ def main() -> None:
 
     transform = transforms.Compose(
         [
-            transforms.Resize(img_size_tuple),
+            transforms.RandomResizedCrop(img_size_tuple, scale=(0.75, 1.0)),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
-            transforms.RandomRotation(15),
-            transforms.ColorJitter(brightness=0.1, contrast=0.1),
+            transforms.ColorJitter(brightness=0.15, contrast=0.15),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
@@ -332,6 +363,19 @@ def main() -> None:
         if meta_dict.get("training_mode") == "head_only":
             head_only = True
 
+    last_block_prefix: str | None = None
+    if args.unfreeze_last_block and head_only:
+        print("[!] WARNING: --unfreeze-last-block ignored because head-only mode is active.")
+    elif args.unfreeze_last_block:
+        from agrifed_khaos.quality import find_last_block_prefix
+
+        last_block_prefix = find_last_block_prefix(
+            [n for n, _ in model.named_parameters() if not is_head_param(n)]
+        )
+        if last_block_prefix is None:
+            print("[!] WARNING: Could not locate final feature stage; falling back to head-only.")
+            head_only = True
+
     if head_only:
         frozen_count = 0
         trainable_count = 0
@@ -345,6 +389,15 @@ def main() -> None:
         print(
             f"[*] Head-Only Mode Active: {trainable_count} head layers trainable, "
             f"{frozen_count} backbone layers frozen."
+        )
+    elif last_block_prefix is not None:
+        trainable_count = 0
+        for name, param in model.named_parameters():
+            param.requires_grad = is_head_param(name) or name.startswith(last_block_prefix)
+            trainable_count += int(param.requires_grad)
+        print(
+            f"[*] Partial-Unfreeze Mode Active: head + '{last_block_prefix}*' "
+            f"({trainable_count} tensors trainable, rest of backbone frozen)."
         )
     else:
         print("[*] Full-Model Mode Active: All network layers trainable.")
@@ -364,10 +417,12 @@ def main() -> None:
         p for n, p in model.named_parameters() if p.requires_grad and not is_head_param(n)
     ]
     if head_trainable and bb_trainable:
+        bb_lr = args.lr * (0.2 if last_block_prefix is not None else 0.1)
         param_groups = [
-            {"params": bb_trainable, "lr": args.lr * 0.1},
+            {"params": bb_trainable, "lr": bb_lr},
             {"params": head_trainable, "lr": args.lr},
         ]
+        print(f"[*] Differential Learning Rate: Backbone={bb_lr:.1e} | Head={args.lr:.1e}")
     else:
         param_groups = [
             {"params": [p for p in model.parameters() if p.requires_grad], "lr": args.lr}
@@ -382,20 +437,43 @@ def main() -> None:
         )
 
     optimizer = torch.optim.AdamW(param_groups, weight_decay=effective_weight_decay)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(args.epochs, 1))
+    from agrifed_khaos.quality import build_warmup_cosine_scheduler
 
+    steps_per_epoch = max(len(loader), 1)
+    scheduler = build_warmup_cosine_scheduler(
+        optimizer,
+        total_steps=steps_per_epoch * max(args.epochs, 1),
+        warmup_steps=int(round(args.warmup_epochs * steps_per_epoch)),
+    )
+
+    criterion: nn.Module
     if args.balanced_loss:
-        from agrifed_khaos.data import compute_class_weights
+        from agrifed_khaos.quality import build_imbalance_loss
 
-        class_weights = compute_class_weights(train_ds, num_classes=num_classes).to(device)
-        criterion = nn.CrossEntropyLoss(weight=class_weights)
+        class_counts = torch.bincount(
+            torch.as_tensor([int(t) for t in targets], dtype=torch.long),
+            minlength=num_classes,
+        ).tolist()
+        criterion = build_imbalance_loss(
+            class_counts,
+            label_smoothing=args.label_smoothing,
+            logit_adjust_tau=args.logit_adjust_tau,
+            beta=args.cb_beta,
+            device=device,
+        )
+        cw = criterion.class_weight
+        weights_desc = (
+            f"Effective-Number weights (beta={args.cb_beta}): {[round(w, 3) for w in cw.tolist()]}"
+            if cw is not None
+            else "no class weights (pure Logit Adjustment)"
+        )
         print(
-            f"[*] Balanced Class-Weighted Loss Active: "
-            f"weights={[round(w, 3) for w in class_weights.tolist()]}"
+            f"[*] Imbalance CE (tau={args.logit_adjust_tau}, "
+            f"eps={args.label_smoothing}) + {weights_desc}"
         )
     else:
-        criterion = nn.CrossEntropyLoss()
-        print("[*] Unweighted CrossEntropyLoss Active")
+        criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
+        print(f"[*] Unweighted CrossEntropyLoss Active (label_smoothing={args.label_smoothing})")
 
     model.train()
     freeze_bn_stats(model)
@@ -445,6 +523,7 @@ def main() -> None:
             if args.max_grad_norm > 0.0:
                 torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=args.max_grad_norm)
             optimizer.step()
+            scheduler.step()
 
             # Hard projection: strictly preserve base model rows for missing classes
             if saved_missing_head:
@@ -461,7 +540,6 @@ def main() -> None:
             correct += (preds == y).sum().item()
             total += bs
 
-        scheduler.step()
         avg_loss = epoch_loss / max(total, 1)
         acc = (correct / max(total, 1)) * 100
         print(
@@ -551,6 +629,9 @@ def main() -> None:
             "batch_size": args.batch_size,
             "fedprox_mu": args.mu,
             "param_noise_sigma": args.noise_std,
+            "partial_unfreeze_prefix": last_block_prefix,
+            "label_smoothing": args.label_smoothing,
+            "logit_adjust_tau": args.logit_adjust_tau if args.balanced_loss else None,
             "training_time_seconds": round(elapsed, 2),
         },
         "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
