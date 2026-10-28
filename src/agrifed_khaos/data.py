@@ -4,12 +4,23 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import os
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
 
-IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
+IMAGE_EXTENSIONS = {
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".bmp",
+    ".webp",
+    ".tif",
+    ".tiff",
+    ".ppm",
+    ".pgm",
+}
 
 
 class DatasetRecord(BaseModel):
@@ -378,6 +389,135 @@ def compute_class_weights(
     return torch.tensor(weights, dtype=torch.float32)
 
 
+def find_dataset_class_dir(root_path: str | Path, preferred_split: str = "train") -> Path:
+    """Find the most specific class subdirectory containing images.
+
+    If root_path is directly an ImageFolder-compatible directory (all subdirectories
+    contain image files), it returns root_path.
+    If root_path is a parent directory (e.g. repo root with annotations/, dataset/,
+    preprocess/ or split wrappers), it searches subdirectories (prioritizing preferred_split
+    and directories with high class/image purity) up to depth 4 and returns the resolved path.
+    """
+    root_p = Path(root_path)
+    if not root_p.is_dir():
+        return root_p
+
+    def eval_candidate(d: Path) -> tuple[int, int, int]:
+        try:
+            with os.scandir(d) as it:
+                subdirs = [
+                    entry.path
+                    for entry in it
+                    if entry.is_dir(follow_symlinks=False)
+                    and not entry.name.startswith((".", "_"))
+                    and entry.name.lower() != "__macosx"
+                ]
+        except OSError:
+            return 0, 0, 0
+        if not subdirs:
+            return 0, 0, 0
+        valid_classes = 0
+        total_images = 0
+        for s_path in subdirs:
+            cnt = 0
+            try:
+                with os.scandir(s_path) as s_it:
+                    for f_entry in s_it:
+                        if f_entry.is_file(follow_symlinks=False):
+                            dot_idx = f_entry.name.rfind(".")
+                            if dot_idx != -1 and f_entry.name[dot_idx:].lower() in IMAGE_EXTENSIONS:
+                                cnt += 1
+            except OSError:
+                pass
+            if cnt > 0:
+                valid_classes += 1
+                total_images += cnt
+        return len(subdirs), valid_classes, total_images
+
+    # 1. If root_p itself is completely pure (all subdirectories have images), use it directly
+    ts, vc, ti = eval_candidate(root_p)
+    if ts > 0 and vc == ts and ti > 0:
+        return root_p
+
+    # 2. Check prioritized common subpaths first
+    common_subpaths = [
+        root_p / "dataset" / preferred_split,
+        root_p / preferred_split,
+        root_p / "dataset",
+        root_p / "data" / preferred_split,
+        root_p / "data",
+        root_p / "images" / preferred_split,
+        root_p / "images",
+    ]
+    candidates: list[tuple[int, Path]] = []
+    checked: set[Path] = set()
+    pref_lower = preferred_split.lower()
+
+    for p in common_subpaths:
+        if p.is_dir():
+            try:
+                res_p = p.resolve()
+            except OSError:
+                res_p = p
+            checked.add(res_p)
+            ts, vc, ti = eval_candidate(p)
+            if vc > 0 and ti > 0:
+                # Fast-path: exact preferred split with 100% class folder purity
+                if vc == ts and pref_lower in p.name.lower():
+                    return p
+                split_bonus = 100_000 if pref_lower in p.name.lower() else 0
+                purity_bonus = 50_000 if vc == ts else 0
+                score = split_bonus + purity_bonus + (vc * 100) + min(ti, 50_000)
+                candidates.append((score, p))
+
+    # 3. BFS walk up to depth 4 to discover any nested class structures
+    queue: list[tuple[Path, int]] = [(root_p, 0)]
+    while queue:
+        curr, depth = queue.pop(0)
+        if depth >= 4:
+            continue
+        try:
+            with os.scandir(curr) as it:
+                child_dirs = [
+                    Path(e.path)
+                    for e in it
+                    if e.is_dir(follow_symlinks=False)
+                    and not e.name.startswith((".", "_"))
+                    and e.name.lower() != "__macosx"
+                ]
+            for child in child_dirs:
+                try:
+                    child_res = child.resolve()
+                except OSError:
+                    child_res = child
+                if child_res not in checked:
+                    checked.add(child_res)
+                    ts, vc, ti = eval_candidate(child)
+                    if vc > 0 and ti > 0:
+                        split_bonus = 100_000 if pref_lower in child.name.lower() else 0
+                        purity_bonus = 50_000 if vc == ts else 0
+                        depth_penalty = depth * 5
+                        score = (
+                            split_bonus
+                            + purity_bonus
+                            + (vc * 100)
+                            + min(ti, 50_000)
+                            - depth_penalty
+                        )
+                        candidates.append((score, child))
+                    # Prune BFS descent into pure class directories (leaf class folders)
+                    if not (ts > 0 and vc == ts and ti > 0):
+                        queue.append((child, depth + 1))
+        except OSError:
+            pass
+
+    if candidates:
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        return candidates[0][1]
+
+    return root_p
+
+
 def resolve_dataset_dir(
     data_dir: str | Path | None,
     split: str | None = None,
@@ -386,14 +526,21 @@ def resolve_dataset_dir(
     """Resolve a dataset directory path with ergonomic fallback heuristics.
 
     Searches in order:
-    1. Direct directory path as requested.
+    1. Direct directory path as requested (auto-discovering inner class split).
     2. Container mount paths: /workspace/dataset, /data/EnfermedadesHoja_v1.0/dataset, etc.
     3. Host relative mount paths: ../enfermedadeshoja_v1.0/...
     """
+    preferred_split = split or "train"
     if data_dir is not None:
         p = Path(data_dir)
         if p.is_dir():
-            return p
+            resolved = find_dataset_class_dir(p, preferred_split=preferred_split)
+            if not silent and resolved.resolve() != p.resolve():
+                print(
+                    f"[*] Auto-resolved dataset directory '{data_dir}' -> '{resolved}'",
+                    flush=True,
+                )
+            return resolved
 
     target = ""
     if data_dir is not None:
@@ -438,14 +585,18 @@ def resolve_dataset_dir(
     for cand in candidates:
         if cand.is_dir():
             try:
-                subdirs = [d for d in cand.iterdir() if d.is_dir() and not d.name.startswith(".")]
+                resolved_cand = find_dataset_class_dir(cand, preferred_split=preferred_split)
+                subdirs = [
+                    d for d in resolved_cand.iterdir() if d.is_dir() and not d.name.startswith(".")
+                ]
                 if subdirs:
-                    if not silent and data_dir is not None and str(data_dir) != str(cand):
+                    if not silent and data_dir is not None and str(data_dir) != str(resolved_cand):
                         print(
-                            f"[*] Auto-resolved dataset directory '{data_dir}' -> '{cand}'",
+                            f"[*] Auto-resolved dataset directory '{data_dir}' "
+                            f"-> '{resolved_cand}'",
                             flush=True,
                         )
-                    return cand
+                    return resolved_cand
             except OSError:
                 continue
 
