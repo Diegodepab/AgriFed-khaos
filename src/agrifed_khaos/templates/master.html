@@ -1,0 +1,3050 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-50/50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KHAOS &bull; Administración & Model Registry</title>
+  <meta name="description" content="Centro de Control MLOps & Orquestación Federada">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      const origWarn = console.warn;
+      console.warn = function(...args) {
+        if (args.length > 0 && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
+          return;
+        }
+        origWarn.apply(console, args);
+      };
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="stylesheet" href="/static/khaos-ui.css">
+  <script src="/static/khaos-ui.js"></script>
+</head>
+<body class="min-h-full flex flex-col font-sans text-slate-900 antialiased selection:bg-slate-200 selection:text-slate-900">
+
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-40 w-full border-b border-slate-200/60 bg-white/80 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex h-16 items-center justify-between">
+        
+        <!-- Brand Identity -->
+        <a href="/" class="flex items-center gap-3 group">
+          <div class="h-8 w-8 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-2xs group-hover:bg-slate-800 transition-colors">
+            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold tracking-tight text-slate-900">KHAOS <span class="text-slate-400 font-normal">Hub</span></span>
+            <span class="hidden sm:inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-50 text-slate-500 ring-1 ring-inset ring-slate-500/10 uppercase tracking-wider">Data Space</span>
+          </div>
+        </a>
+
+        <!-- Right Actions: Nav + Help -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          <!-- Navigation Links -->
+          <nav class="flex items-center gap-1 bg-slate-100/80 p-1 rounded-lg">
+            <a href="/" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+              Modelos
+              <span class="sr-only">Catálogo de Modelos</span>
+            </a>
+            <a href="/expert" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+              Evaluación
+            </a>
+            <a href="/master" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-900 bg-white shadow-2xs">
+              Administración
+              <span class="sr-only">Centro de Control MLOps</span>
+              <span class="sr-only">Job Runner</span>
+            </a>
+          </nav>
+
+          <!-- Contextual Help Trigger in Header -->
+          <button
+            type="button"
+            onclick="openContextualHelp()"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            title="Guía y Ayuda del Módulo"
+          >
+            <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span class="hidden sm:inline">Ayuda</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+
+    <!-- Minimalist Page Header -->
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+      <div class="space-y-1.5 max-w-2xl">
+        <h1 class="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">
+          Administración de Modelos
+        </h1>
+        <p class="text-sm text-slate-500 leading-relaxed">
+          Supervisa el catálogo en servicio, inspecciona telemetría de versiones y orquesta entrenamientos federados.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-3 shrink-0 self-start sm:self-auto">
+        <a
+          href="/master/models/new"
+          class="inline-flex items-center gap-2 bg-slate-900 text-white hover:bg-slate-800 rounded-lg px-4 py-2 text-xs font-medium transition-all shadow-2xs"
+        >
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          <span>Nuevo Modelo</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Section 1: Active Model Registry (Logical Models) -->
+    <section id="secMasterCatalog" class="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6 sm:p-8 space-y-6 transition-all duration-300 hover:shadow-md">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h2 class="text-base font-semibold text-slate-900 tracking-tight">Catálogo de Modelos</h2>
+            <span id="activeModelsCountBadge" class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10">
+              0 activos
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">Modelos desplegados para inferencia pública y curación experta.</p>
+        </div>
+
+        <!-- Search & Segmented Filter Controls -->
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div class="relative w-full sm:w-72">
+            <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input
+              type="text"
+              id="modelsSearchInput"
+              placeholder="Buscar modelo, slug o clase..."
+              oninput="filterModelsTable()"
+              class="w-full bg-slate-50 border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 transition-all"
+            >
+          </div>
+
+          <div class="bg-slate-100 p-1 rounded-lg inline-flex items-center gap-0.5 self-start sm:self-auto shrink-0">
+            <button
+              type="button"
+              id="filterAll"
+              onclick="setModelStatusFilter('all')"
+              class="px-3 py-1.5 rounded-md text-xs font-medium bg-white text-slate-900 shadow-2xs transition-all duration-200"
+            >
+              Todos
+            </button>
+            <button
+              type="button"
+              id="filterActive"
+              onclick="setModelStatusFilter('active')"
+              class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-all duration-200"
+            >
+              En Servicio
+            </button>
+            <button
+              type="button"
+              id="filterInactive"
+              onclick="setModelStatusFilter('inactive')"
+              class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-all duration-200"
+            >
+              Inactivos
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Borderless Models Table -->
+      <div class="overflow-x-auto -mx-6 sm:-mx-8 px-6 sm:px-8">
+        <table class="w-full text-left text-xs text-slate-600">
+          <thead class="text-[11px] uppercase tracking-wider font-medium text-slate-400 border-b border-slate-100">
+            <tr>
+              <th class="pb-3 pr-4 font-medium">Modelo</th>
+              <th class="pb-3 px-4 font-medium">Dominio</th>
+              <th class="pb-3 px-4 font-medium">Checkpoint Activo</th>
+              <th class="pb-3 px-4 font-medium">Clases</th>
+              <th class="pb-3 pl-4 text-right font-medium">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="logicalModelsTbody" class="divide-y divide-slate-100">
+            <tr><td colspan="5" class="py-8 text-center text-slate-400">Cargando catálogo...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Physical Checkpoints in models/ -->
+    <div id="secMasterLowerGrid">
+
+      <!-- Physical Checkpoints in models/ (5 cols) -->
+      <section id="secMasterCheckpoints" class="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6 sm:p-8 space-y-5 transition-all duration-300 hover:shadow-md">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-semibold text-slate-900 tracking-tight">Checkpoints en Disco</h2>
+            <p class="text-xs text-slate-500 mt-1">Artefactos <code class="font-mono text-slate-700">.pt</code> en <code class="font-mono text-slate-700">models/</code></p>
+          </div>
+          <button onclick="loadPhysicalModels()" class="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all">Actualizar</button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-600">
+            <thead class="text-[11px] uppercase tracking-wider font-medium text-slate-400 border-b border-slate-100">
+              <tr>
+                <th class="pb-2.5 pr-2 font-medium">Archivo</th>
+                <th class="pb-2.5 px-2 font-medium">Red</th>
+                <th class="pb-2.5 px-2 font-medium">Tamaño</th>
+                <th class="pb-2.5 pl-2 text-right font-medium">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="physicalModelsTbody" class="divide-y divide-slate-100">
+              <tr><td colspan="4" class="py-6 text-center text-slate-400">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Real-Time Job Runner Terminal Monitor -->
+    <section id="secMasterTerminal" class="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6 sm:p-8 space-y-4 transition-all duration-300 hover:shadow-md">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h2 class="text-base font-semibold text-slate-900 tracking-tight">Job Runner &amp; Tareas Asíncronas</h2>
+            <span id="masterStatusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Inactivo / Listo
+            </span>
+          </div>
+          <div id="masterJobDetails" class="text-xs text-slate-500 mt-1">
+            Streaming en tiempo real de entrenamientos Auto-FL y pipelines federados.
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 self-start sm:self-auto">
+          <button
+            type="button"
+            onclick="clearMasterTerminal()"
+            class="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
+            title="Limpiar registros de la terminal"
+          >
+            Limpiar
+          </button>
+
+          <button
+            type="button"
+            id="btnToggleTerminal"
+            onclick="toggleTerminalVisibility()"
+            class="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
+          >
+            Ocultar Consola
+          </button>
+
+          <button
+            onclick="pollStatus()"
+            class="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
+          >
+            Sincronizar
+          </button>
+        </div>
+      </div>
+
+      <div
+        id="masterLogTerminal"
+        class="bg-slate-950 text-slate-300 font-mono text-xs rounded-xl p-4 h-44 overflow-y-auto leading-relaxed whitespace-pre-wrap select-all transition-all"
+      >-- Consola de ejecución asíncrona preparada --</div>
+    </section>
+
+    <!-- Trash Quarantine & Retention (Papelera) -->
+    <section id="secMasterTrash" class="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6 sm:p-8 space-y-5 transition-all duration-300 hover:shadow-md">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h2 class="text-base font-semibold text-slate-900 tracking-tight">Papelera de Cuarentena</h2>
+            <span id="trashCountBadge" class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10">
+              0 en cuarentena
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">
+            Modelos ocultos del catálogo público con retención temporal antes de su purga definitiva.
+          </p>
+        </div>
+        <button
+          onclick="loadTrashModels()"
+          class="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all self-start sm:self-auto"
+        >
+          Actualizar
+        </button>
+      </div>
+
+      <!-- Borderless Trash Table -->
+      <div class="overflow-x-auto -mx-6 sm:-mx-8 px-6 sm:px-8">
+        <table class="w-full text-left text-xs text-slate-600">
+          <thead class="text-[11px] uppercase tracking-wider font-medium text-slate-400 border-b border-slate-100">
+            <tr>
+              <th class="pb-3 pr-4 font-medium">Modelo Oculto</th>
+              <th class="pb-3 px-4 font-medium">Eliminado</th>
+              <th class="pb-3 px-4 font-medium">Retención Restante</th>
+              <th class="pb-3 px-4 font-medium">Tamaño</th>
+              <th class="pb-3 pl-4 text-right font-medium">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="trashModelsTbody" class="divide-y divide-slate-100">
+            <tr><td colspan="5" class="py-6 text-center text-slate-400">Papelera vacía.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal: Crear / Editar Ficha de Modelo -->
+  <div id="newModelModal" role="dialog" aria-modal="true" aria-labelledby="modalFormTitle" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 id="modalFormTitle" class="text-base font-bold text-slate-900">Registrar & Entrenar Modelo</h3>
+          <p class="text-xs text-slate-500">Auto-FL desde carpetas de imágenes o registro manual de pesos</p>
+        </div>
+        <button data-modal-close onclick="toggleNewModelModal(false)" aria-label="Cerrar modal" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+      </div>
+
+      <!-- Mode Tabs: Auto-FL vs Manual -->
+      <div id="modalModeTabs" class="flex rounded-xl bg-slate-100 p-1 text-xs font-semibold">
+        <button
+          type="button"
+          id="tabBtnAutoFl"
+          onclick="switchNewModelMode('autofl')"
+          class="flex-1 py-1.5 rounded-lg text-slate-900 bg-white shadow-2xs text-center transition-all"
+        >
+          Asistente Auto-FL (Dataset &rarr; Modelo)
+        </button>
+        <button
+          type="button"
+          id="tabBtnManual"
+          onclick="switchNewModelMode('manual')"
+          class="flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-900 text-center transition-all"
+        >
+          Registro Manual (.pt)
+        </button>
+      </div>
+
+      <!-- Auto-FL Pipeline View -->
+      <form id="autoFlPipelineForm" onsubmit="event.preventDefault(); submitAutoFlPipeline();" class="space-y-3.5 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Título del Modelo:</label>
+          <input type="text" id="autoFlTitle" required placeholder="Ej: Detección de Calidad en Nueces" class="w-full border border-slate-200 rounded-xl py-2 px-3">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Slug (Identificador URL):</label>
+          <input type="text" id="autoFlSlug" placeholder="ej: calidad-nueces (auto si se deja vacío)" class="w-full border border-slate-200 rounded-xl py-2 px-3 font-mono">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Dominio / Vertical:</label>
+          <select id="autoFlDomain" class="w-full border border-slate-200 rounded-xl py-2 px-3 bg-white">
+            <option value="Agricultura" selected>Agricultura</option>
+            <option value="Industrial">Industrial</option>
+            <option value="Salud">Salud / Médico</option>
+            <option value="Computer Vision">Visión Artificial</option>
+            <option value="General">General</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Ruta del Dataset en Servidor (dataset_path):</label>
+          <input type="text" id="autoFlDatasetPath" required placeholder="Ej: /data/EnfermedadesHoja_v1.0/dataset/train o /data/datasets/nueces" class="w-full border border-slate-200 rounded-xl py-2 px-3 font-mono">
+          <p class="text-[11px] text-slate-400 mt-1">Directorio absoluto con subcarpetas para cada clase.</p>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Descripción del Modelo:</label>
+          <textarea id="autoFlDescription" rows="2" placeholder="Explica claramente qué detecta este modelo..." class="w-full border border-slate-200 rounded-xl py-2 px-3"></textarea>
+        </div>
+
+        <!-- Parámetros Avanzados Auto-FL -->
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+          <div class="flex items-center justify-between cursor-pointer select-none" onclick="toggleAutoFlAccordion()">
+            <div class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+              <span class="text-xs font-bold text-slate-800">Parámetros de Entrenamiento & Hardware</span>
+            </div>
+            <span id="autoFlToggleText" class="text-[10px] font-semibold text-indigo-600">Configurar &darr;</span>
+          </div>
+
+          <div id="autoFlPanel" class="space-y-2.5 pt-1 border-t border-slate-200/80">
+            <div class="grid grid-cols-3 gap-2 text-[11px]">
+              <div>
+                <label class="block font-semibold text-slate-600 mb-0.5">Épocas:</label>
+                <input type="number" id="autoFlEpochs" value="3" min="1" max="50" class="w-full border border-slate-200 rounded-lg py-1 px-2 text-xs">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-600 mb-0.5">Arquitectura:</label>
+                <select id="autoFlArch" class="w-full border border-slate-200 rounded-lg py-1 px-2 bg-white text-xs font-mono">
+                  <option value="auto" selected>Auto</option>
+                  <option value="resnet18">resnet18</option>
+                  <option value="mobilenet_v3_small">mobilenet_v3</option>
+                  <option value="efficientnet_v2_s">efficientnet_v2_s (Eficiencia SOTA)</option>
+                  <option value="swin_t">swin_t (Swin Vision Transformer - Alta capacidad espacial)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-600 mb-0.5">Tier Clientes:</label>
+                <select id="autoFlClientTier" class="w-full border border-slate-200 rounded-lg py-1 px-2 bg-white text-xs">
+                  <option value="cpu-low" selected>CPU Bajo</option>
+                  <option value="cpu-high">CPU Alto</option>
+                  <option value="gpu">GPU CUDA</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] pt-1">
+              <div>
+                <label for="autoFlTransferLearning" class="block font-semibold text-slate-600 mb-0.5">Estrategia de Transfer Learning:</label>
+                <select id="autoFlTransferLearning" class="w-full border border-slate-200 rounded-lg py-1 px-2 bg-white text-xs">
+                  <option value="partial" selected>Fine-Tuning Parcial (Últimos bloques) - Recomendado</option>
+                  <option value="head_only">Linear Probing (Solo Cabezal)</option>
+                  <option value="full">Full Fine-Tuning (Toda la red)</option>
+                </select>
+              </div>
+              <div>
+                <label for="autoFlLossFunction" class="block font-semibold text-slate-600 mb-0.5">Función de Pérdida / Loss:</label>
+                <select id="autoFlLossFunction" class="w-full border border-slate-200 rounded-lg py-1 px-2 bg-white text-xs">
+                  <option value="ce" selected>Cross-Entropy (Estándar)</option>
+                  <option value="weighted_ce">Weighted Cross-Entropy (Balanceo automático)</option>
+                  <option value="focal">Focal Loss (Especial para clases difíciles/minorías)</option>
+                </select>
+              </div>
+              <div>
+                <label for="autoFlAugmentation" class="block font-semibold text-slate-600 mb-0.5">Data Augmentation:</label>
+                <select id="autoFlAugmentation" class="w-full border border-slate-200 rounded-lg py-1 px-2 bg-white text-xs">
+                  <option value="basic" selected>Básico (Flips &amp; Rotaciones leves)</option>
+                  <option value="randaugment">Agresivo (RandAugment - Máxima robustez)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <input type="number" id="autoFlSamples" placeholder="Muestras dataset (opcional)" class="hidden">
+              <button
+                type="button"
+                onclick="computeArchRecommendation()"
+                class="w-full py-1.5 px-3 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors"
+              >
+                Consultar Recomendación Óptima
+              </button>
+            </div>
+
+            <div id="autoFlResults" class="space-y-1.5 text-xs"></div>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="toggleNewModelModal(false)" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold">
+            Cancelar
+          </button>
+          <button type="submit" id="btnSubmitAutoFl" class="px-5 py-2 rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 font-semibold shadow-xs flex items-center gap-1.5">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg>
+            <span>Analizar y Entrenar</span>
+          </button>
+        </div>
+      </form>
+
+      <!-- Manual Registration View -->
+      <form id="saveModelForm" class="hidden space-y-3.5 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Título del Modelo:</label>
+          <input type="text" id="formTitle" required placeholder="Ej: Detección de EPIs en Planta" class="w-full border border-slate-200 rounded-xl py-2 px-3">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Slug (Identificador URL):</label>
+          <input type="text" id="formSlug" required placeholder="ej: seguridad-epis-planta" class="w-full border border-slate-200 rounded-xl py-2 px-3 font-mono">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Dominio / Vertical:</label>
+          <select id="formDomain" class="w-full border border-slate-200 rounded-xl py-2 px-3 bg-white">
+            <option value="Agricultura">Agricultura</option>
+            <option value="Industrial">Industrial</option>
+            <option value="Salud">Salud / Médico</option>
+            <option value="Computer Vision">Visión Artificial</option>
+            <option value="General" selected>General</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Descripción del Modelo:</label>
+          <textarea id="formDescription" rows="2" placeholder="Explica claramente qué problema resuelve..." class="w-full border border-slate-200 rounded-xl py-2 px-3"></textarea>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Guía para el Usuario (Imágenes esperadas):</label>
+          <input type="text" id="formInputGuide" placeholder="Fotografía cenital con buena iluminación..." class="w-full border border-slate-200 rounded-xl py-2 px-3">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Checkpoint Activo (.pt):</label>
+          <select id="formActiveCheckpoint" class="w-full border border-slate-200 rounded-xl py-2 px-3 bg-white font-mono">
+            <!-- Populated by JS -->
+          </select>
+        </div>
+
+        <!-- Thumbnail Management with Visual Preview -->
+        <div>
+          <label for="thumbnailUrlInput" class="block font-semibold text-slate-700 mb-1">Miniatura del Modelo:</label>
+          <input type="hidden" id="thumbnailBase64Input" value="">
+          <input
+            type="text"
+            id="thumbnailUrlInput"
+            value=""
+            placeholder="URL (https://...) o automática del dataset"
+            oninput="handleThumbnailTextInput()"
+            class="w-full border border-slate-200 rounded-xl py-2 px-3 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all"
+          >
+          <div id="thumbnailPreviewBox" class="hidden mt-2 flex items-center justify-between gap-3 p-2.5 rounded-xl border border-slate-200 bg-slate-50">
+            <div class="flex items-center gap-3 min-w-0">
+              <img id="thumbnailPreviewImg" src="" alt="Miniatura extraída" class="w-12 h-10 rounded-lg object-cover border border-slate-200 shrink-0 bg-white shadow-2xs">
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-slate-800 truncate" id="thumbnailPreviewTitle">Miniatura vinculada al modelo</p>
+                <p class="text-[10px] text-slate-500 truncate" id="thumbnailPreviewSubtitle">Imagen activa en catálogo</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              id="btnRemoveThumbnail"
+              onclick="clearBase64Thumbnail()"
+              class="text-xs font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer"
+            >
+              Quitar
+            </button>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="toggleNewModelModal(false)" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold">
+            Cancelar
+          </button>
+          <button type="submit" class="px-4 py-2 rounded-xl text-white bg-slate-900 hover:bg-black font-semibold">
+            Guardar en Catálogo
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Soft Delete (Mover a Papelera de Cuarentena) -->
+  <div id="softDeleteModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200 animate-in fade-in duration-150">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-slate-900">¿Mover modelo a la papelera?</h3>
+          <p class="text-xs text-slate-500">Acción protegida con retención temporal diferida.</p>
+        </div>
+      </div>
+
+      <div class="space-y-2 text-xs text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+        <p>
+          El modelo <strong id="softDeleteTargetTitle" class="text-slate-900"></strong> (<code id="softDeleteTargetSlug" class="font-mono text-slate-700"></code>) se ocultará de inmediato del catálogo público y de la cola de evaluación.
+        </p>
+        <p class="text-slate-500">
+          Permanecerá en cuarentena durante el tiempo seleccionado antes de su purga automática. Podrás restaurarlo en cualquier momento desde la papelera.
+        </p>
+        <div id="softDeleteActiveWarning" class="hidden p-2 rounded-lg bg-amber-100/70 border border-amber-300 text-amber-900 font-medium">
+          Aviso: Este modelo está actualmente activo en producción. Al eliminarlo, el servicio pasará a estado fuera de servicio (<code>active_checkpoint: null</code>) sin bloquear la operación.
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Período de Cuarentena / Retención:</label>
+        <select id="softDeleteRetentionSelect" class="w-full text-xs border border-slate-200 rounded-xl py-2 px-3 bg-white focus:outline-none">
+          <option value="7" selected>7 días de retención (Recomendado por seguridad)</option>
+          <option value="3">3 días de retención</option>
+          <option value="14">14 días de retención</option>
+          <option value="30">30 días de retención</option>
+        </select>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button
+          type="button"
+          onclick="closeSoftDeleteModal()"
+          class="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          id="btnConfirmSoftDelete"
+          onclick="executeSoftDelete()"
+          class="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 transition-colors shadow-2xs"
+        >
+          Mover a Papelera
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Hard Purge (Destrucción Definitiva con Doble Confirmación) -->
+  <div id="hardPurgeModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-rose-200 animate-in fade-in duration-150">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <div>
+          <div class="inline-flex items-center gap-1 px-2 py-0.2 rounded text-[9px] font-bold uppercase tracking-wider bg-rose-100 text-rose-800">
+            Acción Irreversible
+          </div>
+          <h3 class="text-base font-bold text-slate-900 mt-0.5">Destrucción Permanente de Archivos</h3>
+        </div>
+      </div>
+
+      <div class="space-y-2 text-xs text-slate-600 leading-relaxed bg-rose-50/60 p-3.5 rounded-xl border border-rose-200">
+        <p>
+          Estás a punto de eliminar de forma <strong class="text-rose-900">definitiva</strong> el modelo <strong id="hardPurgeTargetTitle" class="text-slate-900"></strong>.
+        </p>
+        <p class="text-rose-700 text-[11px]">
+          Sus archivos de pesos (.pt) que no estén compartidos por otros modelos se borrarán del disco para liberar almacenamiento de inmediato. Esta acción no se puede deshacer.
+        </p>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="block text-xs font-semibold text-slate-700">
+          Para confirmar, escribe exactamente el identificador <code id="hardPurgeTargetSlugBadge" class="font-mono text-rose-700 bg-rose-50 px-1 py-0.5 rounded border border-rose-200"></code>:
+        </label>
+        <input
+          type="text"
+          id="hardPurgeInputSlug"
+          placeholder="Escribe el slug exacto aquí..."
+          oninput="checkHardPurgeMatch()"
+          class="w-full text-xs font-mono border border-slate-200 rounded-xl py-2 px-3 focus:outline-none focus:border-rose-500"
+        >
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button
+          type="button"
+          onclick="closeHardPurgeModal()"
+          class="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          id="btnConfirmHardPurge"
+          disabled
+          onclick="executeHardPurge()"
+          class="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-rose-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-rose-700 transition-colors shadow-2xs"
+        >
+          Destruir Permanentemente
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drawer: Model Inspector (contextual orchestration, telemetry & Grad-CAM) -->
+  <div id="modelInspectorModal" role="dialog" aria-modal="true" aria-labelledby="inspectorTitle" class="hidden fixed inset-0 z-50">
+    <!-- Backdrop -->
+    <div id="inspectorBackdrop" onclick="closeModelInspector()" class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm opacity-0 transition-opacity duration-300"></div>
+
+    <!-- Sliding Panel -->
+    <div id="inspectorPanel" class="absolute inset-y-0 right-0 w-full max-w-3xl bg-white border-l border-slate-200/60 shadow-2xl flex flex-col translate-x-full transition-transform duration-300 ease-out will-change-transform">
+
+      <!-- Drawer Header -->
+      <div class="px-6 sm:px-8 pt-6 pb-4 flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2.5">
+            <h3 id="inspectorTitle" class="text-lg font-semibold text-slate-900 tracking-tight truncate">Inspección de Modelo</h3>
+            <span id="inspectorArchBadge" class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-medium bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10 shrink-0">
+              resnet18
+            </span>
+          </div>
+          <div id="inspectorSubtitle" class="text-xs text-slate-500 mt-1 font-mono truncate">
+            slug: - | checkpoint: -
+          </div>
+        </div>
+        <button data-modal-close onclick="closeModelInspector()" aria-label="Cerrar inspector" class="shrink-0 inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-2.5 py-1.5 text-xs font-medium transition-all">
+          <span class="hidden sm:inline text-[10px] font-mono text-slate-400 border border-slate-200 rounded px-1">Esc</span>
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Drawer Tabs -->
+      <div class="flex border-b border-slate-200/70 px-6 sm:px-8 gap-6 bg-white text-xs font-medium overflow-x-auto">
+        <button id="tabBtnOrchestration" onclick="switchInspectorTab('orchestration')" class="py-3 border-b-2 border-slate-900 text-slate-900 shrink-0 transition-colors">
+          Orquestación FL &amp; HITL
+        </button>
+        <button id="tabBtnLineage" onclick="switchInspectorTab('lineage')" class="py-3 border-b-2 border-transparent text-slate-500 hover:text-slate-800 shrink-0 transition-colors">
+          Linaje &amp; Versiones
+        </button>
+        <button id="tabBtnTelemetry" onclick="switchInspectorTab('telemetry')" class="py-3 border-b-2 border-transparent text-slate-500 hover:text-slate-800 shrink-0 transition-colors">
+          Evaluación &amp; Matriz
+        </button>
+        <button id="tabBtnCompare" onclick="switchInspectorTab('compare')" class="py-3 border-b-2 border-transparent text-slate-500 hover:text-slate-800 shrink-0 transition-colors">
+          Comparador A/B
+        </button>
+        <button id="tabBtnGradcam" onclick="switchInspectorTab('gradcam')" class="py-3 border-b-2 border-transparent text-slate-500 hover:text-slate-800 shrink-0 transition-colors">
+          Grad-CAM
+        </button>
+      </div>
+
+      <!-- Modal Scrollable Content -->
+      <div class="px-6 sm:px-8 py-6 overflow-y-auto space-y-6 flex-1">
+        
+        <!-- Tab 0: Contextual Orchestration (Telemetry & Insights + HITL fine-tuning + Federated inbox) -->
+        <div id="inspectorTabOrchestration" class="space-y-8">
+
+          <!-- Observability & Insights: Telemetría y Rendimiento -->
+          <section id="inspectorObservabilitySection" class="rounded-2xl ring-1 ring-inset ring-slate-200/80 bg-white p-5 space-y-5 shadow-2xs">
+            <div class="flex items-center justify-between gap-4 border-b border-slate-100 pb-3.5">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="text-sm font-semibold text-slate-900 tracking-tight">Telemetría y Rendimiento</h4>
+                  <span id="telemetryDeltaBadge" class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/15">
+                    +25.0% vs R1
+                  </span>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">
+                  Observabilidad en tiempo real de rondas federadas y matriz de confusión reciente.
+                </p>
+              </div>
+              <button
+                type="button"
+                id="btnToggleObservability"
+                onclick="toggleObservabilityPanel()"
+                class="text-xs font-medium text-slate-500 hover:text-slate-900 px-2.5 py-1 rounded-md hover:bg-slate-100 transition-colors shrink-0"
+              >
+                Ocultar
+              </button>
+            </div>
+
+            <div id="observabilityContentBody" class="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+              <!-- Metric Sparkline Card -->
+              <div class="rounded-xl bg-slate-50/70 ring-1 ring-inset ring-slate-200/70 p-4 space-y-3">
+                <div class="flex items-center justify-between gap-2">
+                  <div>
+                    <div class="text-[11px] font-semibold text-slate-700">Evolución de Precisión (Accuracy / Macro-F1)</div>
+                    <div class="text-[10px] text-slate-400 font-mono mt-0.5">Historial de rondas (history.json)</div>
+                  </div>
+                  <div class="text-right">
+                    <span id="sparklineLatestValue" class="text-base font-bold text-slate-900 font-mono tabular-nums">85.0%</span>
+                  </div>
+                </div>
+                <div id="inspectorSparklineContainer" class="w-full h-36"></div>
+              </div>
+
+              <!-- Confusion Matrix Heatmap Card -->
+              <div class="rounded-xl bg-slate-50/70 ring-1 ring-inset ring-slate-200/70 p-4 space-y-3">
+                <div class="flex items-center justify-between gap-2">
+                  <div>
+                    <div class="text-[11px] font-semibold text-slate-700">Matriz de Confusión Reciente</div>
+                    <div class="text-[10px] text-slate-400 font-mono mt-0.5">Pasa el cursor para ver el desglose exacto</div>
+                  </div>
+                  <span class="text-[10px] font-mono text-slate-400">Real vs Pred</span>
+                </div>
+                <div id="inspectorMatrixHeatmapContainer" class="w-full overflow-x-auto"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Orquestación Federada & HITL Header -->
+          <div class="pt-1 border-t border-slate-200/70">
+            <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Orquestación Federada &amp; HITL</h4>
+          </div>
+
+          <!-- HITL Fine-Tuning -->
+          <section class="rounded-2xl ring-1 ring-inset ring-slate-200/70 bg-slate-50/60 p-5 space-y-4">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h4 class="text-sm font-semibold text-slate-900 tracking-tight">Fine-Tuning con Curación Experta (HITL)</h4>
+                <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Entrena sobre <code class="font-mono text-[11px] text-slate-700">hitl_queue/<span id="orchContextSlug">&lt;slug&gt;</span>/verified</code> sin afectar otros dominios.
+                </p>
+              </div>
+              <span id="targetVerifiedStats" class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-medium bg-white text-slate-600 ring-1 ring-inset ring-slate-200">0 fotos en verified/</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div class="rounded-xl bg-white ring-1 ring-inset ring-slate-200/70 px-4 py-3">
+                <div class="text-[11px] font-medium uppercase tracking-wider text-slate-400">Verificadas</div>
+                <div id="orchVerifiedCount" class="text-xl font-semibold text-slate-900 tabular-nums mt-0.5">-</div>
+              </div>
+              <div class="rounded-xl bg-white ring-1 ring-inset ring-slate-200/70 px-4 py-3">
+                <div class="text-[11px] font-medium uppercase tracking-wider text-slate-400">Pendientes</div>
+                <div id="orchPendingCount" class="text-xl font-semibold text-slate-900 tabular-nums mt-0.5">-</div>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-3 pt-1">
+              <a id="orchCurationLink" href="#" class="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all">Abrir curación &rarr;</a>
+              <button
+                type="button"
+                id="btnLaunchHitlTrain"
+                onclick="launchScopedHitlTrain()"
+                class="inline-flex items-center justify-center gap-2 bg-slate-900 text-white hover:bg-slate-800 rounded-lg px-4 py-2 text-xs font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Re-entrenar HITL
+              </button>
+            </div>
+          </section>
+
+          <!-- Federated Updates Inbox -->
+          <section class="space-y-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h4 class="text-sm font-semibold text-slate-900 tracking-tight">Bandeja de Actualizaciones Federadas</h4>
+                <p class="text-xs text-slate-500 mt-1">Selecciona los artefactos auditados para consolidar un nuevo checkpoint con FedAvgM.</p>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span id="flUpdatesCountBadge" class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10">0 disponibles</span>
+                <span id="flEligibleBadge" class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10">0 aptas</span>
+                <span id="flRejectedBadge" class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/10">0 rechazadas</span>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-slate-600">
+                <thead class="text-[11px] uppercase tracking-wider font-medium text-slate-400 border-b border-slate-100">
+                  <tr>
+                    <th class="py-2.5 pr-2 w-6 text-center">
+                      <input type="checkbox" id="flSelectAllCheckbox" onchange="toggleSelectAllEligible(this.checked)" aria-label="Seleccionar todas las aptas" class="rounded text-slate-900 cursor-pointer">
+                    </th>
+                    <th class="py-2.5 px-2 font-medium">Cliente / Archivo</th>
+                    <th class="py-2.5 px-2 font-medium">Muestras</th>
+                    <th class="py-2.5 px-2 font-medium">Linaje</th>
+                    <th class="py-2.5 pl-2 text-right font-medium">Estado</th>
+                  </tr>
+                </thead>
+                <tbody id="flUpdatesTbody" class="divide-y divide-slate-100">
+                  <tr><td colspan="5" class="py-8 text-center text-slate-400 text-xs">Selecciona un modelo para ver sus actualizaciones.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+              <div id="flSelectedSummary" class="text-xs text-slate-500 font-mono">0 actualizaciones seleccionadas</div>
+              <button
+                type="button"
+                id="btnLaunchAggregate"
+                onclick="launchSecureAggregation()"
+                class="inline-flex items-center justify-center gap-2 bg-slate-900 text-white hover:bg-slate-800 rounded-lg px-4 py-2 text-xs font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Consolidar FedAvgM
+              </button>
+            </div>
+
+            <!-- Candidate Status & Controlled Promotion Card -->
+            <div id="flCandidatePanel" class="hidden p-4 rounded-xl bg-slate-50 ring-1 ring-inset ring-slate-200/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span class="text-xs font-semibold text-slate-900">Checkpoint Candidato Generado</span>
+                </div>
+                <span id="flCandidateGuardrailBadge" class="text-[10px] font-medium px-2 py-0.5 rounded-md">EVALUANDO</span>
+              </div>
+              <div class="text-xs text-slate-500 font-mono flex items-center justify-between gap-3">
+                <span class="truncate">Archivo: <strong id="flCandidateFileName" class="text-slate-900">-</strong></span>
+                <span id="flCandidateMetricsText" class="text-[11px] text-slate-700 font-medium shrink-0">-</span>
+              </div>
+              <div class="grid grid-cols-3 gap-2 pt-1">
+                <button type="button" onclick="inspectCandidateInAB()" class="py-1.5 px-3 rounded-lg text-xs font-medium text-slate-700 bg-white ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-all text-center">Comparar A/B</button>
+                <button type="button" onclick="promoteCurrentCandidate()" class="py-1.5 px-3 rounded-lg text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 transition-all text-center">Promover a Producción</button>
+                <button type="button" onclick="rollbackActiveModel()" class="py-1.5 px-3 rounded-lg text-xs font-medium text-slate-600 bg-white ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-all text-center">Rollback Activo</button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Tab 1: Lineage & Versions -->
+        <div id="inspectorTabLineage" class="hidden space-y-6">
+          <!-- Active Checkpoint Summary Banner -->
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Checkpoint Activo en Inferencia</div>
+              <div id="inspectorActiveChkName" class="text-sm font-mono font-bold text-slate-900 mt-0.5">-</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span id="inspectorActiveStatusBadge" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                ACTIVO
+              </span>
+              <span id="inspectorActiveSizeBadge" class="px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold bg-slate-200 text-slate-700">
+                - MB
+              </span>
+            </div>
+          </div>
+
+          <!-- Traceable Versions Table -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Historial de Versiones y Linaje</h4>
+              <span class="text-[10px] text-slate-400">Trazabilidad verificable por checkpoint</span>
+            </div>
+            <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr class="border-b border-slate-200 bg-slate-50/75 text-[10px] uppercase text-slate-500 font-bold tracking-wider">
+                    <th class="p-3">Versión</th>
+                    <th class="p-3">Checkpoint</th>
+                    <th class="p-3">Origen</th>
+                    <th class="p-3">Fecha</th>
+                    <th class="p-3">Estado</th>
+                    <th class="p-3">Evaluación</th>
+                  </tr>
+                </thead>
+                <tbody id="inspectorVersionsTbody" class="divide-y divide-slate-100">
+                  <!-- Rendered via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Calibrated Thresholds per class -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Umbrales Calibrados de Decisión (&tau;<sub>c</sub>)</h4>
+              <span class="text-[10px] text-slate-400">Optimizados One-vs-Rest (&mu; = T*)</span>
+            </div>
+            <div id="inspectorThresholdsList" class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Evaluation & Metrics -->
+        <div id="inspectorTabTelemetry" class="hidden space-y-6">
+          
+          <!-- Evaluated Checkpoint Notice / Actionable Empty State -->
+          <div id="inspectorEvalNotice" class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs transition-colors">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="font-bold uppercase tracking-wider text-[10px] text-slate-500 shrink-0">Conjunto de Test:</span>
+              <span id="inspectorEvalSourceText" class="font-mono text-[11px] text-slate-600 truncate">-</span>
+            </div>
+            <div id="inspectorEvalActions" class="flex items-center gap-2 shrink-0">
+              <span id="inspectorEvalChkBadge" class="hidden px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-white text-indigo-700 border border-indigo-200 shadow-2xs">
+                -
+              </span>
+              <button
+                type="button"
+                id="btnLaunchEvaluation"
+                onclick="launchModelEvaluation(currentInspectorSlug)"
+                class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-300 shadow-2xs transition-all cursor-pointer"
+                title="Lanzar scripts/evaluate.py para generar métricas detalladas y matriz de confusión"
+              >
+                <svg class="w-3.5 h-3.5 text-slate-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                <span>Lanzar Evaluación de Rendimiento</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Key Metrics Grid: Standard Data Science Suite (6 Metrics) -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+              <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Precisión Global</div>
+              <div id="metricAccuracy" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1">-</div>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+              <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Macro Precision</div>
+              <div id="metricPrecision" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1">-</div>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+              <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Macro Recall</div>
+              <div id="metricRecall" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1">-</div>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+              <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Macro F1-Score</div>
+              <div id="metricF1" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1">-</div>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+              <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Pérdida (Loss)</div>
+              <div id="metricLoss" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1">-</div>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+              <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Temperatura (T*)</div>
+              <div id="metricTemp" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1">1.00</div>
+            </div>
+          </div>
+
+          <!-- Confusion Matrix -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Matriz de Confusión en Conjunto de Test</h4>
+              <span id="matrixSourceLabel" class="text-[10px] font-mono text-slate-400"></span>
+            </div>
+            <div id="inspectorConfusionMatrixContainer" class="overflow-x-auto rounded-xl border border-slate-200 p-4 bg-slate-50">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Tab 3: A/B Comparator -->
+        <div id="inspectorTabCompare" class="hidden space-y-6">
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4">
+            <div>
+              <h4 class="text-xs font-bold text-slate-900">Comparación Empírica entre Checkpoints A y B</h4>
+              <p class="text-[11px] text-slate-500 mt-0.5">
+                Evalúa una misma imagen de prueba contra dos checkpoints de este modelo para contrastar predicciones, mapas de atención Grad-CAM y métricas históricas agregadas.
+              </p>
+            </div>
+
+            <!-- Selectors -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1">Versión A (Referencia / Activo)</label>
+                <select id="compareSelectVersionA" class="w-full text-xs rounded-xl border border-slate-300 p-2 bg-white font-mono"></select>
+              </div>
+              <div>
+                <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1">Versión B (Candidata / Histórica)</label>
+                <select id="compareSelectVersionB" class="w-full text-xs rounded-xl border border-slate-300 p-2 bg-white font-mono"></select>
+              </div>
+              <div>
+                <label class="block text-[10px] uppercase font-bold text-slate-500 mb-1">Etiqueta Real (Opcional Ground Truth)</label>
+                <input id="compareGroundTruthInput" type="text" placeholder="Ej. sana, repilo, optimo" class="w-full text-xs rounded-xl border border-slate-300 p-2 bg-white">
+              </div>
+            </div>
+
+            <!-- File Upload & Action Button -->
+            <div class="flex flex-col sm:flex-row items-center gap-3">
+              <input
+                type="file"
+                id="compareFileInput"
+                accept="image/*"
+                class="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-900 file:text-white hover:file:bg-black cursor-pointer"
+              >
+              <button
+                type="button"
+                id="btnRunCompare"
+                onclick="runInspectorCompareAB()"
+                class="w-full sm:w-auto shrink-0 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-2xs"
+              >
+                Comparar A / B
+              </button>
+            </div>
+          </div>
+
+          <!-- Comparison Result Card -->
+          <div id="compareResultBox" class="hidden space-y-4">
+            <!-- Summary Banner -->
+            <div id="compareSummaryBanner" class="p-3.5 rounded-xl border text-xs font-medium"></div>
+
+            <!-- Columns Side-by-Side -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Version A Column -->
+              <div class="p-4 rounded-xl border border-slate-200 bg-white space-y-3 shadow-2xs">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <div class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+                    Versión A: <span id="compLabelA" class="font-mono text-indigo-700">-</span>
+                  </div>
+                  <span id="compStatusA" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">-</span>
+                </div>
+                
+                <div class="p-3 rounded-lg bg-slate-50 border border-slate-200/70 flex items-center justify-between">
+                  <div>
+                    <div class="text-[10px] uppercase font-bold text-slate-400">Predicción</div>
+                    <div id="compPredA" class="text-base font-extrabold text-slate-900 mt-0.5">-</div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-[10px] uppercase font-bold text-slate-400">Confianza Softmax</div>
+                    <div id="compConfA" class="text-base font-extrabold text-indigo-700 mt-0.5">-</div>
+                  </div>
+                </div>
+
+                <div id="compGtBadgeA" class="hidden text-center py-1 rounded-md text-[11px] font-bold"></div>
+
+                <!-- Grad-CAM A -->
+                <div class="rounded-lg border border-slate-200 bg-slate-900 p-2 flex justify-center">
+                  <img id="compImgA" src="" alt="Grad-CAM A" class="max-h-56 rounded object-contain">
+                </div>
+
+                <!-- Aggregate Metrics A -->
+                <div class="p-3 rounded-lg bg-slate-50 border border-slate-200/70 text-xs">
+                  <div class="text-[10px] uppercase font-bold text-slate-400 mb-1">Métricas Agregadas (Test)</div>
+                  <div id="compMetricsA" class="text-slate-600 font-mono text-[11px]">-</div>
+                </div>
+              </div>
+
+              <!-- Version B Column -->
+              <div class="p-4 rounded-xl border border-slate-200 bg-white space-y-3 shadow-2xs">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <div class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-violet-600"></span>
+                    Versión B: <span id="compLabelB" class="font-mono text-violet-700">-</span>
+                  </div>
+                  <span id="compStatusB" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">-</span>
+                </div>
+                
+                <div class="p-3 rounded-lg bg-slate-50 border border-slate-200/70 flex items-center justify-between">
+                  <div>
+                    <div class="text-[10px] uppercase font-bold text-slate-400">Predicción</div>
+                    <div id="compPredB" class="text-base font-extrabold text-slate-900 mt-0.5">-</div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-[10px] uppercase font-bold text-slate-400">Confianza Softmax</div>
+                    <div id="compConfB" class="text-base font-extrabold text-violet-700 mt-0.5">-</div>
+                  </div>
+                </div>
+
+                <div id="compGtBadgeB" class="hidden text-center py-1 rounded-md text-[11px] font-bold"></div>
+
+                <!-- Grad-CAM B -->
+                <div class="rounded-lg border border-slate-200 bg-slate-900 p-2 flex justify-center">
+                  <img id="compImgB" src="" alt="Grad-CAM B" class="max-h-56 rounded object-contain">
+                </div>
+
+                <!-- Aggregate Metrics B -->
+                <div class="p-3 rounded-lg bg-slate-50 border border-slate-200/70 text-xs">
+                  <div class="text-[10px] uppercase font-bold text-slate-400 mb-1">Métricas Agregadas (Test)</div>
+                  <div id="compMetricsB" class="text-slate-600 font-mono text-[11px]">-</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Caution notice -->
+            <div class="text-[11px] text-slate-400 p-2 text-center bg-slate-50 rounded-lg border border-slate-200/60">
+              Criterio MLOps: Una confianza porcentual mayor indica certidumbre matemática en la distribución softmax, pero no sustituye la exactitud empírica verificada frente a la etiqueta real.
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Grad-CAM Visual Playground -->
+        <div id="inspectorTabGradcam" class="hidden space-y-6">
+          <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+            <div>
+              <h4 class="text-xs font-bold text-slate-900">Explicabilidad Visual en Tiempo Real (Checkpoint Activo)</h4>
+              <p class="text-[11px] text-slate-500 mt-0.5">
+                Sube una imagen para evaluar la atención convolucional sobre las regiones patológicas o sintomáticas.
+              </p>
+            </div>
+            <div class="flex flex-col sm:flex-row items-center gap-3">
+              <input
+                type="file"
+                id="gradcamFileInput"
+                accept="image/*"
+                class="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-900 file:text-white hover:file:bg-black cursor-pointer"
+              >
+              <button
+                type="button"
+                id="btnRunGradcam"
+                onclick="runInspectorGradcam()"
+                class="w-full sm:w-auto shrink-0 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-2xs"
+              >
+                Generar Grad-CAM
+              </button>
+            </div>
+          </div>
+
+          <!-- Results Container -->
+          <div id="gradcamResultBox" class="hidden space-y-4">
+            <div class="flex items-center justify-between p-3.5 rounded-xl bg-indigo-50/60 border border-indigo-200">
+              <div>
+                <div class="text-[10px] uppercase font-bold text-indigo-700 tracking-wider">Diagnóstico Predicho</div>
+                <div id="gradcamPredClass" class="text-base font-extrabold text-slate-900 mt-0.5">-</div>
+              </div>
+              <div class="text-right">
+                <div class="text-[10px] uppercase font-bold text-indigo-700 tracking-wider">Confianza Calibrada</div>
+                <div id="gradcamConfidence" class="text-base font-extrabold text-slate-900 mt-0.5">-</div>
+              </div>
+            </div>
+
+            <!-- Heatmap Image Preview -->
+            <div class="rounded-xl border border-slate-200 overflow-hidden bg-slate-900 flex justify-center p-4">
+              <img id="gradcamImagePreview" src="" alt="Grad-CAM Overlay" class="max-h-80 rounded-lg object-contain shadow-lg">
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 sm:px-8 py-4 border-t border-slate-200/70 flex justify-end bg-white">
+        <button
+          type="button"
+          onclick="closeModelInspector()"
+          class="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
+        >
+          Cerrar
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    let catalogModels = [];
+    let physicalCheckpoints = [];
+    let trashModels = [];
+
+    let currentSoftDeleteSlug = null;
+    let currentHardPurgeSlug = null;
+
+    const logicalModelsTbody = document.getElementById('logicalModelsTbody');
+    const physicalModelsTbody = document.getElementById('physicalModelsTbody');
+    const trashModelsTbody = document.getElementById('trashModelsTbody');
+    const activeModelsCountBadge = document.getElementById('activeModelsCountBadge');
+    const trashCountBadge = document.getElementById('trashCountBadge');
+    const targetVerifiedStats = document.getElementById('targetVerifiedStats');
+    const masterStatusBadge = document.getElementById('masterStatusBadge');
+    const masterJobDetails = document.getElementById('masterJobDetails');
+    const masterLogTerminal = document.getElementById('masterLogTerminal');
+    const btnLaunchHitlTrain = document.getElementById('btnLaunchHitlTrain');
+
+    const newModelModal = document.getElementById('newModelModal');
+    const saveModelForm = document.getElementById('saveModelForm');
+    const formActiveCheckpoint = document.getElementById('formActiveCheckpoint');
+
+    const softDeleteModal = document.getElementById('softDeleteModal');
+    const softDeleteTargetTitle = document.getElementById('softDeleteTargetTitle');
+    const softDeleteTargetSlug = document.getElementById('softDeleteTargetSlug');
+    const softDeleteRetentionSelect = document.getElementById('softDeleteRetentionSelect');
+
+    const hardPurgeModal = document.getElementById('hardPurgeModal');
+    const hardPurgeTargetTitle = document.getElementById('hardPurgeTargetTitle');
+    const hardPurgeTargetSlugBadge = document.getElementById('hardPurgeTargetSlugBadge');
+    const hardPurgeInputSlug = document.getElementById('hardPurgeInputSlug');
+    const btnConfirmHardPurge = document.getElementById('btnConfirmHardPurge');
+
+    function switchNewModelMode(mode) {
+      const tabAutoFl = document.getElementById('tabBtnAutoFl');
+      const tabManual = document.getElementById('tabBtnManual');
+      const formAutoFl = document.getElementById('autoFlPipelineForm');
+      const formManual = document.getElementById('saveModelForm');
+
+      if (mode === 'autofl') {
+        tabAutoFl.className = 'flex-1 py-1.5 rounded-lg text-slate-900 bg-white shadow-2xs text-center transition-all font-semibold';
+        tabManual.className = 'flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-900 text-center transition-all';
+        formAutoFl.classList.remove('hidden');
+        formManual.classList.add('hidden');
+      } else {
+        tabManual.className = 'flex-1 py-1.5 rounded-lg text-slate-900 bg-white shadow-2xs text-center transition-all font-semibold';
+        tabAutoFl.className = 'flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-900 text-center transition-all';
+        formManual.classList.remove('hidden');
+        formAutoFl.classList.add('hidden');
+      }
+    }
+
+    function toggleNewModelModal(open, mode = 'autofl') {
+      if (open) {
+        newModelModal.classList.remove('hidden');
+        switchNewModelMode(mode);
+      } else {
+        newModelModal.classList.add('hidden');
+        const fAuto = document.getElementById('autoFlPipelineForm');
+        if (fAuto) fAuto.reset();
+        saveModelForm.reset();
+        setThumbnailValue('');
+      }
+    }
+
+    async function submitAutoFlPipeline() {
+      const title = document.getElementById('autoFlTitle').value.trim();
+      const slug = document.getElementById('autoFlSlug').value.trim();
+      const domain = document.getElementById('autoFlDomain').value;
+      const datasetPath = document.getElementById('autoFlDatasetPath').value.trim();
+      const description = document.getElementById('autoFlDescription').value.trim();
+      const epochs = parseInt(document.getElementById('autoFlEpochs').value, 10) || 3;
+      const architecture = document.getElementById('autoFlArch').value;
+      const targetClientTier = document.getElementById('autoFlClientTier').value;
+      const transferLearning = document.getElementById('autoFlTransferLearning')?.value || 'partial';
+      const lossFunction = document.getElementById('autoFlLossFunction')?.value || 'ce';
+      const augmentation = document.getElementById('autoFlAugmentation')?.value || 'basic';
+
+      if (!title) {
+        alert('Por favor introduzca el título del modelo.');
+        return;
+      }
+      if (!datasetPath) {
+        alert('Por favor introduzca la ruta absoluta del dataset en el servidor.');
+        return;
+      }
+
+      const btn = document.getElementById('btnSubmitAutoFl');
+      btn.disabled = true;
+      btn.innerHTML = '<span>Lanzando Auto-FL...</span>';
+
+      try {
+        const res = await fetch('/api/master/models/auto-fl', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: title,
+            slug: slug || undefined,
+            domain: domain,
+            dataset_path: datasetPath,
+            description: description,
+            epochs: epochs,
+            architecture: architecture,
+            target_client_tier: targetClientTier,
+            transfer_learning: transferLearning,
+            loss_function: lossFunction,
+            augmentation: augmentation
+          })
+        });
+
+        const data = await res.json();
+        if (res.status === 202) {
+          toggleNewModelModal(false);
+          wasJobRunning = true;
+          pollStatus();
+          toggleTerminalVisibility(true);
+          const terminal = document.getElementById('masterLogTerminal');
+          if (terminal) terminal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (window.KhaosUI && KhaosUI.toast) {
+            KhaosUI.toast(
+              `Creación de "${title}" en cola: El entrenamiento se está ejecutando en segundo plano en el Job Runner.`,
+              'info',
+              6000
+            );
+          }
+        } else {
+          alert('Error al iniciar Auto-FL: ' + (data.detail || res.statusText));
+        }
+      } catch (err) {
+        alert('Error en la solicitud: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 5 5L20 7"/></svg><span>Analizar y Entrenar</span>';
+      }
+    }
+
+    let currentModelFilter = 'all';
+    let isTerminalExpanded = true;
+
+    function toggleTerminalVisibility(forceOpen = null) {
+      const term = document.getElementById('masterLogTerminal');
+      const btn = document.getElementById('btnToggleTerminal');
+      if (!term) return;
+      isTerminalExpanded = forceOpen !== null ? forceOpen : !isTerminalExpanded;
+      if (isTerminalExpanded) {
+        term.classList.remove('hidden');
+        if (btn) btn.textContent = 'Ocultar Consola';
+      } else {
+        term.classList.add('hidden');
+        if (btn) btn.textContent = 'Mostrar Consola';
+      }
+    }
+
+    async function clearMasterTerminal() {
+      try {
+        const res = await fetch('/api/master/jobs/clear', { method: 'POST' });
+        if (res.ok) {
+          const term = document.getElementById('masterLogTerminal');
+          if (term) term.textContent = '-- Consola limpia y preparada --';
+        }
+      } catch (e) {
+        console.error('Error al limpiar consola:', e);
+      }
+    }
+
+    function setModelStatusFilter(filter) {
+      currentModelFilter = filter;
+      const btnAll = document.getElementById('filterAll');
+      const btnActive = document.getElementById('filterActive');
+      const btnInactive = document.getElementById('filterInactive');
+
+      const activeClass = 'px-3 py-1.5 rounded-md text-xs font-medium bg-white text-slate-900 shadow-2xs transition-all duration-200';
+      const inactiveClass = 'px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-all duration-200';
+
+      if (btnAll) btnAll.className = filter === 'all' ? activeClass : inactiveClass;
+      if (btnActive) btnActive.className = filter === 'active' ? activeClass : inactiveClass;
+      if (btnInactive) btnInactive.className = filter === 'inactive' ? activeClass : inactiveClass;
+
+      filterModelsTable();
+    }
+
+    function filterModelsTable() {
+      const input = document.getElementById('modelsSearchInput');
+      const term = (input ? input.value : '').toLowerCase().trim();
+
+      const filtered = catalogModels.filter(m => {
+        const matchTerm = !term || (
+          (m.title || '').toLowerCase().includes(term) ||
+          (m.slug || '').toLowerCase().includes(term) ||
+          (m.domain || '').toLowerCase().includes(term) ||
+          (m.active_checkpoint || '').toLowerCase().includes(term) ||
+          (m.classes || []).some(c => c.toLowerCase().includes(term))
+        );
+        if (!matchTerm) return false;
+
+        if (currentModelFilter === 'active') return Boolean(m.active_checkpoint);
+        if (currentModelFilter === 'inactive') return !m.active_checkpoint;
+        return true;
+      });
+
+      renderLogicalModelsTable(filtered);
+    }
+
+    function renderLogicalModelsTable(modelsList) {
+      logicalModelsTbody.innerHTML = '';
+
+      if (modelsList.length === 0) {
+        if (catalogModels.length === 0) {
+          logicalModelsTbody.innerHTML = `
+            <tr>
+              <td colspan="5" class="py-12 px-6 text-center">
+                <div class="max-w-md mx-auto space-y-3">
+                  <div class="w-10 h-10 rounded-xl bg-slate-50 ring-1 ring-inset ring-slate-200/60 flex items-center justify-center mx-auto text-slate-400">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                      <line x1="12" y1="22.08" x2="12" y2="12"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p class="text-sm font-semibold text-slate-900 tracking-tight">El catálogo no contiene modelos registrados</p>
+                    <p class="text-xs text-slate-500 mt-1 leading-relaxed">Despliega tu primer modelo a partir de un checkpoint PyTorch (.pt) o entrenando desde un dataset de imágenes con el asistente Auto-FL.</p>
+                  </div>
+                  <div class="pt-1">
+                    <a href="/master/models/new" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-2xs">
+                      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                      <span>Registrar Primer Modelo</span>
+                    </a>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          `;
+        } else {
+          logicalModelsTbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-slate-400 text-xs">No se encontraron modelos con los filtros aplicados.</td></tr>';
+        }
+        return;
+      }
+
+      modelsList.forEach(m => {
+        const slug = m.slug || m.name?.replace('.pt', '');
+        const isActive = Boolean(m.is_active);
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-slate-50 transition-colors duration-150';
+        row.innerHTML = `
+          <td class="py-4 pr-4">
+            <div class="flex items-center">
+              ${m.thumbnail_url ? `
+                <img src="${escapeHtml(m.thumbnail_url)}" alt="" class="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0 bg-slate-100 mr-3 shadow-2xs">
+              ` : `
+                <div class="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 text-slate-400 flex items-center justify-center shrink-0 mr-3 shadow-2xs">
+                  <svg class="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                </div>
+              `}
+              <div class="min-w-0">
+                <div class="font-semibold text-slate-900 truncate">${m.title || slug}</div>
+                <div class="font-mono text-[11px] text-slate-500 mt-0.5">/models/${slug}</div>
+              </div>
+            </div>
+          </td>
+          <td class="py-4 px-4">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10">${m.domain || 'General'}</span>
+          </td>
+          <td class="py-4 px-4 font-mono text-[11px] text-slate-600">
+            <div class="flex items-center gap-2">
+              ${m.active_checkpoint ? `<span class="text-slate-900">${m.active_checkpoint}</span>` : '<span class="inline-flex items-center px-2 py-0.5 rounded-md font-sans text-[10px] font-medium bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20">Fuera de servicio</span>'}
+              ${isActive ? '<span class="inline-flex items-center px-2 py-0.5 rounded-md font-sans text-[10px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10">EN PRODUCCIÓN</span>' : ''}
+            </div>
+          </td>
+          <td class="py-4 px-4 text-slate-500">${(m.classes || []).length} clases</td>
+          <td class="py-4 pl-4 text-right whitespace-nowrap">
+            <div class="inline-flex items-center justify-end gap-1">
+              <button onclick="openModelInspector('${slug}')" aria-label="Inspeccionar ${slug}" class="bg-slate-900 text-white hover:bg-slate-800 rounded-lg px-4 py-2 text-xs font-medium transition-all mr-1">
+                Inspeccionar
+              </button>
+              <a href="/models/${encodeURIComponent(slug)}" class="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all">Ver</a>
+              <a href="/models/${encodeURIComponent(slug)}/expert" class="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all">Curación</a>
+              <button onclick="editModel('${slug}')" class="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all">Editar</button>
+              ${m.active_checkpoint ? `
+                <button onclick="archiveModel('${slug}')" class="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all" title="Desactivar y archivar pesos activos">Archivar</button>
+              ` : ''}
+              <button onclick="openSoftDeleteModal('${slug}', '${(m.title || slug).replace(/'/g, "\\'")}', ${isActive})" class="text-red-500 hover:bg-red-50 rounded-md px-3 py-1.5 text-xs font-medium transition-all">Eliminar</button>
+            </div>
+          </td>
+        `;
+        logicalModelsTbody.appendChild(row);
+      });
+    }
+
+    async function loadLogicalModels() {
+      try {
+        const res = await fetch('/api/models?page_size=100');
+        const data = await res.json();
+        catalogModels = data.models || [];
+
+        activeModelsCountBadge.textContent = `${catalogModels.length} activos`;
+
+        filterModelsTable();
+
+      } catch (err) {
+        logicalModelsTbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-xs text-red-500">Error: ${err.message}</td></tr>`;
+      }
+    }
+
+    async function loadTrashModels() {
+      try {
+        const res = await fetch('/api/master/trash');
+        const data = await res.json();
+        trashModels = data.trash || [];
+
+        trashCountBadge.textContent = `${trashModels.length} en cuarentena`;
+        trashModelsTbody.innerHTML = '';
+
+        if (trashModels.length === 0) {
+          trashModelsTbody.innerHTML = `
+            <tr>
+              <td colspan="5" class="py-8 text-center text-slate-400 text-xs">
+                No hay modelos en la papelera. Todo el catálogo está operativo.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        trashModels.forEach(t => {
+          const slug = t.slug;
+          const sizeMb = t.size_bytes ? (t.size_bytes / (1024 * 1024)).toFixed(1) + ' MB' : '-';
+          const daysLeft = t.days_remaining !== undefined ? `${t.days_remaining} días restantes` : '-';
+
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50 transition-colors duration-150';
+          tr.innerHTML = `
+            <td class="py-4 pr-4">
+              <div class="font-semibold text-slate-900">${t.title || slug}</div>
+              <div class="font-mono text-[11px] text-slate-500 mt-0.5">${slug} (${t.active_checkpoint || '-'})</div>
+            </td>
+            <td class="py-4 px-4 font-mono text-[11px] text-slate-500">${t.deleted_at || '-'}</td>
+            <td class="py-4 px-4 text-xs">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                ${daysLeft}
+              </span>
+              <div class="text-[11px] text-slate-400 mt-1 font-mono">${t.purge_after || ''}</div>
+            </td>
+            <td class="py-4 px-4 font-mono text-[11px] text-slate-500">${sizeMb}</td>
+            <td class="py-4 pl-4 text-right whitespace-nowrap">
+              <div class="inline-flex items-center justify-end gap-1">
+                <button
+                  onclick="restoreModel('${slug}')"
+                  class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
+                  title="Restaurar de inmediato al catálogo activo"
+                >
+                  Restaurar
+                </button>
+                <button
+                  onclick="openHardPurgeModal('${slug}', '${(t.title || slug).replace(/'/g, "\\'")}')"
+                  class="text-red-500 hover:bg-red-50 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
+                  title="Purgar y eliminar permanentemente del disco"
+                >
+                  Purgar Ahora
+                </button>
+              </div>
+            </td>
+          `;
+          trashModelsTbody.appendChild(tr);
+        });
+
+      } catch (err) {
+        trashModelsTbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-xs text-red-500">Error al cargar papelera: ${err.message}</td></tr>`;
+      }
+    }
+
+    async function loadPhysicalModels() {
+      try {
+        const res = await fetch('/api/master/models');
+        const data = await res.json();
+        physicalCheckpoints = (data.checkpoints && data.checkpoints.length > 0) ? data.checkpoints : (data.models || []);
+
+        physicalModelsTbody.innerHTML = '';
+        formActiveCheckpoint.innerHTML = '';
+
+        if (physicalCheckpoints.length === 0) {
+          physicalModelsTbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-slate-400 text-xs">No hay checkpoints (.pt) disponibles en el almacenamiento local.</td></tr>';
+          formActiveCheckpoint.innerHTML = '<option value="">(Sin checkpoints disponibles)</option>';
+          return;
+        }
+
+        physicalCheckpoints.forEach(p => {
+          const sizeMb = (p.size_bytes / (1024 * 1024)).toFixed(1);
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50 transition-colors duration-150';
+          tr.innerHTML = `
+            <td class="py-3 pr-2 font-mono text-[11px] text-slate-900">
+              <div class="flex items-center gap-2">
+                <span>${p.name}</span>
+                ${p.is_active ? '<span class="inline-flex items-center px-1.5 py-0.5 rounded-md font-sans text-[10px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10">ACTIVO</span>' : ''}
+              </div>
+            </td>
+            <td class="py-3 px-2 font-mono text-[11px] text-slate-500">${p.architecture || 'resnet18'}</td>
+            <td class="py-3 px-2 font-mono text-[11px] text-slate-500">${sizeMb} MB</td>
+            <td class="py-3 pl-2 text-right">
+              ${!p.is_active ? `
+                <button onclick="setActiveCheckpoint('${p.name}')" class="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-2.5 py-1 text-xs font-medium transition-all">
+                  Activar
+                </button>
+              ` : '<span class="text-[11px] text-slate-400 font-medium">En uso</span>'}
+            </td>
+          `;
+          physicalModelsTbody.appendChild(tr);
+
+          const opt = document.createElement('option');
+          opt.value = p.name;
+          opt.textContent = p.name;
+          formActiveCheckpoint.appendChild(opt);
+        });
+
+      } catch (err) {
+        physicalModelsTbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-xs text-red-500">Error: ${err.message}</td></tr>`;
+      }
+    }
+
+    // Modal: Soft Delete
+    function openSoftDeleteModal(slug, title, isActive = false) {
+      currentSoftDeleteSlug = slug;
+      softDeleteTargetTitle.textContent = title;
+      softDeleteTargetSlug.textContent = slug;
+      const warningNote = document.getElementById('softDeleteActiveWarning');
+      if (warningNote) {
+        if (isActive) {
+          warningNote.classList.remove('hidden');
+        } else {
+          warningNote.classList.add('hidden');
+        }
+      }
+      softDeleteModal.classList.remove('hidden');
+    }
+
+    async function archiveModel(slug) {
+      if (!confirm(`¿Archivar el checkpoint activo de '${slug}'? El modelo pasará temporalmente a fuera de servicio.`)) return;
+      try {
+        const res = await fetch(`/api/master/models/${encodeURIComponent(slug)}/archive`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) {
+          alert('Error al archivar: ' + (data.detail || res.statusText));
+        } else {
+          loadLogicalModels();
+          pollStatus();
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    function closeSoftDeleteModal() {
+      softDeleteModal.classList.add('hidden');
+      currentSoftDeleteSlug = null;
+    }
+
+    async function executeSoftDelete() {
+      if (!currentSoftDeleteSlug) return;
+      const days = parseInt(softDeleteRetentionSelect.value, 10) || 7;
+      const btn = document.getElementById('btnConfirmSoftDelete');
+      btn.disabled = true;
+      btn.textContent = 'Moviendo...';
+
+      try {
+        const res = await fetch(`/api/master/models/${encodeURIComponent(currentSoftDeleteSlug)}/delete?retention_days=${days}`, {
+          method: 'POST'
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert('No se pudo eliminar el modelo: ' + (data.detail || res.statusText));
+        } else {
+          closeSoftDeleteModal();
+          loadLogicalModels();
+          loadTrashModels();
+          pollStatus();
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Mover a Papelera';
+      }
+    }
+
+    // Restore from Trash
+    async function restoreModel(slug) {
+      try {
+        const res = await fetch(`/api/master/models/${encodeURIComponent(slug)}/restore`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) {
+          alert('Error al restaurar: ' + (data.detail || res.statusText));
+        } else {
+          loadLogicalModels();
+          loadTrashModels();
+          pollStatus();
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    // Modal: Hard Purge
+    function openHardPurgeModal(slug, title) {
+      currentHardPurgeSlug = slug;
+      hardPurgeTargetTitle.textContent = title;
+      hardPurgeTargetSlugBadge.textContent = slug;
+      hardPurgeInputSlug.value = '';
+      btnConfirmHardPurge.disabled = true;
+      hardPurgeModal.classList.remove('hidden');
+      setTimeout(() => hardPurgeInputSlug.focus(), 50);
+    }
+
+    function closeHardPurgeModal() {
+      hardPurgeModal.classList.add('hidden');
+      currentHardPurgeSlug = null;
+      hardPurgeInputSlug.value = '';
+    }
+
+    function checkHardPurgeMatch() {
+      const typed = hardPurgeInputSlug.value.trim();
+      btnConfirmHardPurge.disabled = (typed !== currentHardPurgeSlug);
+    }
+
+    async function executeHardPurge() {
+      if (!currentHardPurgeSlug) return;
+      const typed = hardPurgeInputSlug.value.trim();
+      if (typed !== currentHardPurgeSlug) return;
+
+      btnConfirmHardPurge.disabled = true;
+      btnConfirmHardPurge.textContent = 'Destruyendo...';
+
+      try {
+        const res = await fetch(`/api/master/models/${encodeURIComponent(currentHardPurgeSlug)}/purge?confirm_slug=${encodeURIComponent(typed)}`, {
+          method: 'POST'
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert('No se pudo purgar el modelo: ' + (data.detail || res.statusText));
+        } else {
+          closeHardPurgeModal();
+          loadTrashModels();
+          loadPhysicalModels();
+          pollStatus();
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      } finally {
+        btnConfirmHardPurge.disabled = false;
+        btnConfirmHardPurge.textContent = 'Destruir Permanentemente';
+      }
+    }
+
+    async function setActiveCheckpoint(name) {
+      if (!confirm(`¿Fijar '${name}' como checkpoint global activo en el servidor?`)) return;
+      try {
+        const res = await fetch(`/api/master/set-active?model_name=${encodeURIComponent(name)}`, { method: 'POST' });
+        if (res.ok) {
+          loadPhysicalModels();
+          loadLogicalModels();
+          pollStatus();
+        }
+      } catch (e) {
+        alert('Error: ' + e);
+      }
+    }
+
+    // --- Contextual orchestration (bound to the model opened in the drawer) ---
+    const SPINNER_SVG = '<svg class="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"></path></svg>';
+
+    function setHitlButton(state) {
+      if (!btnLaunchHitlTrain) return;
+      if (state === 'launching') {
+        btnLaunchHitlTrain.disabled = true;
+        btnLaunchHitlTrain.innerHTML = `${SPINNER_SVG}<span>Iniciando entrenamiento...</span>`;
+      } else if (state === 'running') {
+        btnLaunchHitlTrain.disabled = true;
+        btnLaunchHitlTrain.innerHTML = `${SPINNER_SVG}<span>Entrenamiento en curso...</span>`;
+      } else {
+        btnLaunchHitlTrain.disabled = false;
+        btnLaunchHitlTrain.textContent = 'Re-entrenar HITL';
+      }
+    }
+
+    async function updateTargetModelStats(slug) {
+      if (!slug) return;
+      try {
+        const res = await fetch(`/api/feedback/stats?model_slug=${encodeURIComponent(slug)}`);
+        if (!res.ok || slug !== currentInspectorSlug) return;
+        const d = await res.json();
+        const verTotal = d.verified_total || 0;
+        const pendTotal = d.pending_count ?? d.pending ?? 0;
+        targetVerifiedStats.textContent = `${verTotal} fotos en verified/`;
+        document.getElementById('orchVerifiedCount').textContent = String(verTotal);
+        document.getElementById('orchPendingCount').textContent = String(pendTotal);
+      } catch (e) {}
+    }
+
+    function loadOrchestrationContext(slug) {
+      document.getElementById('orchContextSlug').textContent = slug;
+      document.getElementById('orchCurationLink').href = `/models/${encodeURIComponent(slug)}/expert`;
+      document.getElementById('orchVerifiedCount').textContent = '-';
+      document.getElementById('orchPendingCount').textContent = '-';
+      targetVerifiedStats.textContent = '0 fotos en verified/';
+      document.getElementById('flCandidatePanel').classList.add('hidden');
+      setHitlButton(wasJobRunning ? 'running' : 'idle');
+      updateTargetModelStats(slug);
+      loadFederatedUpdates(slug);
+    }
+
+    // Thumbnail Helpers (Modal Form)
+    function getEffectiveThumbnailUrl() {
+      const b64 = (document.getElementById('thumbnailBase64Input')?.value || '').trim();
+      if (b64) return b64;
+      return (document.getElementById('thumbnailUrlInput')?.value || '').trim();
+    }
+
+    function setThumbnailValue(val) {
+      const raw = (val || '').trim();
+      const b64In = document.getElementById('thumbnailBase64Input');
+      const urlIn = document.getElementById('thumbnailUrlInput');
+      const previewBox = document.getElementById('thumbnailPreviewBox');
+      const previewImg = document.getElementById('thumbnailPreviewImg');
+      const subtitle = document.getElementById('thumbnailPreviewSubtitle');
+      if (!b64In || !urlIn || !previewBox || !previewImg) return;
+
+      if (raw.startsWith('data:image')) {
+        b64In.value = raw;
+        urlIn.value = '';
+        urlIn.classList.add('hidden');
+        previewImg.src = raw;
+        if (subtitle) subtitle.textContent = 'Imagen WebP/Base64 optimizada';
+        previewBox.classList.remove('hidden');
+      } else if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+        b64In.value = '';
+        urlIn.value = raw;
+        urlIn.classList.remove('hidden');
+        previewImg.src = raw;
+        if (subtitle) subtitle.textContent = raw.startsWith('http') ? 'URL remota vinculada' : 'Ruta en servidor';
+        previewBox.classList.remove('hidden');
+      } else {
+        b64In.value = '';
+        urlIn.value = raw;
+        urlIn.classList.remove('hidden');
+        previewImg.src = '';
+        previewBox.classList.add('hidden');
+      }
+    }
+
+    function handleThumbnailTextInput() {
+      const urlIn = document.getElementById('thumbnailUrlInput');
+      if (urlIn) {
+        const val = urlIn.value.trim();
+        if (val.startsWith('data:image') || val.startsWith('http://') || val.startsWith('https://') || val.startsWith('/')) {
+          setThumbnailValue(val);
+        }
+      }
+    }
+
+    function clearBase64Thumbnail() {
+      setThumbnailValue('');
+      const urlIn = document.getElementById('thumbnailUrlInput');
+      if (urlIn) urlIn.focus();
+    }
+
+    // Save Model Form Handler
+    saveModelForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        title: document.getElementById('formTitle').value,
+        slug: document.getElementById('formSlug').value,
+        domain: document.getElementById('formDomain').value,
+        description: document.getElementById('formDescription').value,
+        input_guide: document.getElementById('formInputGuide').value,
+        active_checkpoint: formActiveCheckpoint.value,
+        thumbnail_url: getEffectiveThumbnailUrl() || null,
+      };
+
+      try {
+        const res = await fetch('/api/models/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          toggleNewModelModal(false);
+          loadLogicalModels();
+        } else {
+          const d = await res.json();
+          alert('Error: ' + (d.detail || res.statusText));
+        }
+      } catch (err) {
+        alert('Error al guardar modelo: ' + err.message);
+      }
+    });
+
+    function editModel(modelOrSlug) {
+      let m = null;
+      if (typeof modelOrSlug === 'object' && modelOrSlug !== null) {
+        m = modelOrSlug;
+      } else {
+        m = catalogModels.find(x => (x.slug || x.name) === modelOrSlug);
+      }
+      if (!m) return;
+      const slug = m.slug || m.name?.replace('.pt', '') || '';
+      document.getElementById('formTitle').value = m.title || '';
+      document.getElementById('formSlug').value = m.slug || slug;
+      document.getElementById('formDomain').value = m.domain || 'General';
+      document.getElementById('formDescription').value = m.description || '';
+      document.getElementById('formInputGuide').value = m.input_guide || '';
+      document.getElementById('formActiveCheckpoint').value = m.active_checkpoint || '';
+      document.getElementById('modalFormTitle').textContent = `Editar Modelo: ${m.title || slug}`;
+
+      // Extract existing thumbnail URL / Base64 from model data & trigger preview
+      const existingThumb = m.thumbnail_url || '';
+      setThumbnailValue(existingThumb);
+
+      toggleNewModelModal(true, 'manual');
+    }
+    window.openEditModal = editModel;
+
+    // Launch Scoped HITL Re-training (uses the model opened in the drawer)
+    async function launchScopedHitlTrain() {
+      const slug = currentInspectorSlug;
+      if (!slug) return;
+      if (!confirm(`¿Iniciar re-entrenamiento sobre las fotos verificadas del modelo '${slug}'?`)) return;
+
+      setHitlButton('launching');
+
+      try {
+        const res = await fetch(`/api/master/train-hitl?model_slug=${encodeURIComponent(slug)}`, { method: 'POST' });
+        const d = await res.json();
+        if (res.status === 202) {
+          wasJobRunning = true;
+          pollStatus();
+        } else {
+          alert('Error: ' + (d.detail || res.statusText));
+          setHitlButton('idle');
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+        setHitlButton('idle');
+      }
+    }
+
+    async function triggerGenericOp(action) {
+      const slug = currentInspectorSlug;
+      if (!confirm(`¿Lanzar operación '${action}' para ${slug}?`)) return;
+      try {
+        const res = await fetch(`/api/master/run?action=${encodeURIComponent(action)}&model_slug=${encodeURIComponent(slug)}`, { method: 'POST' });
+        if (res.ok) pollStatus();
+      } catch (e) { alert('Error: ' + e); }
+    }
+
+    let wasJobRunning = false;
+    let lastRenderedLogs = '';
+
+    // Polling Status
+    async function pollStatus() {
+      if (document.hidden && !wasJobRunning) return;
+      try {
+        const res = await fetch('/api/master/status');
+        if (!res.ok) return;
+        const d = await res.json();
+
+        if (d.is_running) {
+          wasJobRunning = true;
+          toggleTerminalVisibility(true);
+          masterStatusBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20 animate-pulse';
+          masterStatusBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>En Ejecución';
+          masterJobDetails.innerHTML = `Trabajo activo: <strong class="text-slate-900 font-mono">${d.action}</strong> | PID: ${d.pid || '-'}`;
+          setHitlButton('running');
+        } else {
+          if (wasJobRunning) {
+            wasJobRunning = false;
+            loadLogicalModels();
+            loadPhysicalModels();
+            if (currentInspectorSlug) {
+              loadOrchestrationContext(currentInspectorSlug);
+              openModelInspector(currentInspectorSlug, null, 'telemetry');
+            }
+          }
+          masterStatusBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10';
+          masterStatusBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Inactivo / Listo';
+          if (d.last_exit_code !== null) {
+            masterJobDetails.innerHTML = `Última tarea: <span class="font-mono">${d.action}</span> | Salida: ${d.last_exit_code === 0 ? '<strong class="text-emerald-700">0 (Éxito)</strong>' : '<strong class="text-red-500">' + d.last_exit_code + '</strong>'}`;
+          } else {
+            masterJobDetails.textContent = 'Ningún proceso en ejecución.';
+          }
+          setHitlButton('idle');
+        }
+
+        if (d.logs && d.logs.length) {
+          const joined = d.logs.join('\n');
+          if (joined !== lastRenderedLogs) {
+            lastRenderedLogs = joined;
+            masterLogTerminal.textContent = joined;
+            masterLogTerminal.scrollTop = masterLogTerminal.scrollHeight;
+          }
+        }
+
+      } catch (e) {}
+    }
+
+    let currentInspectorSlug = null;
+    let currentInspectorData = null;
+    let isObservabilityExpanded = true;
+
+    function toggleObservabilityPanel() {
+      const body = document.getElementById('observabilityContentBody');
+      const btn = document.getElementById('btnToggleObservability');
+      if (!body) return;
+      isObservabilityExpanded = !isObservabilityExpanded;
+      body.classList.toggle('hidden', !isObservabilityExpanded);
+      if (btn) btn.textContent = isObservabilityExpanded ? 'Ocultar' : 'Mostrar';
+    }
+
+    function formatDisplayLabel(str) {
+      if (!str) return '';
+      return String(str).replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    // 2. Metric Sparklines (Pure SVG with smooth bezier curve & gradient fill)
+    function renderSparkline(containerId, dataPoints) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      const pts = Array.isArray(dataPoints) && dataPoints.length > 0
+        ? dataPoints.map(Number)
+        : [60, 68, 74, 81, 85];
+
+      const width = 320;
+      const height = 128;
+      const padLeft = 28;
+      const padRight = 14;
+      const padTop = 16;
+      const padBottom = 24;
+      const plotW = width - padLeft - padRight;
+      const plotH = height - padTop - padBottom;
+
+      const minVal = Math.max(0, Math.floor((Math.min(...pts) - 5) / 5) * 5);
+      const maxVal = Math.min(100, Math.ceil((Math.max(...pts) + 5) / 5) * 5);
+      const range = Math.max(1, maxVal - minVal);
+
+      const coords = pts.map((v, i) => {
+        const x = padLeft + (pts.length === 1 ? plotW / 2 : (i / (pts.length - 1)) * plotW);
+        const y = padTop + plotH - ((v - minVal) / range) * plotH;
+        return { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)), val: v, round: i + 1 };
+      });
+
+      // Build smooth cubic bezier path
+      let linePath = `M ${coords[0].x} ${coords[0].y}`;
+      for (let i = 0; i < coords.length - 1; i++) {
+        const p0 = coords[i];
+        const p1 = coords[i + 1];
+        const cpx1 = (p0.x + p1.x) / 2;
+        const cpy1 = p0.y;
+        const cpx2 = (p0.x + p1.x) / 2;
+        const cpy2 = p1.y;
+        linePath += ` C ${cpx1.toFixed(1)} ${cpy1.toFixed(1)}, ${cpx2.toFixed(1)} ${cpy2.toFixed(1)}, ${p1.x} ${p1.y}`;
+      }
+
+      const areaPath = `${linePath} L ${coords[coords.length - 1].x} ${padTop + plotH} L ${coords[0].x} ${padTop + plotH} Z`;
+      const gradId = `sparkGrad_${containerId}`;
+
+      // Update header badges if present
+      const latestEl = document.getElementById('sparklineLatestValue');
+      if (latestEl) latestEl.textContent = `${pts[pts.length - 1].toFixed(1)}%`;
+      const deltaBadge = document.getElementById('telemetryDeltaBadge');
+      if (deltaBadge && pts.length > 1) {
+        const delta = pts[pts.length - 1] - pts[0];
+        const sign = delta >= 0 ? '+' : '';
+        deltaBadge.textContent = `${sign}${delta.toFixed(1)}% vs R1`;
+      }
+
+      const gridYValues = [minVal, Math.round((minVal + maxVal) / 2), maxVal];
+      const gridLinesSvg = gridYValues.map(gv => {
+        const gy = (padTop + plotH - ((gv - minVal) / range) * plotH).toFixed(1);
+        return `
+          <line x1="${padLeft}" y1="${gy}" x2="${width - padRight}" y2="${gy}" stroke="#e2e8f0" stroke-dasharray="2 2" stroke-width="1" />
+          <text x="${padLeft - 5}" y="${Number(gy) + 3}" text-anchor="end" fill="#94a3b8" font-size="8.5" font-family="ui-monospace, monospace">${gv}%</text>
+        `;
+      }).join('');
+
+      const pointsSvg = coords.map(c => `
+        <g class="group cursor-pointer">
+          <circle cx="${c.x}" cy="${c.y}" r="8" fill="transparent">
+            <title>Ronda ${c.round}: ${c.val.toFixed(1)}% Accuracy</title>
+          </circle>
+          <circle cx="${c.x}" cy="${c.y}" r="3" fill="#ffffff" stroke="#2563eb" stroke-width="2" class="transition-transform duration-150 group-hover:scale-125" />
+          <text x="${c.x}" y="${padTop + plotH + 15}" text-anchor="middle" fill="#64748b" font-size="9" font-family="ui-monospace, monospace">R${c.round}</text>
+        </g>
+      `).join('');
+
+      container.innerHTML = `
+        <svg viewBox="0 0 ${width} ${height}" class="w-full h-full overflow-visible select-none" role="img" aria-label="Evolución de precisión por ronda">
+          <defs>
+            <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#2563eb" stop-opacity="0.22" />
+              <stop offset="100%" stop-color="#2563eb" stop-opacity="0.0" />
+            </linearGradient>
+          </defs>
+          ${gridLinesSvg}
+          <path d="${areaPath}" fill="url(#${gradId})" />
+          <path d="${linePath}" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          ${pointsSvg}
+        </svg>
+      `;
+    }
+
+    // 3. Confusion Matrix Heatmap (Pure CSS Grid + dynamic Tailwind bg-blue-600 opacity + hover tooltips)
+    function renderConfusionMatrix(containerId, classes, matrixData) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      const clsList = Array.isArray(classes) && classes.length > 0
+        ? classes
+        : ['Sano', 'Repilo', 'Aculus'];
+      const matrix = Array.isArray(matrixData) && matrixData.length > 0
+        ? matrixData
+        : [
+            [42, 3, 1],
+            [4, 38, 2],
+            [1, 2, 45]
+          ];
+
+      const n = clsList.length;
+      const flatVals = matrix.flat().map(Number);
+      const maxCell = Math.max(1, ...flatVals);
+
+      let cellsHtml = `
+        <div class="flex items-center justify-end pr-1.5 pb-1 text-[9px] font-mono uppercase tracking-wider text-slate-400">
+          Real \\ Pred
+        </div>
+      `;
+
+      // Column headers (Predicted classes)
+      clsList.forEach(c => {
+        const cleanName = formatDisplayLabel(c);
+        cellsHtml += `
+          <div class="px-1 pb-1 text-center text-[10px] font-semibold text-slate-600 truncate" title="Predicho: ${cleanName}">
+            ${cleanName}
+          </div>
+        `;
+      });
+
+      // Rows (Real classes + Heatmap cells)
+      matrix.forEach((row, rIdx) => {
+        const realLabel = formatDisplayLabel(clsList[rIdx] || `Clase ${rIdx + 1}`);
+        cellsHtml += `
+          <div class="pr-2 flex items-center justify-end text-[10px] font-semibold text-slate-600 truncate" title="Real: ${realLabel}">
+            ${realLabel}
+          </div>
+        `;
+
+        row.forEach((val, cIdx) => {
+          const predLabel = formatDisplayLabel(clsList[cIdx] || `Clase ${cIdx + 1}`);
+          const numVal = Number(val) || 0;
+          const ratio = numVal / maxCell;
+          const opacity = numVal === 0 ? 0.04 : Number((0.12 + ratio * 0.83).toFixed(2));
+          const textColor = ratio > 0.55 ? 'text-white' : 'text-slate-900';
+          const tooltipText = `Predijo: ${predLabel}, Real: ${realLabel} (${numVal} casos)`;
+
+          cellsHtml += `
+            <div
+              class="group relative h-10 rounded-lg flex items-center justify-center font-mono text-xs font-semibold ${textColor} ring-1 ring-inset ring-slate-200/70 cursor-default select-none transition-transform duration-150 hover:scale-[1.03] hover:z-20"
+              title="${tooltipText}"
+            >
+              <div class="absolute inset-0 rounded-lg bg-blue-600 pointer-events-none transition-opacity" style="opacity: ${opacity}"></div>
+              <span class="relative z-10 tabular-nums">${numVal}</span>
+              <div class="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute -top-8 left-1/2 -translate-x-1/2 z-30 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[10px] font-sans font-medium text-white shadow-lg">
+                ${tooltipText}
+              </div>
+            </div>
+          `;
+        });
+      });
+
+      container.innerHTML = `
+        <div class="grid gap-1.5 items-center pt-1" style="grid-template-columns: minmax(68px, auto) repeat(${n}, minmax(44px, 1fr));">
+          ${cellsHtml}
+        </div>
+      `;
+    }
+
+    // 4. Mock Data Hook (Simulates history.json on Drawer Open)
+    function getMockHistoryPayload(modelClasses) {
+      const defaultClasses = Array.isArray(modelClasses) && modelClasses.length >= 3
+        ? modelClasses.slice(0, 3).map(formatDisplayLabel)
+        : ['Sano', 'Repilo', 'Aculus'];
+      return {
+        source: 'history.json',
+        rounds: [1, 2, 3, 4, 5],
+        accuracy_history: [60.0, 68.5, 74.2, 80.8, 85.0],
+        classes: defaultClasses,
+        confusion_matrix: [
+          [42, 3, 1],
+          [4, 38, 2],
+          [1, 2, 45]
+        ]
+      };
+    }
+
+    // --- Model Inspector & Telemetry ---
+    async function openModelInspector(slug, title, initialTab) {
+      currentInspectorSlug = slug;
+      const modal = document.getElementById('modelInspectorModal');
+      const panel = document.getElementById('inspectorPanel');
+      const backdrop = document.getElementById('inspectorBackdrop');
+      clearTimeout(inspectorCloseTimer);
+      modal.classList.remove('hidden');
+      document.body.classList.add('overflow-hidden');
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        panel.classList.remove('translate-x-full');
+        backdrop.classList.remove('opacity-0');
+      }));
+
+      const known = catalogModels.find(x => (x.slug || x.name) === slug);
+      document.getElementById('inspectorTitle').textContent = title || (known && known.title) || slug;
+      document.getElementById('inspectorArchBadge').textContent = '...';
+      document.getElementById('inspectorSubtitle').textContent = `slug: ${slug}`;
+      document.getElementById('inspectorActiveChkName').textContent = '...';
+      document.getElementById('inspectorActiveSizeBadge').textContent = '- MB';
+      document.getElementById('metricAccuracy').textContent = '-';
+      document.getElementById('metricPrecision').textContent = '-';
+      document.getElementById('metricRecall').textContent = '-';
+      document.getElementById('metricF1').textContent = '-';
+      document.getElementById('metricLoss').textContent = '-';
+      document.getElementById('metricTemp').textContent = '-';
+      document.getElementById('inspectorThresholdsList').innerHTML = '<div class="text-slate-400 text-xs">Cargando...</div>';
+      document.getElementById('inspectorVersionsTbody').innerHTML = '<tr><td colspan="6" class="p-3 text-center text-slate-400">Cargando versiones...</td></tr>';
+      document.getElementById('inspectorConfusionMatrixContainer').innerHTML = '<div class="text-slate-400 text-xs">Cargando matriz...</div>';
+      
+      document.getElementById('gradcamResultBox').classList.add('hidden');
+      document.getElementById('gradcamFileInput').value = '';
+      document.getElementById('compareResultBox').classList.add('hidden');
+      document.getElementById('compareFileInput').value = '';
+      document.getElementById('compareGroundTruthInput').value = '';
+
+      switchInspectorTab(initialTab || 'orchestration');
+      loadOrchestrationContext(slug);
+
+      // 0. Mock Data Hook (history.json payload) — Immediate visual rendering on Drawer open
+      const initialMockHistory = getMockHistoryPayload(known && known.classes);
+      renderSparkline('inspectorSparklineContainer', initialMockHistory.accuracy_history);
+      renderConfusionMatrix('inspectorMatrixHeatmapContainer', initialMockHistory.classes, initialMockHistory.confusion_matrix);
+      renderConfusionMatrix('inspectorConfusionMatrixContainer', initialMockHistory.classes, initialMockHistory.confusion_matrix);
+
+      try {
+        const res = await fetch(`/api/master/models/${encodeURIComponent(slug)}/telemetry`);
+        if (!res.ok) throw new Error('No se pudo cargar la telemetría del modelo');
+        const d = await res.json();
+        if (slug !== currentInspectorSlug) return;
+        currentInspectorData = d;
+
+        document.getElementById('inspectorTitle').textContent = d.title || d.slug;
+        document.getElementById('inspectorArchBadge').textContent = d.architecture || 'resnet18';
+        const sizeMb = (d.size_bytes / (1024 * 1024)).toFixed(1);
+        document.getElementById('inspectorSubtitle').textContent = `slug: ${d.slug} | ${d.num_classes} clases`;
+        document.getElementById('inspectorActiveChkName').textContent = d.checkpoint;
+        document.getElementById('inspectorActiveSizeBadge').textContent = `${sizeMb} MB`;
+
+        // 1. Version History Table & A/B Selectors
+        const vTbody = document.getElementById('inspectorVersionsTbody');
+        vTbody.innerHTML = '';
+        const selectA = document.getElementById('compareSelectVersionA');
+        const selectB = document.getElementById('compareSelectVersionB');
+        selectA.innerHTML = '';
+        selectB.innerHTML = '';
+
+        const versions = d.version_history || [];
+        if (versions.length === 0) {
+          vTbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">No hay versiones registradas.</td></tr>';
+          const opt = document.createElement('option');
+          opt.value = d.checkpoint;
+          opt.textContent = `Activo: ${d.checkpoint}`;
+          selectA.appendChild(opt);
+          selectB.appendChild(opt.cloneNode(true));
+        } else {
+          versions.forEach((v, idx) => {
+            // Populate select options
+            const optA = document.createElement('option');
+            optA.value = v.version_id;
+            optA.textContent = `${v.version_id}: ${v.checkpoint} (${v.status})`;
+            selectA.appendChild(optA);
+
+            const optB = document.createElement('option');
+            optB.value = v.version_id;
+            optB.textContent = `${v.version_id}: ${v.checkpoint} (${v.status})`;
+            selectB.appendChild(optB);
+
+            // Populate table row
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50/80 transition-colors text-xs';
+            
+            const originColors = {
+              'train_base': 'bg-blue-50 text-blue-700 border-blue-200',
+              'federated_aggregation': 'bg-purple-50 text-purple-700 border-purple-200',
+              'hitl_curation': 'bg-amber-50 text-amber-700 border-amber-200',
+              'imported': 'bg-slate-100 text-slate-700 border-slate-200',
+            };
+            const originClass = originColors[v.origin] || originColors['imported'];
+
+            const statusColors = {
+              'active': 'bg-emerald-100 text-emerald-800 border-emerald-200',
+              'candidate': 'bg-amber-100 text-amber-800 border-amber-200',
+              'archived': 'bg-slate-100 text-slate-600 border-slate-200',
+            };
+            const statusClass = statusColors[v.status] || statusColors['archived'];
+
+            const evalBadge = v.evaluation_report
+              ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Reporte Asociado</span>`
+              : `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-400">Sin Reporte</span>`;
+
+            tr.innerHTML = `
+              <td class="p-3 font-mono font-bold text-slate-900">${v.version_id}</td>
+              <td class="p-3 font-mono text-slate-600">${v.checkpoint}</td>
+              <td class="p-3">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${originClass}">${v.origin}</span>
+              </td>
+              <td class="p-3 text-slate-500 text-[11px] font-mono">${v.created_at || '-'}</td>
+              <td class="p-3">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${statusClass}">${v.status.toUpperCase()}</span>
+              </td>
+              <td class="p-3">${evalBadge}</td>
+            `;
+            vTbody.appendChild(tr);
+          });
+
+          // Set default selection: version A = v1, version B = v2 (or last)
+          if (versions.length > 1) {
+            selectA.selectedIndex = 0;
+            selectB.selectedIndex = versions.length > 1 ? 1 : 0;
+          }
+        }
+
+        // 2. Evaluation Scope & Metrics / Actionable Empty State
+        const evalNotice = document.getElementById('inspectorEvalNotice');
+        const evalSourceText = document.getElementById('inspectorEvalSourceText');
+        const evalChkBadge = document.getElementById('inspectorEvalChkBadge');
+        const btnLaunchEval = document.getElementById('btnLaunchEvaluation');
+
+        if (d.has_eval_report) {
+          evalNotice.className = 'p-3.5 rounded-xl bg-indigo-50/80 border border-indigo-200/80 flex flex-wrap items-center justify-between gap-3 text-xs text-indigo-900';
+          evalSourceText.textContent = d.eval_source || 'docs/images/evaluation_report.json';
+          evalChkBadge.textContent = d.evaluated_checkpoint || d.checkpoint;
+          evalChkBadge.classList.remove('hidden');
+          if (btnLaunchEval) btnLaunchEval.classList.add('hidden');
+        } else {
+          evalNotice.className = 'p-3.5 rounded-xl bg-slate-50 border border-dashed border-slate-300 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-700';
+          evalSourceText.textContent = 'Sin informe de evaluación verificado para este checkpoint.';
+          evalChkBadge.classList.add('hidden');
+          if (btnLaunchEval) {
+            btnLaunchEval.classList.remove('hidden');
+            btnLaunchEval.disabled = false;
+            btnLaunchEval.innerHTML = `
+              <svg class="w-3.5 h-3.5 text-slate-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              <span>Lanzar Evaluación de Rendimiento</span>
+            `;
+          }
+        }
+
+        // Key metrics: standard Data Science suite (Accuracy, Precision, Recall, F1, Loss, Temp)
+        const m = d.metrics || {};
+        const macro = m.macro_avg || {};
+
+        // 1. Precisión Global
+        if (m.overall_accuracy !== null && m.overall_accuracy !== undefined) {
+          document.getElementById('metricAccuracy').textContent = `${m.overall_accuracy.toFixed(1)}%`;
+        } else {
+          document.getElementById('metricAccuracy').textContent = 'N/A';
+        }
+
+        // 2. Macro Precision
+        const precVal = m.macro_precision ?? macro.precision;
+        if (precVal !== null && precVal !== undefined) {
+          document.getElementById('metricPrecision').textContent = `${(precVal * 100).toFixed(1)}%`;
+        } else {
+          document.getElementById('metricPrecision').textContent = 'N/A';
+        }
+
+        // 3. Macro Recall
+        const recVal = m.macro_recall ?? macro.recall;
+        if (recVal !== null && recVal !== undefined) {
+          document.getElementById('metricRecall').textContent = `${(recVal * 100).toFixed(1)}%`;
+        } else {
+          document.getElementById('metricRecall').textContent = 'N/A';
+        }
+
+        // 4. Macro F1
+        const f1Val = m.macro_f1 ?? macro.f1_score;
+        if (f1Val !== null && f1Val !== undefined) {
+          document.getElementById('metricF1').textContent = `${(f1Val * 100).toFixed(1)}%`;
+        } else {
+          document.getElementById('metricF1').textContent = 'N/A';
+        }
+
+        // 5. Cross-Entropy Loss
+        if (m.cross_entropy_loss !== null && m.cross_entropy_loss !== undefined) {
+          document.getElementById('metricLoss').textContent = m.cross_entropy_loss.toFixed(3);
+        } else {
+          document.getElementById('metricLoss').textContent = 'N/A';
+        }
+
+        // 6. Temperatura T*
+        document.getElementById('metricTemp').textContent = (d.temperature || 1.0).toFixed(2);
+
+        // Calibrated Thresholds
+        const threshList = document.getElementById('inspectorThresholdsList');
+        threshList.innerHTML = '';
+        const taus = d.calibrated_thresholds || {};
+        const classes = d.classes || Object.keys(taus);
+        if (classes.length === 0) {
+          threshList.innerHTML = '<div class="text-slate-400 text-xs col-span-3">No hay umbrales calibrados registrados.</div>';
+        } else {
+          classes.forEach(c => {
+            const tauVal = taus[c] !== undefined ? taus[c].toFixed(2) : '0.50 (def)';
+            const card = document.createElement('div');
+            card.className = 'p-2.5 rounded-lg bg-white border border-slate-200 flex items-center justify-between shadow-2xs';
+            card.innerHTML = `
+              <span class="font-medium text-slate-700 capitalize truncate mr-2">${c.replace(/_/g, ' ')}</span>
+              <span class="font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded text-[11px] border border-indigo-200/60 shrink-0">&tau; = ${tauVal}</span>
+            `;
+            threshList.appendChild(card);
+          });
+        }
+
+        // Confusion Matrix & Observability refresh with model classes
+        const matrixData = d.confusion_matrix?.matrix;
+        const matrixClasses = d.confusion_matrix?.classes || classes;
+        const sourceLabel = document.getElementById('matrixSourceLabel');
+        const resolvedMock = getMockHistoryPayload(classes);
+
+        if (d.eval_source) {
+          sourceLabel.textContent = `Evaluado sobre: ${d.evaluated_checkpoint || d.checkpoint}`;
+        } else {
+          sourceLabel.textContent = 'Simulación history.json (5 rondas FL)';
+        }
+
+        if (matrixData && Array.isArray(matrixData) && matrixData.length > 0) {
+          renderConfusionMatrix('inspectorMatrixHeatmapContainer', matrixClasses.slice(0, 5), matrixData.slice(0, 5).map(r => r.slice(0, 5)));
+          renderConfusionMatrix('inspectorConfusionMatrixContainer', matrixClasses, matrixData);
+        } else {
+          renderConfusionMatrix('inspectorMatrixHeatmapContainer', resolvedMock.classes, resolvedMock.confusion_matrix);
+          renderConfusionMatrix('inspectorConfusionMatrixContainer', resolvedMock.classes, resolvedMock.confusion_matrix);
+        }
+
+      } catch (err) {
+        document.getElementById('inspectorSubtitle').textContent = `slug: ${slug} | telemetría no disponible (${err.message})`;
+      }
+    }
+
+    let inspectorCloseTimer = null;
+
+    function closeModelInspector() {
+      const modal = document.getElementById('modelInspectorModal');
+      if (modal.classList.contains('hidden')) return;
+      document.getElementById('inspectorPanel').classList.add('translate-x-full');
+      document.getElementById('inspectorBackdrop').classList.add('opacity-0');
+      currentInspectorSlug = null;
+      currentInspectorData = null;
+      clearTimeout(inspectorCloseTimer);
+      inspectorCloseTimer = setTimeout(() => {
+        modal.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+      }, 300);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && currentInspectorSlug) closeModelInspector();
+    });
+
+    async function launchModelEvaluation(targetSlug) {
+      const slug = targetSlug || currentInspectorSlug;
+      if (!slug) return;
+      const btn = document.getElementById('btnLaunchEvaluation');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `${SPINNER_SVG}<span>Evaluando modelo...</span>`;
+      }
+
+      try {
+        const res = await fetch(`/api/master/models/${encodeURIComponent(slug)}/evaluate`, {
+          method: 'POST',
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert('No se pudo iniciar la evaluación: ' + (data.detail || res.statusText));
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `
+              <svg class="w-3.5 h-3.5 text-slate-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              <span>Lanzar Evaluación de Rendimiento</span>
+            `;
+          }
+          return;
+        }
+
+        wasJobRunning = true;
+        pollStatus();
+        toggleTerminalVisibility(true);
+        const terminal = document.getElementById('masterLogTerminal');
+        if (terminal) terminal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast(`Evaluación de rendimiento en curso para '${slug}'.`, 'info', 5000);
+        }
+      } catch (err) {
+        alert('Error al lanzar la evaluación: ' + err.message);
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `
+            <svg class="w-3.5 h-3.5 text-slate-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            <span>Lanzar Evaluación de Rendimiento</span>
+          `;
+        }
+      }
+    }
+
+    function switchInspectorTab(tab) {
+      const tabs = {
+        'orchestration': { content: 'inspectorTabOrchestration', btn: 'tabBtnOrchestration' },
+        'lineage': { content: 'inspectorTabLineage', btn: 'tabBtnLineage' },
+        'telemetry': { content: 'inspectorTabTelemetry', btn: 'tabBtnTelemetry' },
+        'compare': { content: 'inspectorTabCompare', btn: 'tabBtnCompare' },
+        'gradcam': { content: 'inspectorTabGradcam', btn: 'tabBtnGradcam' },
+      };
+
+      Object.keys(tabs).forEach(k => {
+        const cElem = document.getElementById(tabs[k].content);
+        const bElem = document.getElementById(tabs[k].btn);
+        if (!cElem || !bElem) return;
+
+        if (k === tab) {
+          cElem.classList.remove('hidden');
+          bElem.className = 'py-3 border-b-2 border-slate-900 text-slate-900 shrink-0 transition-colors';
+        } else {
+          cElem.classList.add('hidden');
+          bElem.className = 'py-3 border-b-2 border-transparent text-slate-500 hover:text-slate-800 shrink-0 transition-colors';
+        }
+      });
+    }
+
+    async function runInspectorCompareAB() {
+      if (!currentInspectorSlug) return;
+      const fileInput = document.getElementById('compareFileInput');
+      if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Por favor, selecciona una imagen de prueba para la comparación A/B.');
+        return;
+      }
+
+      const vA = document.getElementById('compareSelectVersionA').value;
+      const vB = document.getElementById('compareSelectVersionB').value;
+      const gt = document.getElementById('compareGroundTruthInput').value.trim();
+
+      const btn = document.getElementById('btnRunCompare');
+      btn.disabled = true;
+      btn.textContent = 'Comparando...';
+
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+
+      let url = `/api/master/models/${encodeURIComponent(currentInspectorSlug)}/compare-ab?version_a=${encodeURIComponent(vA)}&version_b=${encodeURIComponent(vB)}&include_gradcam=true`;
+      if (gt) {
+        url += `&ground_truth_class=${encodeURIComponent(gt)}`;
+      }
+
+      try {
+        const res = await fetch(url, { method: 'POST', body: formData });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || res.statusText);
+
+        // Summary Banner
+        const sumBanner = document.getElementById('compareSummaryBanner');
+        if (d.agreement) {
+          sumBanner.className = 'p-3.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 text-xs font-medium';
+        } else {
+          sumBanner.className = 'p-3.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs font-medium';
+        }
+        sumBanner.textContent = d.summary;
+
+        // Version A render
+        const a = d.version_a;
+        document.getElementById('compLabelA').textContent = `${a.version_id} (${a.checkpoint})`;
+        document.getElementById('compStatusA').textContent = `${a.origin} | ${a.status}`;
+        document.getElementById('compPredA').textContent = a.predicted_class_name.toUpperCase();
+        document.getElementById('compConfA').textContent = `${(a.confidence * 100).toFixed(1)}%`;
+        
+        const gtBadgeA = document.getElementById('compGtBadgeA');
+        if (a.matches_ground_truth !== null && a.matches_ground_truth !== undefined) {
+          gtBadgeA.classList.remove('hidden');
+          if (a.matches_ground_truth) {
+            gtBadgeA.className = 'text-center py-1 rounded-md text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200';
+            gtBadgeA.textContent = 'COINCIDE CON ETIQUETA REAL';
+          } else {
+            gtBadgeA.className = 'text-center py-1 rounded-md text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200';
+            gtBadgeA.textContent = 'DIFIERE DE ETIQUETA REAL';
+          }
+        } else {
+          gtBadgeA.classList.add('hidden');
+        }
+
+        if (a.cam_overlay_base64) {
+          document.getElementById('compImgA').src = a.cam_overlay_base64;
+          document.getElementById('compImgA').classList.remove('hidden');
+        } else {
+          document.getElementById('compImgA').classList.add('hidden');
+        }
+
+        if (a.aggregate_metrics && a.aggregate_metrics.overall_accuracy !== null) {
+          document.getElementById('compMetricsA').textContent = `Acc Test: ${a.aggregate_metrics.overall_accuracy.toFixed(1)}% | Loss: ${a.aggregate_metrics.cross_entropy_loss?.toFixed(3) || 'N/A'}`;
+        } else {
+          document.getElementById('compMetricsA').textContent = 'Sin reporte de evaluación independiente';
+        }
+
+        // Version B render
+        const b = d.version_b;
+        document.getElementById('compLabelB').textContent = `${b.version_id} (${b.checkpoint})`;
+        document.getElementById('compStatusB').textContent = `${b.origin} | ${b.status}`;
+        document.getElementById('compPredB').textContent = b.predicted_class_name.toUpperCase();
+        document.getElementById('compConfB').textContent = `${(b.confidence * 100).toFixed(1)}%`;
+
+        const gtBadgeB = document.getElementById('compGtBadgeB');
+        if (b.matches_ground_truth !== null && b.matches_ground_truth !== undefined) {
+          gtBadgeB.classList.remove('hidden');
+          if (b.matches_ground_truth) {
+            gtBadgeB.className = 'text-center py-1 rounded-md text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200';
+            gtBadgeB.textContent = 'COINCIDE CON ETIQUETA REAL';
+          } else {
+            gtBadgeB.className = 'text-center py-1 rounded-md text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200';
+            gtBadgeB.textContent = 'DIFIERE DE ETIQUETA REAL';
+          }
+        } else {
+          gtBadgeB.classList.add('hidden');
+        }
+
+        if (b.cam_overlay_base64) {
+          document.getElementById('compImgB').src = b.cam_overlay_base64;
+          document.getElementById('compImgB').classList.remove('hidden');
+        } else {
+          document.getElementById('compImgB').classList.add('hidden');
+        }
+
+        if (b.aggregate_metrics && b.aggregate_metrics.overall_accuracy !== null) {
+          document.getElementById('compMetricsB').textContent = `Acc Test: ${b.aggregate_metrics.overall_accuracy.toFixed(1)}% | Loss: ${b.aggregate_metrics.cross_entropy_loss?.toFixed(3) || 'N/A'}`;
+        } else {
+          document.getElementById('compMetricsB').textContent = 'Sin reporte de evaluación independiente';
+        }
+
+        document.getElementById('compareResultBox').classList.remove('hidden');
+      } catch (err) {
+        alert('Error en Comparación A/B: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Comparar A / B';
+      }
+    }
+
+    async function runInspectorGradcam() {
+      if (!currentInspectorSlug) return;
+      const fileInput = document.getElementById('gradcamFileInput');
+      if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Por favor, selecciona una imagen primero.');
+        return;
+      }
+
+      const btn = document.getElementById('btnRunGradcam');
+      btn.disabled = true;
+      btn.textContent = 'Procesando...';
+
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+
+      try {
+        const res = await fetch(`/api/master/models/${encodeURIComponent(currentInspectorSlug)}/gradcam`, {
+          method: 'POST',
+          body: formData,
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || res.statusText);
+
+        document.getElementById('gradcamPredClass').textContent = (d.predicted_class_name || '-').toUpperCase();
+        document.getElementById('gradcamConfidence').textContent = `${(d.confidence * 100).toFixed(1)}%`;
+        document.getElementById('gradcamImagePreview').src = d.cam_overlay_base64;
+        document.getElementById('gradcamResultBox').classList.remove('hidden');
+      } catch (err) {
+        alert('Error al generar Grad-CAM: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generar Grad-CAM';
+      }
+    }
+
+    // --- Federated Updates Inbox & Secure Aggregation Workflow ---
+    let currentEligibleCount = 0;
+
+    async function loadFederatedUpdates(targetSlug) {
+      const slug = targetSlug || currentInspectorSlug;
+      const tbody = document.getElementById('flUpdatesTbody');
+      if (!slug || !tbody) return;
+      const url = `/api/master/federated/updates?target_model=${encodeURIComponent(slug)}`;
+
+      // Loading skeleton
+      tbody.innerHTML = Array.from({ length: 3 }, () => `
+        <tr class="animate-pulse">
+          <td class="py-3 pr-2"><div class="h-3 w-3 rounded bg-slate-100 mx-auto"></div></td>
+          <td class="py-3 px-2"><div class="h-3 w-28 rounded bg-slate-100"></div><div class="h-2 w-20 rounded bg-slate-100 mt-1.5"></div></td>
+          <td class="py-3 px-2"><div class="h-3 w-8 rounded bg-slate-100"></div></td>
+          <td class="py-3 px-2"><div class="h-3 w-16 rounded bg-slate-100"></div></td>
+          <td class="py-3 pl-2"><div class="h-4 w-14 rounded bg-slate-100 ml-auto"></div></td>
+        </tr>`).join('');
+
+      try {
+        const res = await fetch(url);
+        if (slug !== currentInspectorSlug) return;
+        if (!res.ok) {
+          tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-xs text-red-500">No se pudieron cargar las actualizaciones.</td></tr>';
+          return;
+        }
+        const d = await res.json();
+        if (slug !== currentInspectorSlug) return;
+        const updates = d.updates || [];
+
+        const countBadge = document.getElementById('flUpdatesCountBadge');
+        const elBadge = document.getElementById('flEligibleBadge');
+        const reBadge = document.getElementById('flRejectedBadge');
+        if (countBadge) countBadge.textContent = `${updates.length} disponibles`;
+        if (elBadge) elBadge.textContent = `${d.eligible_count || 0} aptas`;
+        if (reBadge) reBadge.textContent = `${d.rejected_count || 0} rechazadas`;
+        currentEligibleCount = d.eligible_count || 0;
+        tbody.innerHTML = '';
+
+        if (updates.length === 0) {
+          tbody.innerHTML = `
+            <tr><td colspan="5" class="py-10">
+              <div class="flex flex-col items-center text-center gap-2">
+                <div class="w-10 h-10 rounded-xl bg-slate-50 ring-1 ring-inset ring-slate-200 flex items-center justify-center text-slate-400">
+                  <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                </div>
+                <div class="text-xs font-medium text-slate-700">Sin actualizaciones federadas pendientes</div>
+                <div class="text-[11px] text-slate-400 max-w-xs">Cuando los clientes suban artefactos a <code class="font-mono">models/client_updates/</code> aparecerán aquí auditados contra este modelo.</div>
+              </div>
+            </td></tr>`;
+          updateSelectedCount();
+          checkCandidateStatus(slug);
+          return;
+        }
+
+        updates.forEach(u => {
+          const tr = document.createElement('tr');
+          tr.className = `hover:bg-slate-50 transition-colors duration-150 ${!u.is_eligible ? 'opacity-60' : ''}`;
+
+          const lineageBadge = u.lineage_matched
+            ? '<span class="text-emerald-700 font-medium">Coincide</span>'
+            : '<span class="text-red-500 font-medium" title="base_model_sha256 difiere del checkpoint activo">Discrepancia</span>';
+
+          const reasonsTooltip = (u.rejection_reasons || []).join(' | ');
+          const statusBadge = u.is_eligible
+            ? '<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10">APTA</span>'
+            : `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/10 cursor-help" title="${reasonsTooltip}">RECHAZADA</span>`;
+
+          const checkboxHtml = u.is_eligible
+            ? `<input type="checkbox" class="fl-update-check rounded text-slate-900 cursor-pointer" value="${u.path}" onchange="updateSelectedCount()" checked>`
+            : `<input type="checkbox" class="rounded text-slate-300 cursor-not-allowed" disabled title="${reasonsTooltip}">`;
+
+          tr.innerHTML = `
+            <td class="py-3 pr-2 text-center">${checkboxHtml}</td>
+            <td class="py-3 px-2">
+              <div class="font-medium text-slate-900">${u.client_id}</div>
+              <div class="font-mono text-[10px] text-slate-500 truncate max-w-[180px]" title="${u.filename}">${u.filename}</div>
+            </td>
+            <td class="py-3 px-2 font-mono text-slate-600">${u.num_samples || 0}</td>
+            <td class="py-3 px-2 font-mono text-[11px]">${lineageBadge}</td>
+            <td class="py-3 pl-2 text-right">${statusBadge}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        updateSelectedCount();
+        checkCandidateStatus(slug);
+      } catch (e) {
+        if (slug === currentInspectorSlug) {
+          tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-xs text-red-500">Error de red al cargar actualizaciones.</td></tr>';
+        }
+      }
+    }
+
+    function toggleSelectAllEligible(checked) {
+      document.querySelectorAll('.fl-update-check').forEach(cb => {
+        cb.checked = checked;
+      });
+      updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+      const selected = document.querySelectorAll('.fl-update-check:checked');
+      const summary = document.getElementById('flSelectedSummary');
+      const btn = document.getElementById('btnLaunchAggregate');
+
+      if (summary) {
+        summary.textContent = `${selected.length} seleccionada(s) de ${currentEligibleCount} apta(s)`;
+      }
+      if (btn) {
+        btn.disabled = selected.length === 0;
+      }
+    }
+
+    async function launchSecureAggregation() {
+      const slug = currentInspectorSlug;
+      if (!slug) {
+        alert('Selecciona un modelo objetivo primero.');
+        return;
+      }
+
+      const selectedCbs = document.querySelectorAll('.fl-update-check:checked');
+      const selectedPaths = Array.from(selectedCbs).map(cb => cb.value);
+
+      if (selectedPaths.length === 0) {
+        alert('Debes seleccionar al menos una actualización apta para agregar.');
+        return;
+      }
+
+      const btn = document.getElementById('btnLaunchAggregate');
+      btn.disabled = true;
+      btn.innerHTML = `${SPINNER_SVG}<span>Iniciando agregación...</span>`;
+
+      try {
+        const payload = {
+          target_model_slug: slug,
+          selected_update_paths: selectedPaths,
+          server_momentum: 0.9,
+          server_lr: 1.0,
+          allow_new_classes: true,
+          max_acc_drop: 0.03,
+        };
+
+        const res = await fetch('/api/master/federated/aggregate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || res.statusText);
+
+        pollStatus();
+        setTimeout(() => checkCandidateStatus(slug), 3000);
+      } catch (err) {
+        alert('Error al lanzar agregación segura: ' + err.message);
+      } finally {
+        btn.textContent = 'Consolidar FedAvgM';
+        updateSelectedCount();
+      }
+    }
+
+    async function checkCandidateStatus(slug) {
+      try {
+        const res = await fetch(`/api/master/federated/operations?slug=${encodeURIComponent(slug)}`);
+        if (!res.ok) return;
+        const d = await res.json();
+        const ops = d.operations || [];
+        const panel = document.getElementById('flCandidatePanel');
+
+        if (ops.length === 0 || !ops[0].candidate_checkpoint) {
+          if (panel) panel.classList.add('hidden');
+          return;
+        }
+
+        const latest = ops[0];
+        if (panel) panel.classList.remove('hidden');
+
+        document.getElementById('flCandidateFileName').textContent = latest.candidate_checkpoint;
+        const badge = document.getElementById('flCandidateGuardrailBadge');
+        const metricsText = document.getElementById('flCandidateMetricsText');
+
+        if (latest.guardrail_status === 'PASSED') {
+          badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200';
+          badge.textContent = 'GUARDARRAÍL PASADO';
+        } else if (latest.guardrail_status === 'REJECTED') {
+          badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200';
+          badge.textContent = 'RECHAZADO POR REGRESIÓN';
+        } else {
+          badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200';
+          badge.textContent = 'PENDIENTE EVALUACIÓN';
+        }
+
+        if (latest.post_aggregation_acc !== null && latest.post_aggregation_acc !== undefined) {
+          metricsText.textContent = `Acc: ${(latest.post_aggregation_acc * 100).toFixed(1)}% | Loss: ${latest.post_aggregation_loss?.toFixed(3) || 'N/A'}`;
+        } else {
+          metricsText.textContent = latest.status;
+        }
+      } catch (e) {}
+    }
+
+    async function inspectCandidateInAB() {
+      const slug = currentInspectorSlug;
+      if (!slug) return;
+      switchInspectorTab('compare');
+    }
+
+    async function promoteCurrentCandidate() {
+      const slug = currentInspectorSlug;
+      if (!slug) return;
+
+      if (!confirm(`¿Confirmas la promoción atómica del candidato a producción para el modelo '${slug}'? Se creará una instantánea de respaldo previa.`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/master/models/${encodeURIComponent(slug)}/promote-candidate`, {
+          method: 'POST',
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || res.statusText);
+
+        alert(d.message);
+        loadLogicalModels();
+        checkCandidateStatus(slug);
+      } catch (err) {
+        alert('Error al promover candidato: ' + err.message);
+      }
+    }
+
+    async function rollbackActiveModel() {
+      const slug = currentInspectorSlug;
+      if (!slug) return;
+
+      if (!confirm(`¿Confirmas revertir el modelo activo '${slug}' a su versión anterior de respaldo?`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/master/models/${encodeURIComponent(slug)}/rollback`, {
+          method: 'POST',
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || res.statusText);
+
+        alert(d.message);
+        loadLogicalModels();
+        checkCandidateStatus(slug);
+      } catch (err) {
+        alert('Error en rollback: ' + err.message);
+      }
+    }
+
+    // --- Auto-FL Recommender ---
+    function toggleAutoFlAccordion() {
+      const panel = document.getElementById('autoFlPanel');
+      const toggleText = document.getElementById('autoFlToggleText');
+      if (panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        toggleText.innerHTML = 'Ocultar &uarr;';
+      } else {
+        panel.classList.add('hidden');
+        toggleText.innerHTML = 'Configurar &darr;';
+      }
+    }
+
+    async function computeArchRecommendation() {
+      const tier = document.getElementById('autoFlClientTier').value;
+      const samplesVal = document.getElementById('autoFlSamples').value;
+      const samples = samplesVal ? parseInt(samplesVal, 10) : null;
+      const resContainer = document.getElementById('autoFlResults');
+      resContainer.innerHTML = '<div class="text-slate-400 text-xs">Analizando hardware y restricciones...</div>';
+
+      try {
+        const payload = {
+          task: 'classification',
+          target_client_tier: tier,
+          dataset_sample_count: samples,
+        };
+        const res = await fetch('/api/master/recommend-arch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const d = await res.json();
+        const recs = d.recommendations || [];
+
+        resContainer.innerHTML = '';
+        recs.slice(0, 3).forEach((r, idx) => {
+          const isTop = idx === 0;
+          const card = document.createElement('div');
+          card.className = `p-2.5 rounded-xl border ${isTop ? 'bg-indigo-50/70 border-indigo-200' : 'bg-white border-slate-200'} space-y-1`;
+          card.innerHTML = `
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-slate-900">${r.architecture}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isTop ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'}">
+                Score: ${r.federated_suitability_score}/100
+              </span>
+            </div>
+            <p class="text-[10px] text-slate-600 leading-tight">${r.rationale}</p>
+            <div class="text-[9px] font-mono text-slate-400">Tamaño: ${r.checkpoint_size_mb} MB | Batch: ${r.recommended_batch_size}</div>
+          `;
+          resContainer.appendChild(card);
+        });
+      } catch (err) {
+        resContainer.innerHTML = `<div class="text-rose-600 text-xs">Error: ${err.message}</div>`;
+      }
+    }
+
+    setInterval(pollStatus, 3000);
+    pollStatus();
+    loadLogicalModels();
+    loadTrashModels();
+    loadPhysicalModels();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('launched') || window.location.search.includes('job=running')) {
+      const launchedSlug = urlParams.get('launched');
+      const launchedTitle = urlParams.get('title') || launchedSlug || 'nuevo modelo';
+
+      toggleTerminalVisibility(true);
+      const terminal = document.getElementById('masterLogTerminal');
+      if (terminal) {
+        setTimeout(() => terminal.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350);
+      }
+
+      // Prevent double notifications by clearing any pending flash toast
+      sessionStorage.removeItem('khaos_flash_toast');
+
+      if (window.KhaosUI && KhaosUI.toast) {
+        KhaosUI.toast(
+          `Entrenamiento en cola: "${launchedTitle}". Proceso asíncrono en ejecución en segundo plano.`,
+          'info',
+          6000
+        );
+      }
+      history.replaceState({}, document.title, window.location.pathname);
+    }
+  </script>
+</body>
+</html>

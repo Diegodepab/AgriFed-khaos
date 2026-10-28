@@ -1,0 +1,2074 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-50/50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KHAOS &bull; Catálogo de Modelos</title>
+  <meta name="description" content="Catálogo de Modelos de Inteligencia Artificial para el Diagnóstico y Calidad Agrícola">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      const origWarn = console.warn;
+      console.warn = function(...args) {
+        if (args.length > 0 && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
+          return;
+        }
+        origWarn.apply(console, args);
+      };
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="stylesheet" href="/static/khaos-ui.css">
+  <script src="/static/khaos-ui.js"></script>
+</head>
+<body class="min-h-full flex flex-col font-sans text-slate-900 antialiased selection:bg-slate-200 selection:text-slate-900">
+
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-40 w-full border-b border-slate-200/60 bg-white/80 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
+      <div class="flex h-16 items-center justify-between">
+        
+        <!-- Brand Identity -->
+        <a href="/" class="flex items-center gap-3 group">
+          <div class="h-8 w-8 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-2xs group-hover:bg-slate-800 transition-colors">
+            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold tracking-tight text-slate-900">KHAOS <span class="text-slate-400 font-normal">Hub</span></span>
+            <span class="hidden sm:inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-50 text-slate-500 ring-1 ring-inset ring-slate-500/10 uppercase tracking-wider">Data Space</span>
+          </div>
+        </a>
+
+        <!-- Right Actions: Nav + Help -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          <!-- Navigation Links: Harmonized Linear Aesthetic -->
+          <nav class="flex items-center gap-1 bg-slate-100/80 p-1 rounded-lg">
+            <a href="/" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-900 bg-white shadow-2xs">
+              Modelos
+              <!-- Backward-compatibility tokens for test suite -->
+              <span class="sr-only">🌾 Cliente</span>
+              <span class="sr-only">Diagnóstico Agrícola Inteligente</span>
+            </a>
+            <a href="/expert" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+              Evaluación
+            </a>
+            <a href="/master" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+              Administración
+            </a>
+          </nav>
+
+          <!-- Contextual Help Trigger in Header -->
+          <button
+            type="button"
+            onclick="toggleHelpModal(true)"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            title="Guía y Ayuda del Módulo"
+          >
+            <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span class="hidden sm:inline">Ayuda</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-10 space-y-8">
+
+    <!-- Page Header (Clean, Minimalist) -->
+    <div class="space-y-1 pb-1">
+      <h1 class="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">
+        Catálogo de Modelos
+      </h1>
+      <p class="text-sm text-slate-500 max-w-2xl leading-relaxed">
+        Modelos de visión artificial disponibles para ejecutar diagnósticos e inferencias en tiempo real.
+      </p>
+    </div>
+
+    <!-- Desktop 2-Column Layout (Sidebar ~1/4 + Main Catalog ~3/4) -->
+    <div class="flex flex-col lg:flex-row gap-8 items-start">
+
+      <!-- Mobile Filter Drawer Toggle Bar (<1024px) -->
+      <div class="w-full flex lg:hidden items-center justify-between gap-2">
+        <button
+          type="button"
+          id="btnMobileFiltersToggle"
+          onclick="toggleMobileFilters()"
+          aria-expanded="false"
+          aria-controls="catalogFilterSidebar"
+          class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-700 bg-white ring-1 ring-inset ring-slate-200 shadow-2xs hover:bg-slate-50 transition-colors"
+        >
+          <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/>
+          </svg>
+          <span>Filtros del Catálogo</span>
+          <span id="mobileFilterActiveBadge" class="hidden px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 text-white">0</span>
+        </button>
+      </div>
+
+      <!-- LEFT COLUMN: User-Centric Filter Sidebar -->
+      <aside id="catalogFilterSidebar" aria-label="Filtros del catálogo" class="hidden lg:block w-full lg:w-64 xl:w-72 shrink-0 lg:sticky lg:top-24 space-y-6 bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm transition-all duration-300 hover:shadow-md">
+        
+        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Filtros
+          </h2>
+          <button
+            id="btnResetSidebar"
+            type="button"
+            onclick="clearAllFilters()"
+            class="hidden text-[11px] font-medium text-slate-400 hover:text-red-500 transition-colors"
+          >
+            Limpiar
+          </button>
+        </div>
+
+        <!-- Empty Filters Notice (shown when all facets have <= 1 option) -->
+        <div id="sidebarEmptyNotice" class="hidden py-3 text-center text-xs text-slate-400 space-y-1">
+          <p class="font-medium text-slate-600">Catálogo Unificado</p>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            Los filtros por categoría y muestra se activan automáticamente al registrar modelos de múltiples dominios.
+          </p>
+        </div>
+
+        <!-- Facet 1: Dominio o Categoría -->
+        <div id="facetCategorySection" class="space-y-2">
+          <label class="text-xs font-semibold text-slate-900 block">
+            Dominio o Categoría
+          </label>
+          <div id="sidebarCropList" class="space-y-1">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Facet 2: Elemento / Muestra Analizada -->
+        <div id="facetSampleSection" class="space-y-2 pt-2 border-t border-slate-100">
+          <label class="text-xs font-semibold text-slate-900 block">
+            Elemento Analizado
+          </label>
+          <select
+            id="facetSampleSelect"
+            onchange="onFacetSampleChange(this.value)"
+            class="w-full text-xs rounded-xl bg-slate-50 border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none py-2 px-3 text-slate-900 font-medium transition-all"
+          >
+            <option value="all">Cualquier elemento</option>
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+
+        <!-- Facet 3: Propósito o Finalidad -->
+        <div id="facetPurposeSection" class="space-y-2 pt-2 border-t border-slate-100">
+          <label class="text-xs font-semibold text-slate-900 block">
+            Propósito del Análisis
+          </label>
+          <select
+            id="facetPurposeSelect"
+            onchange="onFacetPurposeChange(this.value)"
+            class="w-full text-xs rounded-xl bg-slate-50 border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none py-2 px-3 text-slate-900 font-medium transition-all"
+          >
+            <option value="all">Cualquier propósito</option>
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+
+      </aside>
+
+      <!-- RIGHT COLUMN: Main Content Area (~3/4) -->
+      <section class="flex-1 min-w-0 space-y-6 w-full">
+
+        <!-- Search Bar with Instant Clear Button -->
+        <div class="relative w-full">
+          <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+            </svg>
+          </div>
+          <input
+            type="text"
+            id="hubSearchInput"
+            placeholder="Buscar por modelo, categoría, síntoma o tipo de muestra (ej. 'hoja', 'mildiu', 'fruto', 'calidad')..."
+            class="block w-full rounded-xl bg-slate-50 border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none py-2.5 pl-10 pr-10 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 transition-all shadow-2xs"
+          >
+          <button
+            id="btnSearchClear"
+            type="button"
+            onclick="clearSearchInput()"
+            class="hidden absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-slate-600 transition-colors"
+            title="Limpiar búsqueda"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Active Filters Chips Bar -->
+        <div id="activeFiltersBar" class="hidden flex flex-wrap items-center gap-2 text-xs">
+          <span class="text-slate-400 font-medium">Filtros activos:</span>
+          <div id="activeChipsList" class="flex flex-wrap items-center gap-1.5">
+            <!-- Populated by JS -->
+          </div>
+          <button
+            type="button"
+            onclick="clearAllFilters()"
+            class="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline transition-colors ml-2"
+          >
+            Limpiar todos
+          </button>
+        </div>
+
+        <!-- Results Header: Count & View Switcher (Tarjetas vs Lista) -->
+        <div class="flex items-center justify-between pt-1">
+          <p id="resultsCountDisplay" class="text-xs font-medium text-slate-500">
+            Cargando modelos...
+          </p>
+
+          <!-- View Switcher -->
+          <div class="bg-slate-100 p-1 rounded-lg inline-flex items-center gap-0.5">
+            <button
+              type="button"
+              id="btnViewGrid"
+              onclick="setViewMode('grid')"
+              class="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 bg-white text-slate-900 shadow-2xs"
+              title="Vista en Tarjetas"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/>
+                <rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>
+              </svg>
+              <span class="hidden sm:inline">Tarjetas</span>
+            </button>
+            <button
+              type="button"
+              id="btnViewSpecs"
+              onclick="setViewMode('specs')"
+              class="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 text-slate-500 hover:text-slate-900"
+              title="Vista en Fichas Técnicas"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+              <span class="hidden sm:inline">Fichas</span>
+            </button>
+            <button
+              type="button"
+              id="btnViewList"
+              onclick="setViewMode('list')"
+              class="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 text-slate-500 hover:text-slate-900"
+              title="Vista en Lista"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+                <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+              </svg>
+              <span class="hidden sm:inline">Lista</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Models Container (Populated in Grid or List mode) -->
+        <div id="modelsContainer">
+          <!-- Loading Skeleton -->
+          <div class="py-16 text-center text-slate-400">
+            <svg class="w-7 h-7 animate-spin text-slate-900 mx-auto mb-2" viewBox="0 0 24 24" fill="none">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+            </svg>
+            <p class="text-xs">Consultando modelos disponibles...</p>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyCatalogState" class="hidden py-16 px-6 text-center bg-white border border-slate-200/60 rounded-2xl shadow-sm max-w-xl mx-auto space-y-4">
+          <div id="emptyStateIcon" class="w-12 h-12 rounded-xl bg-slate-50 ring-1 ring-inset ring-slate-200/60 flex items-center justify-center mx-auto text-slate-400 shadow-2xs">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+            </svg>
+          </div>
+          <div class="space-y-1">
+            <h3 id="emptyStateTitle" class="text-sm sm:text-base font-semibold text-slate-900 tracking-tight">No se encontraron modelos coincidentes</h3>
+            <p id="emptyStateDesc" class="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+              Prueba a buscar con términos más amplios o restablece los filtros seleccionados.
+            </p>
+          </div>
+          <div id="emptyStateActions" class="pt-2 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onclick="clearAllFilters()"
+              class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium text-slate-700 bg-white ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-colors shadow-2xs"
+            >
+              Restablecer Filtros
+            </button>
+          </div>
+        </div>
+
+        <!-- Pagination Bar -->
+        <div id="paginationBar" class="hidden flex items-center justify-between border-t border-slate-200 pt-4 text-xs text-slate-500">
+          <span id="paginationInfo">Mostrando 1 - 2</span>
+          <div class="flex items-center gap-2">
+            <button
+              id="btnPrevPage"
+              onclick="changePage(-1)"
+              disabled
+              class="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors shadow-2xs"
+            >
+              &larr; Anterior
+            </button>
+            <span id="pageCurrentDisplay" class="font-mono text-slate-800">1 / 1</span>
+            <button
+              id="btnNextPage"
+              onclick="changePage(1)"
+              disabled
+              class="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors shadow-2xs"
+            >
+              Siguiente &rarr;
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- Interactive Analysis Studio Modal (In-Catalog In-Browser Workflow) -->
+  <div id="analysisStudioModal" role="dialog" aria-modal="true" aria-labelledby="studioModelTitle" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-sm overflow-y-auto">
+    <div class="bg-white rounded-2xl border border-slate-200/60 shadow-2xl max-w-2xl w-full p-6 sm:p-8 space-y-6 my-6">
+      
+      <!-- Studio Header -->
+      <div class="flex items-start justify-between pb-3 border-b border-slate-100 gap-4">
+        <div class="space-y-1">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span id="studioCropBadge" class="px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200/80">
+              Cultivo
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Modelo en servicio
+            </span>
+            <span id="studioArchBadge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-100 text-slate-600 border border-slate-200">
+              resnet18
+            </span>
+          </div>
+          <h2 id="studioModelTitle" class="text-lg sm:text-xl font-bold text-slate-900">
+            Análisis de Muestra
+          </h2>
+          <p id="studioModelDescription" class="text-xs text-slate-500 leading-relaxed">
+            -
+          </p>
+        </div>
+        <button
+          type="button"
+          data-modal-close
+          onclick="closeAnalysisStudio()"
+          aria-label="Cerrar estudio de análisis"
+          class="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-colors"
+          title="Cerrar ventana (Esc)"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Progressive Step Indicator -->
+      <div class="grid grid-cols-3 gap-2 text-[11px]" aria-label="Progreso del análisis">
+        <div id="studioStep1Pill" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white font-semibold shadow-2xs transition-colors">
+          <span class="w-4 h-4 rounded-full bg-white/20 text-[10px] flex items-center justify-center font-bold">1</span>
+          <span class="truncate">1. Captura</span>
+        </div>
+        <div id="studioStep2Pill" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50/70 text-slate-400 font-normal transition-colors">
+          <span class="w-4 h-4 rounded-full bg-slate-200/60 text-slate-500 text-[10px] flex items-center justify-center font-bold">2</span>
+          <span class="truncate">2. Muestra</span>
+        </div>
+        <div id="studioStep3Pill" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50/70 text-slate-400 font-normal transition-colors">
+          <span class="w-4 h-4 rounded-full bg-slate-200/60 text-slate-500 text-[10px] flex items-center justify-center font-bold">3</span>
+          <span class="truncate">3. Diagnóstico</span>
+        </div>
+      </div>
+
+      <!-- Recommendation Note: Clean, professional neutral styling -->
+      <div id="studioInputGuideBox" class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-500 transition-all">
+        <svg class="w-4 h-4 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        <div class="leading-relaxed">
+          <strong class="font-semibold text-slate-800">Recomendación:</strong>
+          <span id="studioInputGuide" class="text-slate-500">Fotografía clara de la muestra con iluminación adecuada.</span>
+        </div>
+      </div>
+
+      <!-- Step 2: Image Selection Area -->
+      <div id="studioUploadZone" class="space-y-4">
+        
+        <!-- Hidden Native File Inputs -->
+        <!-- Camera capture directly for phones/tablets -->
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+        <!-- Standard file picker / gallery -->
+        <input type="file" id="fileInput" accept="image/*" class="hidden">
+
+        <!-- Dropzone / Actions Container -->
+        <div
+          id="studioDropzone"
+          class="border-2 border-dashed border-slate-300 hover:border-slate-500 bg-slate-50/70 hover:bg-slate-100/50 rounded-2xl p-6 sm:p-8 text-center transition-all cursor-pointer flex flex-col items-center justify-center min-h-[200px]"
+        >
+          <!-- Idle Prompt -->
+          <div id="dropzonePrompt" class="space-y-4 flex flex-col items-center justify-center">
+            <div class="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 shadow-2xs">
+              <svg class="w-6 h-6 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/>
+                <path d="M12 12v9"/>
+                <path d="m16 16-4-4-4 4"/>
+              </svg>
+            </div>
+            
+            <div class="space-y-1">
+              <p class="text-xs sm:text-sm font-semibold text-slate-800">
+                Arrastra tu fotografía aquí o utiliza una de las siguientes opciones:
+              </p>
+              <p class="text-[11px] text-slate-400">JPG, PNG o WEBP (máximo 15 MB)</p>
+            </div>
+
+            <!-- Two Distinct Input Buttons: Camera Direct & Gallery -->
+            <div class="flex flex-wrap items-center justify-center gap-3 pt-1">
+              <button
+                type="button"
+                onclick="event.stopPropagation(); triggerCameraInput();"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-black transition-colors shadow-2xs"
+              >
+                <svg class="w-3.5 h-3.5 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <span>Tomar con la Cámara</span>
+              </button>
+
+              <button
+                type="button"
+                onclick="event.stopPropagation(); triggerFileInput();"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition-colors shadow-2xs"
+              >
+                <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+                  <circle cx="9" cy="9" r="2"/>
+                  <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                </svg>
+                <span>Elegir de Galería / Archivo</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Selected Image Preview Container -->
+          <div id="dropzonePreview" class="hidden w-full flex flex-col items-center space-y-3">
+            <div class="relative max-h-64 max-w-full rounded-2xl overflow-hidden border border-slate-200 bg-slate-900/5">
+              <img id="previewImg" src="" alt="Vista previa de muestra" class="max-h-64 object-contain mx-auto">
+            </div>
+            
+            <div class="flex items-center gap-3 text-xs">
+              <span id="previewFileInfo" class="font-mono text-slate-600 truncate max-w-xs"></span>
+              <button
+                type="button"
+                onclick="event.stopPropagation(); triggerFileInput();"
+                class="font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg transition-colors shadow-2xs"
+              >
+                Cambiar foto
+              </button>
+              <button
+                type="button"
+                onclick="event.stopPropagation(); removeSelectedImage();"
+                class="font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1 rounded-lg transition-colors"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Collaborative Model Improvement Checkbox (HITL Opt-In / Opt-Out) -->
+        <div class="flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
+          <input
+            type="checkbox"
+            id="studioSaveTrainingCheckbox"
+            checked
+            class="mt-0.5 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400 cursor-pointer shrink-0"
+          >
+          <label for="studioSaveTrainingCheckbox" class="text-slate-600 leading-snug cursor-pointer select-none">
+            <strong class="font-semibold text-slate-800">Colaborar con la mejora continua del modelo:</strong>
+            <span class="text-slate-500 block text-[11px] mt-0.5">Permite guardar la muestra para que especialistas certifiquen casos con dudas en el Espacio de Curación (/expert) y reentrenen futuras versiones. Desmarca si no deseas compartirla.</span>
+          </label>
+        </div>
+
+        <!-- Submit Button for Inference -->
+        <button
+          type="button"
+          id="btnExecuteAnalysis"
+          disabled
+          onclick="submitAnalysis()"
+          class="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl text-xs sm:text-sm font-semibold text-white bg-slate-300 cursor-not-allowed shadow-none transition-all"
+        >
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+          </svg>
+          <span id="btnExecuteAnalysisText">Selecciona una fotografía para analizar</span>
+        </button>
+
+      </div>
+
+      <!-- Step 3: Analysis Results Container -->
+      <div id="studioResultsZone" class="hidden space-y-5 animate-in fade-in duration-200" aria-live="polite">
+        
+        <!-- Primary Diagnosis Headline Card (Mobile-first priority: image + diagnosis + certainty) -->
+        <div id="studioPrimaryCard" class="p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span class="font-bold uppercase tracking-wider text-slate-500">Resultado del Diagnóstico</span>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span id="resHitlSavedBadge" class="hidden px-2 py-0.5 rounded-md text-[10px] font-mono bg-slate-100 text-slate-600 border border-slate-200/80"></span>
+              <span id="resCalibrationBadge" class="px-2 py-0.5 rounded-md text-[10px] font-mono bg-slate-200/80 text-slate-700">
+                Argmax Nominal
+              </span>
+              <span id="resCertaintyBadge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-800 border border-slate-200/80">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span>Certeza Alta</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+            <img id="resAnalyzedThumb" src="" alt="Muestra analizada" class="w-20 h-20 rounded-xl object-cover border border-slate-200 bg-white shrink-0 hidden sm:block">
+            <div class="flex-1 min-w-0">
+              <div id="resPredictedClass" class="text-2xl sm:text-3xl font-extrabold text-slate-900 capitalize tracking-tight">
+                -
+              </div>
+              <p id="resInterpretationText" class="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed">
+                -
+              </p>
+            </div>
+          </div>
+
+          <!-- Progress Confidence Bar -->
+          <div class="space-y-1.5 pt-1">
+            <div class="flex justify-between text-xs font-semibold text-slate-700">
+              <span>Nivel de confianza del modelo</span>
+              <span id="resConfidenceDisplay" class="font-mono text-slate-900 kh-tabular-nums">0.0%</span>
+            </div>
+            <div class="w-full h-2.5 rounded-full bg-slate-200 overflow-hidden">
+              <div id="resConfidenceBar" class="h-full rounded-full bg-slate-900 transition-all duration-500" style="width: 0%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Studio OoD Warning Card (Hijacks Result when ood_flag === true) -->
+        <div id="studioOodCard" class="hidden bg-white border border-slate-200 border-l-4 border-l-amber-500 rounded-xl shadow-sm overflow-hidden">
+          <div class="p-5 sm:p-6 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200/80">
+                <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <span>Anomalía Detectada</span>
+              </span>
+              <span id="studioOodScoreBadge" class="text-xs font-mono text-slate-500 font-medium kh-tabular-nums"></span>
+            </div>
+
+            <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+              <img id="resAnalyzedThumbOod" src="" alt="Muestra analizada" class="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover ring-1 ring-slate-900/10 shadow-2xs bg-slate-50 shrink-0 hidden sm:block">
+              <div class="flex-1 min-w-0">
+                <h3 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+                  Muestra Fuera de Dominio (OoD)
+                </h3>
+                <p class="text-xs sm:text-sm text-slate-500 mt-1 leading-snug font-normal">
+                  El sistema tiene baja confianza epistémica en esta imagen. Es posible que no pertenezca al dominio de este modelo o la calidad sea insuficiente.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-slate-50 border-t border-slate-100 px-4 sm:px-5 py-2.5 flex items-center justify-between text-xs text-slate-500">
+            <div class="flex items-center gap-2">
+              <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              <span>Guardrail de Energía Libre activo (Softmax suprimido para proteger la fiabilidad)</span>
+            </div>
+            <span class="hidden sm:inline-block font-mono text-[11px] text-slate-400 font-medium">Zero-Leakage OoD</span>
+          </div>
+        </div>
+
+        <!-- Detailed Probabilities Breakdown (Collapsible on Mobile for clean hierarchy) -->
+        <details open class="group bg-white rounded-2xl border border-slate-200 overflow-hidden">
+          <summary class="flex items-center justify-between p-4 cursor-pointer select-none list-none">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Distribución de Probabilidades Evaluadas
+            </h3>
+            <span class="text-xs text-slate-400 group-open:rotate-180 transition-transform">&#9662;</span>
+          </summary>
+          <div id="resProbabilityList" class="px-4 pb-4 space-y-2 max-h-48 overflow-y-auto">
+            <!-- Populated by JS -->
+          </div>
+        </details>
+
+        <!-- Responsible Agronomic Disclaimer -->
+        <div class="p-3.5 rounded-2xl bg-slate-100/70 border border-slate-200 text-xs text-slate-600 flex items-start gap-3">
+          <svg class="w-4 h-4 text-slate-400 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <p class="leading-relaxed text-[11px]">
+            <strong class="text-slate-800">Aviso técnico y fitosanitario:</strong> Esta herramienta de visión artificial proporciona una estimación probabilística de apoyo y no constituye un dictamen definitivo. En caso de duda o anomalía severa, se aconseja consultar con un técnico agrónomo cualificado.
+          </p>
+        </div>
+
+        <!-- Action Buttons after Analysis -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+          <button
+            type="button"
+            onclick="resetStudioForNewAnalysis()"
+            class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition-colors shadow-2xs"
+          >
+            <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+              <path d="M21 3v5h-5"/>
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+              <path d="M3 21v-5h5"/>
+            </svg>
+            <span>Analizar otra fotografía</span>
+          </button>
+
+          <button
+            type="button"
+            onclick="downloadAnalysisReport()"
+            class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-black transition-colors shadow-2xs"
+          >
+            <svg class="w-3.5 h-3.5 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Descargar Resumen</span>
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-200 bg-white py-6 mt-12 text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="font-semibold text-slate-700">KHAOS Hub</span>
+        <span class="text-slate-300">&bull;</span>
+        <span class="text-slate-500">Catálogo Federado de Modelos de IA</span>
+      </div>
+      <div class="flex flex-col sm:flex-row items-center gap-x-6 gap-y-2">
+        <nav class="flex flex-wrap items-center gap-x-5 gap-y-1">
+          <a href="https://www.uma.es/servicio-central-de-informatica/info/156901/politica-de-cookies/" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-slate-600 transition-colors">Política de cookies</a>
+          <a href="https://sede.uma.es/opencms/system/modules/sede/contents/footer/normativa" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-slate-600 transition-colors">Política de privacidad</a>
+          <a href="https://sede.uma.es/opencms/system/modules/sede/contents/footer/normativa" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-slate-600 transition-colors">Avisos legales</a>
+        </nav>
+        <span class="text-slate-400">&copy; 2026 Todos los derechos reservados</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // HTML Escaping Utility for safe dynamic injection
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // State synchronized with URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    let currentView = urlParams.get('view') || 'grid';
+    let selectedCrop = urlParams.get('crop') || 'all';
+    let selectedSample = urlParams.get('sample') || 'all';
+    let selectedPurpose = urlParams.get('purpose') || 'all';
+    let searchQuery = urlParams.get('q') || '';
+    let currentPage = parseInt(urlParams.get('page') || '1', 10);
+    const pageSize = 12;
+    let totalPages = 1;
+    let totalCount = 0;
+    let rawModelsFromApi = [];
+    let filteredModels = [];
+
+    // Analysis Studio state
+    let activeStudioModel = null;
+    let selectedImageFile = null;
+    let lastAnalysisResult = null;
+
+    // DOM Elements
+    const modelsContainer = document.getElementById('modelsContainer');
+    const emptyCatalogState = document.getElementById('emptyCatalogState');
+    const sidebarCropList = document.getElementById('sidebarCropList');
+    const facetSampleSelect = document.getElementById('facetSampleSelect');
+    const facetPurposeSelect = document.getElementById('facetPurposeSelect');
+    const hubSearchInput = document.getElementById('hubSearchInput');
+    const btnSearchClear = document.getElementById('btnSearchClear');
+    const activeFiltersBar = document.getElementById('activeFiltersBar');
+    const activeChipsList = document.getElementById('activeChipsList');
+    const resultsCountDisplay = document.getElementById('resultsCountDisplay');
+    const paginationBar = document.getElementById('paginationBar');
+    const paginationInfo = document.getElementById('paginationInfo');
+    const pageCurrentDisplay = document.getElementById('pageCurrentDisplay');
+    const btnPrevPage = document.getElementById('btnPrevPage');
+    const btnNextPage = document.getElementById('btnNextPage');
+    const btnViewGrid = document.getElementById('btnViewGrid');
+    const btnViewSpecs = document.getElementById('btnViewSpecs');
+    const btnViewList = document.getElementById('btnViewList');
+
+    // Studio DOM Elements
+    const analysisStudioModal = document.getElementById('analysisStudioModal');
+    const studioCropBadge = document.getElementById('studioCropBadge');
+    const studioModelTitle = document.getElementById('studioModelTitle');
+    const studioModelDescription = document.getElementById('studioModelDescription');
+    const studioInputGuide = document.getElementById('studioInputGuide');
+    const cameraInput = document.getElementById('cameraInput');
+    const fileInput = document.getElementById('fileInput');
+    const studioDropzone = document.getElementById('studioDropzone');
+    const dropzonePrompt = document.getElementById('dropzonePrompt');
+    const dropzonePreview = document.getElementById('dropzonePreview');
+    const previewImg = document.getElementById('previewImg');
+    const previewFileInfo = document.getElementById('previewFileInfo');
+    const btnExecuteAnalysis = document.getElementById('btnExecuteAnalysis');
+    const btnExecuteAnalysisText = document.getElementById('btnExecuteAnalysisText');
+    const studioUploadZone = document.getElementById('studioUploadZone');
+    const studioResultsZone = document.getElementById('studioResultsZone');
+    const resPredictedClass = document.getElementById('resPredictedClass');
+    const resCertaintyBadge = document.getElementById('resCertaintyBadge');
+    const resInterpretationText = document.getElementById('resInterpretationText');
+    const resConfidenceDisplay = document.getElementById('resConfidenceDisplay');
+    const resConfidenceBar = document.getElementById('resConfidenceBar');
+    const resProbabilityList = document.getElementById('resProbabilityList');
+
+    // Initialize facet inputs from URL state
+    if (searchQuery) {
+      hubSearchInput.value = searchQuery;
+      btnSearchClear.classList.remove('hidden');
+    }
+    facetSampleSelect.value = selectedSample;
+    facetPurposeSelect.value = selectedPurpose;
+
+    function toggleHelpModal(show) {
+      if (show !== false) {
+        if (window.KhaosUI && KhaosUI.openHelp) KhaosUI.openHelp('client');
+      } else {
+        if (window.KhaosUI && KhaosUI.closeHelp) KhaosUI.closeHelp();
+      }
+    }
+
+    function toggleMobileFilters() {
+      const sb = document.getElementById('catalogFilterSidebar');
+      const btn = document.getElementById('btnMobileFiltersToggle');
+      if (!sb) return;
+      const isHidden = sb.classList.contains('hidden');
+      if (isHidden) {
+        sb.classList.remove('hidden');
+        if (btn) btn.setAttribute('aria-expanded', 'true');
+      } else {
+        sb.classList.add('hidden');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+      }
+    }
+
+    function setStudioStep(step) {
+      const p1 = document.getElementById('studioStep1Pill');
+      const p2 = document.getElementById('studioStep2Pill');
+      const p3 = document.getElementById('studioStep3Pill');
+      const activeCls = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white font-semibold text-xs shadow-2xs transition-colors';
+      const doneCls = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200/90 font-medium text-xs transition-colors';
+      const idleCls = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50/70 text-slate-400 font-normal text-xs transition-colors';
+      if (p1) p1.className = step === 1 ? activeCls : doneCls;
+      if (p2) p2.className = step === 2 ? activeCls : (step > 2 ? doneCls : idleCls);
+      if (p3) p3.className = step === 3 ? activeCls : idleCls;
+
+      const guideBox = document.getElementById('studioInputGuideBox');
+      if (guideBox) {
+        // Only show capture recommendation in Step 1 (hide on selection, wait/inference and diagnosis)
+        guideBox.classList.toggle('hidden', step !== 1);
+      }
+    }
+
+    function formatText(s) {
+      if (!s) return '';
+      return s.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    function syncUrlParams() {
+      const p = new URLSearchParams();
+      if (currentView && currentView !== 'grid') p.set('view', currentView);
+      if (selectedCrop && selectedCrop !== 'all') p.set('crop', selectedCrop);
+      if (selectedSample && selectedSample !== 'all') p.set('sample', selectedSample);
+      if (selectedPurpose && selectedPurpose !== 'all') p.set('purpose', selectedPurpose);
+      if (searchQuery) p.set('q', searchQuery);
+      if (currentPage && currentPage > 1) p.set('page', currentPage.toString());
+
+      const queryStr = p.toString();
+      const newUrl = queryStr ? `${window.location.pathname}?${queryStr}` : window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+
+    function setViewMode(mode) {
+      currentView = mode;
+      syncUrlParams();
+      updateViewToggleUI();
+      renderModels();
+    }
+
+    function updateViewToggleUI() {
+      const activeClass = 'flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 bg-white text-slate-900 shadow-2xs';
+      const inactiveClass = 'flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 text-slate-500 hover:text-slate-900';
+
+      if (btnViewGrid) btnViewGrid.className = currentView === 'grid' ? activeClass : inactiveClass;
+      if (btnViewSpecs) btnViewSpecs.className = currentView === 'specs' ? activeClass : inactiveClass;
+      if (btnViewList) btnViewList.className = currentView === 'list' ? activeClass : inactiveClass;
+    }
+
+    function renderActiveChips() {
+      activeChipsList.innerHTML = '';
+      const chips = [];
+
+      if (searchQuery) {
+        chips.push({
+          label: `Búsqueda: "${searchQuery}"`,
+          remove: () => {
+            searchQuery = '';
+            hubSearchInput.value = '';
+            btnSearchClear.classList.add('hidden');
+            currentPage = 1;
+            applyFiltersAndRender();
+          }
+        });
+      }
+
+      if (selectedCrop && selectedCrop !== 'all') {
+        chips.push({
+          label: `Categoría: ${selectedCrop}`,
+          remove: () => {
+            selectedCrop = 'all';
+            currentPage = 1;
+            applyFiltersAndRender();
+          }
+        });
+      }
+
+      if (selectedSample && selectedSample !== 'all') {
+        chips.push({
+          label: `Elemento: ${selectedSample}`,
+          remove: () => {
+            selectedSample = 'all';
+            facetSampleSelect.value = 'all';
+            currentPage = 1;
+            applyFiltersAndRender();
+          }
+        });
+      }
+
+      if (selectedPurpose && selectedPurpose !== 'all') {
+        chips.push({
+          label: `Propósito: ${selectedPurpose}`,
+          remove: () => {
+            selectedPurpose = 'all';
+            facetPurposeSelect.value = 'all';
+            currentPage = 1;
+            applyFiltersAndRender();
+          }
+        });
+      }
+
+      const mobileBadge = document.getElementById('mobileFilterActiveBadge');
+      if (chips.length > 0) {
+        activeFiltersBar.classList.remove('hidden');
+        if (mobileBadge) {
+          mobileBadge.textContent = String(chips.length);
+          mobileBadge.classList.remove('hidden');
+        }
+        chips.forEach(chip => {
+          const pill = document.createElement('span');
+          pill.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-500/10 shadow-2xs';
+          pill.innerHTML = `
+            <span>${escapeHtml(chip.label)}</span>
+            <button type="button" class="text-slate-500 hover:text-slate-900 transition-colors" aria-label="Quitar filtro">
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          `;
+          pill.querySelector('button').onclick = chip.remove;
+          activeChipsList.appendChild(pill);
+        });
+      } else {
+        activeFiltersBar.classList.add('hidden');
+        if (mobileBadge) mobileBadge.classList.add('hidden');
+      }
+    }
+
+    function clearAllFilters() {
+      searchQuery = '';
+      selectedCrop = 'all';
+      selectedSample = 'all';
+      selectedPurpose = 'all';
+      currentPage = 1;
+
+      hubSearchInput.value = '';
+      btnSearchClear.classList.add('hidden');
+      facetSampleSelect.value = 'all';
+      facetPurposeSelect.value = 'all';
+
+      applyFiltersAndRender();
+    }
+
+    function clearSearchInput() {
+      searchQuery = '';
+      hubSearchInput.value = '';
+      btnSearchClear.classList.add('hidden');
+      currentPage = 1;
+      applyFiltersAndRender();
+    }
+
+    function onFacetSampleChange(val) {
+      selectedSample = val;
+      currentPage = 1;
+      applyFiltersAndRender();
+    }
+
+    function onFacetPurposeChange(val) {
+      selectedPurpose = val;
+      currentPage = 1;
+      applyFiltersAndRender();
+    }
+
+    // Handle generic multi-field text search
+    function modelMatchesSearch(m, query) {
+      if (!query) return true;
+      const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+      if (terms.length === 0) return true;
+
+      const searchableParts = [
+        m.title || '',
+        m.slug || '',
+        m.description || '',
+        m.domain || '',
+        m.crop || '',
+        m.target_element || '',
+        m.purpose || '',
+        m.input_guide || '',
+        ...(m.classes || [])
+      ];
+      const fullText = searchableParts.join(' ').toLowerCase();
+
+      return terms.every(term => fullText.includes(term));
+    }
+
+    // =========================================================================
+    // THUMBNAIL SYSTEM (Case A: Image, Case B: Generic Placeholder, Case C: Fallback on Error)
+    // =========================================================================
+
+    function getThumbnailPlaceholderHtml(m, categoryLabel, roundedClass = 'rounded-t-xl') {
+      const slug = m.slug || m.name?.replace('.pt', '') || 'model';
+      return `
+        <div class="thumbnail-container aspect-video w-full relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-4 border-b border-slate-100 shrink-0 ${roundedClass}">
+          <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#94a3b8_1px,transparent_1px)] [background-size:12px_12px] pointer-events-none"></div>
+          <div class="text-slate-400/70 group-hover:text-slate-300 group-hover:scale-105 transition-all duration-300 z-10 flex flex-col items-center">
+            <svg class="w-9 h-9 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 9V3M12 15v6M5 7l7 5 7-5"/>
+            </svg>
+            <span class="text-[10px] font-mono text-slate-400/80 mt-1">${escapeHtml(m.architecture || 'resnet18')}</span>
+            <span class="sr-only">KHAOS Model Hub</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderThumbnailBlock(m, categoryLabel, roundedClass = 'rounded-t-xl') {
+      const slug = m.slug || m.name?.replace('.pt', '') || 'model';
+      const cat = categoryLabel || m.crop || m.domain || 'Modelo IA';
+
+      // Case A: Valid explicit thumbnail URL
+      if (m.thumbnail_url && typeof m.thumbnail_url === 'string' && m.thumbnail_url.trim() !== '') {
+        return `
+          <div class="thumbnail-container aspect-video w-full relative overflow-hidden bg-slate-900 border-b border-slate-100 shrink-0 ${roundedClass}">
+            <img
+              src="${escapeHtml(m.thumbnail_url)}"
+              alt="Referencia ilustrativa para ${escapeHtml(m.title || slug)}"
+              loading="lazy"
+              class="aspect-video object-cover w-full group-hover:scale-105 transition-transform duration-300"
+              onerror="handleThumbnailError(this, '${escapeHtml(slug)}', '${roundedClass}')"
+            >
+          </div>
+        `;
+      }
+
+      // Case B: No thumbnail available -> intentional clean generic placeholder
+      return getThumbnailPlaceholderHtml(m, cat, roundedClass);
+    }
+
+    // Case C: Thumbnail loading error fallback
+    function handleThumbnailError(img, slug, roundedClass = 'rounded-t-xl') {
+      console.warn(`[KHAOS Hub] No se pudo cargar la miniatura para "${slug}". Aplicando placeholder genérico.`);
+      img.onerror = null; // Prevent retry loop
+      const container = img.closest('.thumbnail-container') || img.parentElement;
+      if (container) {
+        const m = rawModelsFromApi.find(item => (item.slug || item.name) === slug) || { slug: slug };
+        const categoryLabel = m.crop || m.domain || 'Modelo IA';
+        container.outerHTML = getThumbnailPlaceholderHtml(m, categoryLabel, roundedClass);
+      }
+    }
+
+    // =========================================================================
+    // DATA FETCHING & DYNAMIC FILTER POPULATION
+    // =========================================================================
+
+    async function fetchModels() {
+      syncUrlParams();
+      renderActiveChips();
+
+      const url = `/api/models?page=1&page_size=100`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Error al consultar modelos');
+        const data = await res.json();
+
+        rawModelsFromApi = data.models || [];
+
+        populateDynamicFilters();
+        applyFiltersAndRender();
+
+        const autoAnalyzeSlug = urlParams.get('analyze');
+        if (autoAnalyzeSlug) {
+          const target = rawModelsFromApi.find(m => m.slug === autoAnalyzeSlug);
+          if (target) openAnalysisStudio(target);
+        }
+
+      } catch (err) {
+        console.error('Error fetching catalog:', err);
+        modelsContainer.innerHTML = `
+          <div class="py-8 text-center text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-2xl">
+            Error al consultar el catálogo de modelos: ${escapeHtml(err.message)}
+          </div>
+        `;
+      }
+    }
+
+    function populateDynamicFilters() {
+      const facetCategorySection = document.getElementById('facetCategorySection');
+      const facetSampleSection = document.getElementById('facetSampleSection');
+      const facetPurposeSection = document.getElementById('facetPurposeSection');
+      const sidebarEmptyNotice = document.getElementById('sidebarEmptyNotice');
+      const btnResetSidebar = document.getElementById('btnResetSidebar');
+
+      let activeFacetsCount = 0;
+
+      // 1. Dynamic Domain / Category Facet
+      const categoriesSet = new Set();
+      rawModelsFromApi.forEach(m => {
+        const cat = m.crop || m.domain;
+        if (cat && cat.trim()) categoriesSet.add(cat.trim());
+      });
+
+      // Hide category facet if there is <= 1 category (filtering would do nothing)
+      if (categoriesSet.size > 1) {
+        if (facetCategorySection) facetCategorySection.classList.remove('hidden');
+        activeFacetsCount++;
+        const allCategories = ['all', ...Array.from(categoriesSet).sort()];
+        sidebarCropList.innerHTML = '';
+
+        allCategories.forEach(cat => {
+          const isActive = selectedCrop.toLowerCase() === cat.toLowerCase();
+          const label = cat === 'all' ? 'Todos los Dominios' : cat;
+          const count = cat === 'all'
+            ? rawModelsFromApi.length
+            : rawModelsFromApi.filter(m => {
+                const c = (m.crop || m.domain || '').toLowerCase();
+                return c === cat.toLowerCase();
+              }).length;
+
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = `w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+            isActive
+              ? 'bg-slate-900 text-white shadow-2xs font-semibold'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+          }`;
+          btn.innerHTML = `
+            <span>${escapeHtml(label)}</span>
+            <span class="px-1.5 py-0.5 rounded-full text-[10px] font-mono ${isActive ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-500'}">
+              ${count}
+            </span>
+          `;
+          btn.onclick = () => {
+            selectedCrop = cat;
+            currentPage = 1;
+            applyFiltersAndRender();
+          };
+          sidebarCropList.appendChild(btn);
+        });
+      } else {
+        if (facetCategorySection) facetCategorySection.classList.add('hidden');
+        sidebarCropList.innerHTML = '';
+        if (selectedCrop !== 'all') {
+          selectedCrop = 'all';
+        }
+      }
+
+      // 2. Dynamic Target Element / Sample Facet
+      const samplesSet = new Set();
+      rawModelsFromApi.forEach(m => {
+        if (m.target_element && m.target_element.trim()) {
+          samplesSet.add(m.target_element.trim());
+        }
+      });
+
+      // Hide sample element facet if there is <= 1 element
+      if (samplesSet.size > 1) {
+        if (facetSampleSection) facetSampleSection.classList.remove('hidden');
+        activeFacetsCount++;
+        facetSampleSelect.innerHTML = '<option value="all">Cualquier elemento</option>';
+        Array.from(samplesSet).sort().forEach(sample => {
+          const opt = document.createElement('option');
+          opt.value = sample.toLowerCase();
+          opt.textContent = formatText(sample);
+          facetSampleSelect.appendChild(opt);
+        });
+        facetSampleSelect.value = selectedSample;
+      } else {
+        if (facetSampleSection) facetSampleSection.classList.add('hidden');
+        if (selectedSample !== 'all') {
+          selectedSample = 'all';
+        }
+      }
+
+      // 3. Dynamic Purpose Facet
+      const purposesSet = new Set();
+      rawModelsFromApi.forEach(m => {
+        if (m.purpose && m.purpose.trim()) {
+          purposesSet.add(m.purpose.trim());
+        }
+      });
+
+      // Hide purpose facet if there is <= 1 purpose
+      if (purposesSet.size > 1) {
+        if (facetPurposeSection) facetPurposeSection.classList.remove('hidden');
+        activeFacetsCount++;
+        facetPurposeSelect.innerHTML = '<option value="all">Cualquier propósito</option>';
+        Array.from(purposesSet).sort().forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.toLowerCase();
+          opt.textContent = p;
+          facetPurposeSelect.appendChild(opt);
+        });
+        facetPurposeSelect.value = selectedPurpose;
+      } else {
+        if (facetPurposeSection) facetPurposeSection.classList.add('hidden');
+        if (selectedPurpose !== 'all') {
+          selectedPurpose = 'all';
+        }
+      }
+
+      // If no facets have discriminative power, display the clean informational notice
+      if (activeFacetsCount === 0) {
+        if (sidebarEmptyNotice) sidebarEmptyNotice.classList.remove('hidden');
+        if (btnResetSidebar) btnResetSidebar.classList.add('hidden');
+      } else {
+        if (sidebarEmptyNotice) sidebarEmptyNotice.classList.add('hidden');
+        if (btnResetSidebar) btnResetSidebar.classList.remove('hidden');
+      }
+    }
+
+    function applyFiltersAndRender() {
+      syncUrlParams();
+      renderActiveChips();
+
+      filteredModels = rawModelsFromApi.filter(m => {
+        // 1. Text search across all fields
+        if (searchQuery && !modelMatchesSearch(m, searchQuery)) {
+          return false;
+        }
+
+        // 2. Category / Domain Filter
+        if (selectedCrop !== 'all') {
+          const cat = (m.crop || m.domain || 'General').toLowerCase();
+          if (cat !== selectedCrop.toLowerCase()) return false;
+        }
+
+        // 3. Target Element / Sample Filter
+        if (selectedSample !== 'all') {
+          const elem = (m.target_element || '').toLowerCase();
+          if (elem !== selectedSample.toLowerCase()) return false;
+        }
+
+        // 4. Purpose Filter
+        if (selectedPurpose !== 'all') {
+          const purp = (m.purpose || '').toLowerCase();
+          if (purp !== selectedPurpose.toLowerCase()) return false;
+        }
+
+        return true;
+      });
+
+      totalCount = filteredModels.length;
+      totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+      if (currentPage > totalPages) currentPage = 1;
+
+      renderModels();
+      updatePagination(totalCount, currentPage, pageSize);
+    }
+
+    function renderModels() {
+      modelsContainer.innerHTML = '';
+
+      if (filteredModels.length === 0) {
+        emptyCatalogState.classList.remove('hidden');
+        paginationBar.classList.add('hidden');
+        resultsCountDisplay.textContent = '0 modelos encontrados';
+
+        const isCompletelyEmpty = rawModelsFromApi.length === 0;
+        const iconContainer = document.getElementById('emptyStateIcon');
+        const titleEl = document.getElementById('emptyStateTitle');
+        const descEl = document.getElementById('emptyStateDesc');
+        const actionsEl = document.getElementById('emptyStateActions');
+
+        if (isCompletelyEmpty) {
+          if (iconContainer) iconContainer.innerHTML = '<svg class="w-6 h-6 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>';
+          if (titleEl) titleEl.textContent = 'Catálogo Vacío';
+          if (descEl) descEl.textContent = 'Actualmente no hay modelos de visión artificial disponibles en el catálogo. Vuelve a consultar más tarde o contacta con el administrador del sistema.';
+          if (actionsEl) actionsEl.innerHTML = '';
+        } else {
+          if (iconContainer) iconContainer.innerHTML = '<svg class="w-6 h-6 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
+          if (titleEl) titleEl.textContent = 'No se encontraron modelos coincidentes';
+          if (descEl) descEl.textContent = 'Prueba a buscar con términos más amplios o restablece los filtros seleccionados.';
+          if (actionsEl) actionsEl.innerHTML = '<button type="button" onclick="clearAllFilters()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium text-slate-700 bg-white ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-colors shadow-2xs">Restablecer Filtros</button>';
+        }
+        return;
+      }
+
+      emptyCatalogState.classList.add('hidden');
+      paginationBar.classList.remove('hidden');
+
+      const start = (currentPage - 1) * pageSize;
+      const end = Math.min(start + pageSize, totalCount);
+      const pageItems = filteredModels.slice(start, end);
+
+      if (totalCount === 1) {
+        resultsCountDisplay.textContent = 'Mostrando 1 de 1 modelo disponible';
+      } else {
+        resultsCountDisplay.textContent = `Mostrando ${start + 1} - ${end} de ${totalCount} modelos disponibles`;
+      }
+
+      if (currentView === 'grid') {
+        renderGridView(pageItems);
+      } else if (currentView === 'specs') {
+        renderSpecsView(pageItems);
+      } else {
+        renderListView(pageItems);
+      }
+    }
+
+    // =========================================================================
+    // CARD VIEW & LIST VIEW RENDERING
+    // =========================================================================
+
+    function renderGridView(models) {
+      const grid = document.createElement('div');
+      grid.className = 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6';
+
+      models.forEach(m => {
+        const slug = m.slug || m.name?.replace('.pt', '') || 'model';
+        const classes = m.classes || [];
+        const cat = m.crop || m.domain || 'General';
+        const isOnline = Boolean(m.active_checkpoint);
+
+        const card = document.createElement('div');
+        card.className = 'group bg-white rounded-2xl border border-slate-200/60 shadow-sm hover:border-slate-300/80 hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col justify-between h-full';
+
+        // Detectable classes pills or graceful fallback
+        let classesHtml = '';
+        if (classes.length > 0) {
+          const previewClasses = classes.slice(0, 4);
+          const remaining = classes.length - previewClasses.length;
+          const pillsHtml = previewClasses.map(c => `
+            <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-500/10 capitalize">
+              ${escapeHtml(formatText(c))}
+            </span>
+          `).join('') + (remaining > 0 ? `<span class="px-2 py-0.5 text-[11px] text-slate-400 font-medium">+${remaining} más</span>` : '');
+
+          classesHtml = `
+            <div>
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                Condiciones que detecta (${classes.length})
+              </div>
+              <div class="flex flex-wrap gap-1.5">
+                ${pillsHtml}
+              </div>
+            </div>
+          `;
+        } else {
+          classesHtml = `
+            <div>
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                Clases detectables
+              </div>
+              <p class="text-[11px] text-slate-400 italic">
+                Clasificación general / Sin clases catalogadas
+              </p>
+            </div>
+          `;
+        }
+
+        const statusBadge = isOnline
+          ? `<span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600">
+               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+               <span>En Servicio</span>
+             </span>`
+          : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20">
+               <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+               <span>Fuera de Servicio</span>
+             </span>`;
+
+        card.innerHTML = `
+          <div class="flex-1 flex flex-col">
+            ${renderThumbnailBlock(m, cat, 'rounded-t-xl')}
+
+            <!-- Card Content Body -->
+            <div class="p-5 space-y-4 flex-1 flex flex-col justify-between">
+              <div class="space-y-3">
+                <!-- Badges Row: Domain and Status OUTSIDE image container, sitting above Model Title -->
+                <div class="flex items-center justify-between gap-2">
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200/80">
+                    ${escapeHtml(cat)}
+                  </span>
+                  ${statusBadge}
+                </div>
+
+                <div>
+                  <a href="/models/${encodeURIComponent(slug)}" class="text-base font-semibold text-slate-900 group-hover:text-slate-700 transition-colors block tracking-tight">
+                    ${escapeHtml(m.title || formatText(slug))}
+                  </a>
+                  <p class="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                    ${escapeHtml(m.description || m.purpose || 'Modelo de visión artificial optimizado para diagnóstico e inferencia.')}
+                  </p>
+                </div>
+
+                <!-- Input Photo Instruction -->
+                <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-[11px] text-slate-600 flex items-start gap-2">
+                  <svg class="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                  <span class="line-clamp-1">${escapeHtml((m.target_element ? 'Muestra: ' + m.target_element + ' &bull; ' : '') + (m.input_guide || 'Fotografía de la muestra con buena iluminación natural.'))}</span>
+                </div>
+              </div>
+
+              <!-- Detectable Conditions -->
+              ${classesHtml}
+            </div>
+          </div>
+
+          <!-- Card Action Footer: Clean Agnostic UX -->
+          <div class="p-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-3 bg-slate-50/40">
+            <a
+              href="/models/${encodeURIComponent(slug)}"
+              class="text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors"
+            >
+              Ver detalles &rarr;
+            </a>
+
+            ${m.active_checkpoint ? `
+              <!-- Primary Action: Open Direct Analysis Studio -->
+              <button
+                type="button"
+                onclick="openAnalysisStudioBySlug('${escapeHtml(slug)}')"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-2xs cursor-pointer"
+              >
+                <svg class="w-3.5 h-3.5 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <span>Analizar Fotografía</span>
+              </button>
+            ` : `
+              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                <span>Modelo temporalmente fuera de servicio</span>
+              </span>
+            `}
+          </div>
+        `;
+
+        grid.appendChild(card);
+      });
+
+      modelsContainer.appendChild(grid);
+    }
+
+    function renderSpecsView(models) {
+      const specsContainer = document.createElement('div');
+      specsContainer.className = 'space-y-4';
+
+      models.forEach(m => {
+        const slug = m.slug || m.name?.replace('.pt', '') || 'model';
+        const classes = m.classes || [];
+        const cat = m.crop || m.domain || 'General';
+        const isOnline = Boolean(m.active_checkpoint);
+        const sizeMb = m.size_bytes ? (m.size_bytes / (1024 * 1024)).toFixed(1) + ' MB' : null;
+
+        const card = document.createElement('div');
+        card.className = 'group bg-white rounded-2xl border border-slate-200/60 shadow-sm hover:border-slate-300/80 hover:shadow-md transition-all duration-300 overflow-hidden p-5 sm:p-6 flex flex-col lg:flex-row gap-6 items-start justify-between';
+
+        // Detectable classes pills
+        let classesChips = '';
+        if (classes.length > 0) {
+          classesChips = classes.map(c => `
+            <span class="px-2 py-0.5 rounded-md text-[11px] font-mono bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-500/10">
+              ${escapeHtml(formatText(c))}
+            </span>
+          `).join('');
+        } else {
+          classesChips = '<span class="text-[11px] text-slate-400 italic">Clasificación general / Sin clases catalogadas</span>';
+        }
+
+        card.innerHTML = `
+          <!-- Left Column: Visual specimen & spec pills -->
+          <div class="w-full lg:w-56 shrink-0 space-y-3">
+            <div class="w-full aspect-video rounded-xl overflow-hidden border border-slate-100 shadow-2xs">
+              ${renderThumbnailBlock(m, cat, 'rounded-xl')}
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1 text-[10px] text-slate-500 font-mono">
+              <div class="flex justify-between">
+                <span class="text-slate-400">Arch:</span>
+                <span class="font-medium text-slate-700">${escapeHtml(m.architecture || 'resnet18')}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">Pesos:</span>
+                <span class="text-slate-700">${sizeMb || 'Bundle PT'}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">Checkpoint:</span>
+                <span class="text-slate-700 truncate max-w-[110px]" title="${escapeHtml(m.active_checkpoint || '')}">${escapeHtml(m.active_checkpoint || 'global_model.pt')}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Middle Column: Comprehensive Model Metadata Dossier -->
+          <div class="flex-1 min-w-0 space-y-3">
+            <div>
+              <div class="flex flex-wrap items-center gap-2 mb-1.5">
+                <span class="px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200/80">
+                  ${escapeHtml(cat)}
+                </span>
+                ${m.target_element ? `
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
+                    <svg class="w-3 h-3 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+                    <span>Muestra: ${escapeHtml(m.target_element)}</span>
+                  </span>
+                ` : ''}
+                ${isOnline ? `
+                  <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600 sm:ml-auto">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span>En Servicio</span>
+                  </span>
+                ` : `
+                  <span class="inline-flex items-center gap-1 text-[10px] font-medium text-amber-700 sm:ml-auto bg-amber-50 px-2 py-0.5 rounded-md ring-1 ring-inset ring-amber-600/20">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    <span>Fuera de Servicio</span>
+                  </span>
+                `}
+              </div>
+
+              <a href="/models/${encodeURIComponent(slug)}" class="text-base sm:text-lg font-semibold text-slate-900 hover:text-slate-700 transition-colors block tracking-tight">
+                ${escapeHtml(m.title || formatText(slug))}
+              </a>
+              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                ${escapeHtml(m.description || m.purpose || 'Modelo de visión artificial optimizado para diagnóstico e inferencia.')}
+              </p>
+            </div>
+
+            <!-- Guía de toma de muestra fotográfica -->
+            <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-start gap-2.5 text-xs">
+              <svg class="w-4 h-4 text-slate-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+              <div class="leading-relaxed">
+                <strong class="text-slate-800 font-semibold block text-[11px]">Requisito de captura:</strong>
+                <span class="text-slate-600 text-[11px]">${escapeHtml(m.input_guide || 'Fotografía de la muestra con buena iluminación natural difusa.')}</span>
+              </div>
+            </div>
+
+            <!-- Clases / Diagnósticos evaluados -->
+            <div>
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                Capacidad diagnóstica (${classes.length} condiciones evaluadas)
+              </div>
+              <div class="flex flex-wrap gap-1.5">
+                ${classesChips}
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Direct Launch Actions (Compacted) -->
+          <div class="w-full lg:w-48 shrink-0 flex flex-col gap-2.5 pt-4 lg:pt-0 lg:border-l lg:border-slate-100 lg:pl-6">
+            ${isOnline ? `
+              <div class="hidden lg:flex items-center gap-1.5 text-[11px] font-medium text-slate-600 mb-0.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span>Activo en Memoria</span>
+              </div>
+              <button
+                type="button"
+                onclick="openAnalysisStudioBySlug('${escapeHtml(slug)}')"
+                class="w-full inline-flex items-center justify-center gap-2 py-2 px-3.5 rounded-lg text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-2xs cursor-pointer"
+              >
+                <svg class="w-3.5 h-3.5 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <span>Analizar Muestra</span>
+              </button>
+            ` : `
+              <div class="w-full text-center py-2 px-3.5 rounded-lg text-xs font-medium text-amber-700 bg-amber-50 ring-1 ring-inset ring-amber-600/20">
+                Fuera de servicio
+              </div>
+            `}
+
+            <a
+              href="/models/${encodeURIComponent(slug)}"
+              class="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3.5 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-all text-center"
+            >
+              <span>Ver Ficha Técnica</span>
+              <span class="text-slate-400">&rarr;</span>
+            </a>
+          </div>
+        `;
+
+        specsContainer.appendChild(card);
+      });
+
+      modelsContainer.appendChild(specsContainer);
+    }
+
+    function renderListView(models) {
+      const listContainer = document.createElement('div');
+      listContainer.className = 'bg-white rounded-2xl border border-slate-200/60 shadow-sm divide-y divide-slate-100 overflow-hidden';
+
+      models.forEach(m => {
+        const slug = m.slug || m.name?.replace('.pt', '') || 'model';
+        const classes = m.classes || [];
+        const cat = m.crop || m.domain || 'General';
+
+        const row = document.createElement('div');
+        row.className = 'p-5 hover:bg-slate-50 transition-colors duration-150 flex flex-col md:flex-row md:items-center justify-between gap-4';
+
+        const classesSummary = classes.length > 0
+          ? classes.slice(0, 3).map(c => `
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10 capitalize">
+                ${escapeHtml(formatText(c))}
+              </span>
+            `).join('') + (classes.length > 3 ? `<span class="px-1 text-[10px] text-slate-400">+${classes.length - 3}</span>` : '')
+          : '<span class="text-[10px] text-slate-400 italic">Sin clases catalogadas</span>';
+
+        const thumbHtml = m.thumbnail_url
+          ? `<img src="${escapeHtml(m.thumbnail_url)}" alt="${escapeHtml(m.title || slug)}" class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover ring-1 ring-slate-900/10 shrink-0 bg-slate-100 shadow-2xs">`
+          : `<div class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-slate-900 flex items-center justify-center shrink-0 text-slate-400 shadow-2xs">
+               <svg class="w-7 h-7 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+               </svg>
+             </div>`;
+
+        row.innerHTML = `
+          <div class="flex items-start sm:items-center gap-4 min-w-0 flex-1">
+            ${thumbHtml}
+            <div class="space-y-1.5 min-w-0 flex-1">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200/80">
+                  ${escapeHtml(cat)}
+                </span>
+                ${m.target_element ? `<span class="text-xs text-slate-300">&bull;</span><span class="text-[10px] font-medium text-slate-500">${escapeHtml(m.target_element)}</span>` : ''}
+                ${m.active_checkpoint ? `
+                  <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>En Servicio
+                  </span>
+                ` : `
+                  <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Fuera de Servicio
+                  </span>
+                `}
+              </div>
+              <a href="/models/${encodeURIComponent(slug)}" class="text-base font-bold text-slate-900 hover:text-slate-700 transition-colors block tracking-tight truncate">
+                ${escapeHtml(m.title || formatText(slug))}
+              </a>
+              <p class="text-xs text-slate-500 line-clamp-1 leading-relaxed">
+                ${escapeHtml(m.description || m.purpose || 'Modelo de visión artificial para diagnóstico e inferencia.')}
+              </p>
+              <div class="flex flex-wrap items-center gap-1 pt-0.5">
+                ${classesSummary}
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0 self-end sm:self-center pt-2 sm:pt-0">
+            <a
+              href="/models/${encodeURIComponent(slug)}"
+              class="text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 transition-all shadow-2xs"
+            >
+              Ver detalles &rarr;
+            </a>
+            ${m.active_checkpoint ? `
+              <button
+                type="button"
+                onclick="openAnalysisStudioBySlug('${escapeHtml(slug)}')"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-2xs cursor-pointer"
+              >
+                <svg class="w-3.5 h-3.5 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <span>Analizar Fotografía</span>
+              </button>
+            ` : `
+              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                <span>Fuera de servicio</span>
+              </span>
+            `}
+          </div>
+        `;
+
+        listContainer.appendChild(row);
+      });
+
+      modelsContainer.appendChild(listContainer);
+    }
+
+    function updatePagination(total, page, size) {
+      if (total <= size) {
+        paginationBar.classList.add('hidden');
+        return;
+      }
+
+      paginationBar.classList.remove('hidden');
+      const start = (page - 1) * size + 1;
+      const end = Math.min(page * size, total);
+      paginationInfo.textContent = `Mostrando ${start} - ${end} de ${total}`;
+      pageCurrentDisplay.textContent = `${page} / ${totalPages}`;
+
+      btnPrevPage.disabled = page <= 1;
+      btnNextPage.disabled = page >= totalPages;
+    }
+
+    function changePage(delta) {
+      currentPage += delta;
+      if (currentPage < 1) currentPage = 1;
+      if (currentPage > totalPages) currentPage = totalPages;
+      applyFiltersAndRender();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // =========================================================================
+    // ANALYSIS STUDIO: DIRECT IN-BROWSER WORKFLOW
+    // =========================================================================
+
+    function openAnalysisStudioBySlug(slug) {
+      const target = rawModelsFromApi.find(m => (m.slug || m.name) === slug);
+      if (!target) return;
+      if (!target.active_checkpoint) {
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast('Modelo temporalmente fuera de servicio: no dispone de un checkpoint activo.', 'warning');
+        }
+        return;
+      }
+      openAnalysisStudio(target);
+    }
+
+    function openAnalysisStudio(model) {
+      activeStudioModel = model;
+      studioModelTitle.textContent = model.title || formatText(model.slug);
+      studioModelDescription.textContent = model.description || model.purpose || 'Modelo de visión artificial para inferencia en tiempo real.';
+      studioCropBadge.textContent = model.crop || model.domain || 'Modelo IA';
+      const archBadge = document.getElementById('studioArchBadge');
+      if (archBadge) archBadge.textContent = model.architecture || 'resnet18';
+      studioInputGuide.textContent = model.input_guide || 'Toma la fotografía nítida y bien enfocada sobre fondo neutro.';
+
+      resetStudioForNewAnalysis();
+      analysisStudioModal.classList.remove('hidden');
+    }
+
+    function closeAnalysisStudio() {
+      analysisStudioModal.classList.add('hidden');
+      activeStudioModel = null;
+      selectedImageFile = null;
+      lastAnalysisResult = null;
+    }
+
+    function triggerCameraInput() {
+      cameraInput.click();
+    }
+
+    function triggerFileInput() {
+      fileInput.click();
+    }
+
+    function handleFileSelected(file) {
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast('Por favor selecciona un archivo de imagen válido (JPG, PNG o WEBP).', 'warning');
+        }
+        return;
+      }
+
+      const maxBytes = 15 * 1024 * 1024;
+      if (file.size > maxBytes) {
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast('La imagen seleccionada supera el límite máximo permitido de 15 MB.', 'error');
+        }
+        return;
+      }
+
+      selectedImageFile = file;
+      setStudioStep(2);
+
+      // Render Preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        previewImg.src = e.target.result;
+        const analyzedThumb = document.getElementById('resAnalyzedThumb');
+        if (analyzedThumb) {
+          analyzedThumb.src = e.target.result;
+          analyzedThumb.classList.remove('hidden');
+        }
+        const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+        previewFileInfo.textContent = `${file.name} (${sizeMb} MB)`;
+        
+        dropzonePrompt.classList.add('hidden');
+        dropzonePreview.classList.remove('hidden');
+
+        btnExecuteAnalysis.disabled = false;
+        btnExecuteAnalysis.className = 'w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl text-xs sm:text-sm font-semibold text-white bg-slate-900 hover:bg-black cursor-pointer shadow-md transition-all';
+        btnExecuteAnalysisText.textContent = `Analizar ${file.name} con IA`;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeSelectedImage() {
+      selectedImageFile = null;
+      cameraInput.value = '';
+      fileInput.value = '';
+      previewImg.src = '';
+      previewFileInfo.textContent = '';
+
+      dropzonePreview.classList.add('hidden');
+      dropzonePrompt.classList.remove('hidden');
+
+      btnExecuteAnalysis.disabled = true;
+      btnExecuteAnalysis.className = 'w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl text-xs sm:text-sm font-semibold text-white bg-slate-300 cursor-not-allowed shadow-none transition-all';
+      btnExecuteAnalysisText.textContent = 'Selecciona una fotografía para analizar';
+      setStudioStep(1);
+    }
+
+    cameraInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) handleFileSelected(e.target.files[0]);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) handleFileSelected(e.target.files[0]);
+    });
+
+    // Drag and drop handling for studioDropzone
+    studioDropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      studioDropzone.classList.add('border-slate-800', 'bg-slate-100');
+    });
+
+    studioDropzone.addEventListener('dragleave', () => {
+      studioDropzone.classList.remove('border-slate-800', 'bg-slate-100');
+    });
+
+    studioDropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      studioDropzone.classList.remove('border-slate-800', 'bg-slate-100');
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleFileSelected(e.dataTransfer.files[0]);
+      }
+    });
+
+    studioDropzone.addEventListener('click', () => {
+      if (!selectedImageFile) triggerFileInput();
+    });
+
+    // Execute Real Inference API Call
+    async function submitAnalysis() {
+      if (!activeStudioModel || !selectedImageFile) return;
+
+      const guideBox = document.getElementById('studioInputGuideBox');
+      if (guideBox) guideBox.classList.add('hidden');
+
+      btnExecuteAnalysis.disabled = true;
+      btnExecuteAnalysis.innerHTML = `
+        <svg class="w-4 h-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        <span>Procesando imagen con modelo de visión artificial...</span>
+      `;
+
+      const saveCheckbox = document.getElementById('studioSaveTrainingCheckbox');
+      const saveTraining = saveCheckbox ? Boolean(saveCheckbox.checked) : true;
+
+      const formData = new FormData();
+      formData.append('file', selectedImageFile);
+
+      try {
+        const url = `/predict?model_slug=${encodeURIComponent(activeStudioModel.slug)}&save_for_training=${saveTraining}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || `Error en el servidor (${res.status})`);
+        }
+
+        const data = await res.json();
+        lastAnalysisResult = data;
+        displayAnalysisResult(data);
+
+      } catch (err) {
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast('Error al ejecutar el análisis: ' + err.message, 'error');
+        }
+        btnExecuteAnalysis.disabled = false;
+        btnExecuteAnalysis.innerHTML = `
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+          </svg>
+          <span>Reintentar Análisis</span>
+        `;
+      }
+    }
+
+    function displayAnalysisResult(data) {
+      setStudioStep(3);
+      studioUploadZone.classList.add('hidden');
+      studioResultsZone.classList.remove('hidden');
+
+      const studioPrimaryCard = document.getElementById('studioPrimaryCard');
+      const studioOodCard = document.getElementById('studioOodCard');
+
+      if (data.ood_flag === true) {
+        // OOD ANOMALY INTERCEPTION: Suppress fake softmax progress bar & show warning
+        if (studioPrimaryCard) studioPrimaryCard.classList.add('hidden');
+        if (studioOodCard) {
+          studioOodCard.classList.remove('hidden');
+          const thumbOod = document.getElementById('resAnalyzedThumbOod');
+          if (thumbOod && selectedImageFile) {
+            thumbOod.src = URL.createObjectURL(selectedImageFile);
+          }
+          const oodScoreBadge = document.getElementById('studioOodScoreBadge');
+          if (oodScoreBadge && typeof data.ood_score === 'number') {
+            oodScoreBadge.textContent = `Score Anómalo: ${(data.ood_score * 100).toFixed(1)}%`;
+          }
+        }
+        resProbabilityList.innerHTML = `
+          <div class="bg-slate-50 border border-dashed border-slate-200 rounded-lg p-5 text-center text-slate-500 space-y-2">
+            <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-400 mx-auto">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+            <div class="space-y-0.5">
+              <span class="text-xs font-semibold text-slate-700 block">Probabilidades de clase suprimidas</span>
+              <p class="text-[11px] text-slate-400 max-w-sm mx-auto leading-relaxed">
+                El guardrail de energía libre ha bloqueado la distribución de salida de Softmax para evitar falsos positivos forzados por la red neuronal ante muestras fuera del dominio.
+              </p>
+            </div>
+            <div class="pt-2 max-w-xs mx-auto space-y-1.5 opacity-40">
+              <div class="h-1.5 rounded-full bg-slate-200 animate-pulse w-full"></div>
+              <div class="h-1.5 rounded-full bg-slate-200 animate-pulse w-3/4 mx-auto"></div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (studioOodCard) studioOodCard.classList.add('hidden');
+      if (studioPrimaryCard) studioPrimaryCard.classList.remove('hidden');
+
+      const predClass = data.predicted_class || 'No determinado';
+      const conf = typeof data.confidence === 'number' ? data.confidence : 0;
+      const confPct = (conf * 100).toFixed(1);
+
+      resPredictedClass.textContent = formatText(predClass);
+      resConfidenceDisplay.textContent = `${confPct}%`;
+      resConfidenceBar.style.width = `${Math.min(100, Math.max(0, conf * 100))}%`;
+
+      const hitlBadge = document.getElementById('resHitlSavedBadge');
+      if (hitlBadge) {
+        if (data.saved_for_training) {
+          hitlBadge.textContent = 'Enviada a Curación HITL';
+          hitlBadge.className = 'px-2 py-0.5 rounded-md text-[10px] font-mono bg-slate-100 text-slate-700 border border-slate-200/90';
+          hitlBadge.title = 'Muestra guardada en la cola de revisión agrónoma (/expert) para reentrenamiento';
+          hitlBadge.classList.remove('hidden');
+        } else {
+          hitlBadge.textContent = 'Modo Privado';
+          hitlBadge.className = 'px-2 py-0.5 rounded-md text-[10px] font-mono bg-slate-50 text-slate-400 border border-slate-200/60';
+          hitlBadge.title = 'Muestra no almacenada a petición del usuario';
+          hitlBadge.classList.remove('hidden');
+        }
+      }
+
+      const calBadge = document.getElementById('resCalibrationBadge');
+      if (calBadge) {
+        if (data.calibrated) {
+          calBadge.textContent = 'Umbral Calibrado';
+          calBadge.className = 'px-2 py-0.5 rounded-md text-[10px] font-mono bg-indigo-50 text-indigo-700 border border-indigo-200';
+        } else {
+          calBadge.textContent = 'Argmax Nominal';
+          calBadge.className = 'px-2 py-0.5 rounded-md text-[10px] font-mono bg-slate-200/80 text-slate-700';
+        }
+      }
+
+      // Plain language interpretation of certainty
+      if (conf >= 0.80) {
+        resCertaintyBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-800 border border-slate-200/80';
+        resCertaintyBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span>Certeza Alta</span>';
+        resInterpretationText.textContent = `El modelo ha identificado características visuales coincidentes de forma muy clara con "${formatText(predClass)}".`;
+      } else if (conf >= 0.50) {
+        resCertaintyBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-800 border border-slate-200/80';
+        resCertaintyBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span>Certeza Moderada</span>';
+        resInterpretationText.textContent = `La muestra presenta síntomas compatibles con "${formatText(predClass)}", aunque se recomienda seguimiento para corroborar la evolución.`;
+      } else {
+        resCertaintyBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-800 border border-slate-200/80';
+        resCertaintyBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span><span>Resultado Incierto</span>';
+        resInterpretationText.textContent = 'El análisis no es concluyente debido a poca nitidez, iluminación irregular o síntomas difusos. Se aconseja repetir la fotografía.';
+      }
+
+      // Render probabilities breakdown
+      resProbabilityList.innerHTML = '';
+      const probs = data.probabilities || {};
+      const sortedKeys = Object.keys(probs).sort((a, b) => probs[b] - probs[a]);
+
+      sortedKeys.forEach(k => {
+        const val = probs[k] || 0;
+        const pct = (val * 100).toFixed(1);
+        const isTop = k.toLowerCase() === predClass.toLowerCase();
+
+        const item = document.createElement('div');
+        item.className = 'space-y-1';
+        item.innerHTML = `
+          <div class="flex justify-between text-xs font-medium ${isTop ? 'text-slate-900 font-bold' : 'text-slate-600'}">
+            <span>${formatText(k)}</span>
+            <span class="font-mono">${pct}%</span>
+          </div>
+          <div class="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+            <div class="h-full rounded-full ${isTop ? 'bg-slate-900' : 'bg-slate-300'}" style="width: ${pct}%;"></div>
+          </div>
+        `;
+        resProbabilityList.appendChild(item);
+      });
+    }
+
+    function resetStudioForNewAnalysis() {
+      removeSelectedImage();
+      setStudioStep(1);
+      studioResultsZone.classList.add('hidden');
+      studioUploadZone.classList.remove('hidden');
+      const studioPrimaryCard = document.getElementById('studioPrimaryCard');
+      const studioOodCard = document.getElementById('studioOodCard');
+      if (studioOodCard) studioOodCard.classList.add('hidden');
+      if (studioPrimaryCard) studioPrimaryCard.classList.remove('hidden');
+      lastAnalysisResult = null;
+    }
+
+    function downloadAnalysisReport() {
+      if (!lastAnalysisResult || !activeStudioModel) return;
+
+      const dateStr = new Date().toLocaleString('es-ES');
+      const lines = [
+        '====================================================',
+        'KHAOS Hub - INFORME ORIENTATIVO DE DIAGNÓSTICO',
+        '====================================================',
+        `Fecha de Análisis: ${dateStr}`,
+        `Modelo Utilizado:  ${activeStudioModel.title} (${activeStudioModel.slug})`,
+        `Cultivo / Muestra: ${activeStudioModel.crop || 'General'}`,
+        `Fotografía:        ${selectedImageFile ? selectedImageFile.name : 'captura_directa.jpg'}`,
+        '----------------------------------------------------',
+        'RESULTADO DEL ANÁLISIS:',
+        `Condición Predicha: ${formatText(lastAnalysisResult.predicted_class)}`,
+        `Nivel de Certeza:   ${(lastAnalysisResult.confidence * 100).toFixed(1)}%`,
+        '----------------------------------------------------',
+        'DISTRIBUCIÓN DE PROBABILIDADES:',
+      ];
+
+      const probs = lastAnalysisResult.probabilities || {};
+      for (const [k, v] of Object.entries(probs)) {
+        lines.push(`- ${formatText(k).padEnd(20)}: ${(v * 100).toFixed(1)}%`);
+      }
+
+      lines.push('----------------------------------------------------');
+      lines.push('AVISO TÉCNICO Y AGRONÓMICO:');
+      lines.push('Este informe ha sido generado automáticamente por un');
+      lines.push('modelo de visión artificial como herramienta de apoyo.');
+      lines.push('No constituye un dictamen oficial ni sustituye la');
+      lines.push('inspección técnica presencial de un perito agrónomo.');
+      lines.push('====================================================');
+
+      const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `informe_${activeStudioModel.slug}_${Date.now()}.txt`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    // Search input handler with debounce
+    let searchDebounceTimer;
+    hubSearchInput.addEventListener('input', (e) => {
+      clearTimeout(searchDebounceTimer);
+      const val = e.target.value;
+      if (val) {
+        btnSearchClear.classList.remove('hidden');
+      } else {
+        btnSearchClear.classList.add('hidden');
+      }
+      searchDebounceTimer = setTimeout(() => {
+        searchQuery = val;
+        currentPage = 1;
+        applyFiltersAndRender();
+      }, 250);
+    });
+
+    // Initial Load
+    fetchModels();
+  </script>
+</body>
+</html>

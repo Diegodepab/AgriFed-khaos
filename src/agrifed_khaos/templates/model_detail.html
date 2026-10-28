@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-50/50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KHAOS &bull; Ficha de Modelo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      const origWarn = console.warn;
+      console.warn = function(...args) {
+        if (args.length > 0 && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
+          return;
+        }
+        origWarn.apply(console, args);
+      };
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="stylesheet" href="/static/khaos-ui.css">
+  <script src="/static/khaos-ui.js"></script>
+</head>
+<body class="min-h-full flex flex-col font-sans text-slate-900 antialiased selection:bg-slate-200 selection:text-slate-900">
+
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-40 w-full border-b border-slate-200/60 bg-white/80 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
+      <div class="flex h-16 items-center justify-between">
+        
+        <!-- Brand Identity -->
+        <a href="/" class="flex items-center gap-3 group">
+          <div class="h-8 w-8 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-2xs group-hover:bg-slate-800 transition-colors">
+            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold tracking-tight text-slate-900">KHAOS <span class="text-slate-400 font-normal">Hub</span></span>
+            <span class="hidden sm:inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-50 text-slate-500 ring-1 ring-inset ring-slate-500/10 uppercase tracking-wider">Data Space</span>
+          </div>
+        </a>
+
+        <!-- Right Actions: Nav + Help -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          <!-- Navigation Links: Harmonized Linear Aesthetic -->
+          <nav class="flex items-center gap-1 bg-slate-100/80 p-1 rounded-lg">
+            <a href="/" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-900 bg-white shadow-2xs">
+              Modelos
+              <span class="sr-only">Catálogo de Modelos</span>
+            </a>
+            <a href="/expert" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+              Evaluación
+            </a>
+            <a href="/master" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+              Administración
+            </a>
+          </nav>
+
+          <!-- Contextual Help Trigger in Header -->
+          <button
+            type="button"
+            onclick="openContextualHelp()"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            title="Guía y Ayuda del Módulo"
+          >
+            <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span class="hidden sm:inline">Ayuda</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-10 space-y-8">
+
+    <!-- Breadcrumb & Direct Action Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+      <nav class="flex items-center gap-1.5 text-slate-500 overflow-x-auto whitespace-nowrap">
+        <a href="/" class="hover:text-slate-900 transition-colors">Modelos</a>
+        <span>/</span>
+        <span id="breadcrumbDomain" class="text-slate-600 font-medium">Dominio</span>
+        <span>/</span>
+        <span id="breadcrumbTitle" class="text-slate-900 font-semibold truncate max-w-xs">Modelo</span>
+      </nav>
+
+      <div class="flex items-center gap-2 shrink-0">
+        <a id="curationLink" href="#" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-700 bg-white ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-colors shadow-2xs">
+          <span>Validación Experta (HITL)</span>
+        </a>
+        <a id="btnDownloadModel" href="#" download class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-2xs">
+          <svg class="w-3.5 h-3.5 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>Descargar .pt</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Model Header Hero -->
+    <div class="bg-white rounded-2xl border border-slate-200/60 p-6 sm:p-8 shadow-sm space-y-4">
+      <div class="flex flex-wrap items-center gap-2">
+        <span id="modelDomainBadge" class="px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-500/10 uppercase tracking-wider">
+          Cargando...
+        </span>
+        <span id="modelArchBadge" class="px-2 py-0.5 rounded-md text-[10px] font-mono text-slate-600 bg-slate-50 ring-1 ring-inset ring-slate-500/10">
+          resnet18
+        </span>
+        <span id="modelCheckpointBadge" class="px-2 py-0.5 rounded-md text-[10px] font-mono text-slate-500 bg-slate-50 ring-1 ring-inset ring-slate-500/10">
+          checkpoint: -
+        </span>
+        <span id="modelCalBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10">
+          Calibración
+        </span>
+      </div>
+
+      <div>
+        <h1 id="modelTitle" class="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">
+          Cargando información del modelo...
+        </h1>
+        <p id="modelDescription" class="mt-1.5 text-xs sm:text-sm text-slate-500 leading-relaxed max-w-3xl">
+          -
+        </p>
+      </div>
+
+      <div class="pt-3 flex flex-wrap items-center gap-4 text-xs text-slate-500 border-t border-slate-100">
+        <div class="flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>
+          </svg>
+          <span id="metaClassesCount" class="font-medium text-slate-700">0 clases detectables</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          </svg>
+          <span id="metaFileSize" class="font-mono text-slate-700">-</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modular Tabs Navigation -->
+    <div class="border-b border-slate-200 overflow-x-auto">
+      <nav class="flex space-x-4 sm:space-x-8 min-w-max" aria-label="Tabs">
+        <button
+          type="button"
+          onclick="switchTab('tab-infer')"
+          id="btnTabInfer"
+          class="border-b-2 border-slate-900 text-slate-900 py-2.5 px-1 text-xs sm:text-sm font-semibold flex items-center gap-2"
+        >
+          <svg class="w-4 h-4 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m10 15 5-3-5-3v6Z"/></svg>
+          Diagnóstico en Vivo
+        </button>
+
+        <button
+          type="button"
+          onclick="switchTab('tab-taxonomy')"
+          id="btnTabTaxonomy"
+          class="border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 py-2.5 px-1 text-xs sm:text-sm font-medium flex items-center gap-2 transition-colors"
+        >
+          <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+          Clases y Umbrales
+        </button>
+
+        <button
+          type="button"
+          onclick="switchTab('tab-api')"
+          id="btnTabApi"
+          class="border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 py-2.5 px-1 text-xs sm:text-sm font-medium flex items-center gap-2 transition-colors"
+        >
+          <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          Integración API (cURL / Python)
+        </button>
+
+        <button
+          type="button"
+          onclick="switchTab('tab-json')"
+          id="btnTabJson"
+          class="border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 py-2.5 px-1 text-xs sm:text-sm font-medium flex items-center gap-2 transition-colors"
+        >
+          <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Ficha Técnica (JSON)
+        </button>
+      </nav>
+    </div>
+
+    <!-- TAB 1: DIAGNÓSTICO EN VIVO (Workspace) -->
+    <div id="panel-tab-infer" class="space-y-6">
+
+      <!-- Inference Mode Selector (Individual vs Batch ZIP) -->
+      <div class="flex items-center gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200/80 w-fit">
+        <button
+          type="button"
+          id="btnModeIndividual"
+          onclick="setInferenceMode('individual')"
+          class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-900 bg-white shadow-2xs transition-all"
+        >
+          <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+          </svg>
+          <span>Análisis Individual</span>
+        </button>
+        <button
+          type="button"
+          id="btnModeBatch"
+          onclick="setInferenceMode('batch')"
+          class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900 transition-all"
+        >
+          <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/>
+          </svg>
+          <span>Análisis por Lote (ZIP)</span>
+        </button>
+      </div>
+
+      <!-- Individual Inference View (Default) -->
+      <div id="inferModeIndividual" class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+
+        <!-- Left Column: Image Upload & Dropzone -->
+        <div class="bg-white rounded-2xl border border-slate-200/60 p-6 sm:p-7 shadow-sm space-y-5">
+          <div>
+            <h2 class="text-base font-semibold text-slate-900 tracking-tight">Entrada de Inferencia</h2>
+            <p id="inputGuideText" class="text-xs text-slate-500 mt-1 leading-relaxed">
+              Sube la imagen que deseas evaluar con este modelo.
+            </p>
+          </div>
+
+          <form id="modelPredictForm" class="space-y-5">
+            <input type="file" id="modelImageFile" accept="image/*" class="hidden">
+            <input type="file" id="modelCameraFile" accept="image/*" capture="environment" class="hidden">
+
+            <!-- Dropzone -->
+            <div
+              id="modelDropzone"
+              class="relative border-2 border-dashed border-slate-300 hover:border-slate-500 bg-slate-50/70 hover:bg-slate-100/50 rounded-2xl p-6 text-center cursor-pointer transition-all min-h-[220px] flex flex-col items-center justify-center"
+            >
+              <!-- Idle Prompt -->
+              <div id="dropzoneIdle" class="space-y-3 flex flex-col items-center justify-center">
+                <div class="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 shadow-2xs">
+                  <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/>
+                    <path d="M12 12v9"/>
+                    <path d="m16 16-4-4-4 4"/>
+                  </svg>
+                </div>
+                <div class="space-y-1">
+                  <p class="text-xs sm:text-sm font-semibold text-slate-800">
+                    Arrastra tu archivo aquí o utiliza una de las opciones:
+                  </p>
+                  <p class="text-[11px] text-slate-400">JPG, PNG o WEBP</p>
+                </div>
+                <div class="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onclick="event.stopPropagation(); document.getElementById('modelCameraFile').click();"
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-2xs"
+                  >
+                    Tomar con la Cámara
+                  </button>
+                  <button
+                    type="button"
+                    onclick="event.stopPropagation(); document.getElementById('modelImageFile').click();"
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 bg-white ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-all shadow-2xs"
+                  >
+                    Elegir Archivo
+                  </button>
+                </div>
+              </div>
+
+              <!-- Preview Container -->
+              <div id="dropzonePreview" class="hidden w-full flex flex-col items-center space-y-3">
+                <img id="previewImage" src="" alt="Vista previa" class="max-h-56 max-w-full rounded-xl object-contain border border-slate-200 bg-slate-900/5">
+                <div class="flex items-center gap-3">
+                  <span id="previewName" class="text-xs font-mono text-slate-600 truncate max-w-[200px]"></span>
+                  <button
+                    type="button"
+                    id="btnChangeImage"
+                    class="text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 ring-1 ring-inset ring-slate-200 px-2.5 py-1 rounded-lg transition-colors shadow-2xs"
+                  >
+                    Cambiar imagen
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Simple, User-Friendly Improvement Checkbox -->
+            <div class="flex items-start gap-3 p-3.5 rounded-xl bg-slate-50/80 ring-1 ring-inset ring-slate-200/60 text-xs">
+              <input
+                type="checkbox"
+                id="modelSaveTraining"
+                checked
+                class="mt-0.5 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+              >
+              <label for="modelSaveTraining" class="text-slate-600 leading-snug cursor-pointer select-none">
+                <strong class="font-semibold text-slate-800">Ayudar a mejorar el modelo:</strong> Guardar muestra para que especialistas certifiquen casos con dudas y entrenen futuras versiones.
+              </label>
+            </div>
+
+            <!-- Submit Button -->
+            <button
+              type="submit"
+              id="btnRunPredict"
+              disabled
+              class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-xs sm:text-sm font-medium text-white bg-slate-300 cursor-not-allowed shadow-none transition-all"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+              </svg>
+              <span>Ejecutar Diagnóstico</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Right Column: Prediction Results -->
+        <div class="bg-white rounded-2xl border border-slate-200/60 p-6 sm:p-7 shadow-sm space-y-5">
+          <div class="flex items-center justify-between">
+            <h2 class="text-base font-semibold text-slate-900 tracking-tight">Resultado</h2>
+            <span id="predictStatusBadge" class="text-xs font-medium px-2.5 py-0.5 rounded-md bg-slate-50 text-slate-500 ring-1 ring-inset ring-slate-500/10">
+              En Espera
+            </span>
+          </div>
+
+          <!-- Empty State -->
+          <div id="resultsEmpty" class="py-16 text-center space-y-2">
+            <div class="w-12 h-12 rounded-xl bg-slate-50 ring-1 ring-inset ring-slate-200/60 flex items-center justify-center mx-auto text-slate-300">
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect width="18" height="18" x="3" y="3" rx="2"/>
+                <path d="M3 9h18"/>
+                <path d="m9 16 2 2 4-4"/>
+              </svg>
+            </div>
+            <p class="text-xs font-medium text-slate-700">Esperando imagen</p>
+            <p class="text-[11px] text-slate-400">Adjunta una foto y haz clic en "Ejecutar Diagnóstico".</p>
+          </div>
+
+          <!-- Result Content -->
+          <div id="resultsActive" class="hidden space-y-5" aria-live="polite">
+            <!-- Primary Diagnosis Card -->
+            <div id="resPrimaryCard" class="p-5 rounded-xl bg-slate-50/80 ring-1 ring-inset ring-slate-200/60 space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span class="font-semibold uppercase tracking-wider text-slate-500">Diagnóstico Principal</span>
+                <span id="resCalibratedBadge" class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                  Calibrado
+                </span>
+              </div>
+              <div id="resClass" class="text-2xl sm:text-3xl font-semibold text-slate-900 capitalize tracking-tight">
+                -
+              </div>
+              <p id="resPlainInterpretation" class="text-xs text-slate-600 leading-relaxed">
+                -
+              </p>
+              <div class="space-y-1.5 pt-1">
+                <div class="flex justify-between text-xs font-medium text-slate-600">
+                  <span>Certeza del modelo</span>
+                  <span id="resConfidence" class="font-mono font-medium text-slate-900 kh-tabular-nums">0.0%</span>
+                </div>
+                <div class="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                  <div id="resConfidenceBar" class="h-full rounded-full bg-slate-900 transition-all duration-500" style="width: 0%;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- OoD Anomaly Warning Card (Hijacks Result when ood_flag === true) -->
+            <div id="resOodWarningCard" class="hidden bg-white border border-slate-200 border-l-4 border-l-amber-500 rounded-xl shadow-sm overflow-hidden">
+              <div class="p-5 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200/80">
+                    <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                      <line x1="12" y1="9" x2="12" y2="13"/>
+                      <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    <span>Anomalía Detectada</span>
+                  </span>
+                  <span id="resOodScoreDisplay" class="text-xs font-mono text-slate-500 font-medium kh-tabular-nums"></span>
+                </div>
+                <div class="space-y-0.5">
+                  <h3 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">Muestra Fuera de Dominio (OoD)</h3>
+                  <p class="text-xs text-slate-500 leading-snug font-normal">
+                    El sistema tiene baja confianza epistémica en esta imagen. Es posible que no pertenezca al dominio de este modelo o la calidad sea insuficiente.
+                  </p>
+                </div>
+              </div>
+              <div class="bg-slate-50 border-t border-slate-100 px-4 py-2.5 flex items-center justify-between text-xs text-slate-500">
+                <div class="flex items-center gap-2">
+                  <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  </svg>
+                  <span>Guardrail de Energía Libre activo (Softmax suprimido para proteger la fiabilidad)</span>
+                </div>
+                <span class="font-mono text-[11px] text-slate-400 font-medium">Zero-Leakage OoD</span>
+              </div>
+            </div>
+
+            <!-- Probabilities Breakdown (Collapsible on Mobile) -->
+            <details open class="group bg-white rounded-xl ring-1 ring-inset ring-slate-200/60 p-4">
+              <summary class="flex items-center justify-between cursor-pointer select-none list-none">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Distribución de Probabilidades
+                </h3>
+                <span class="text-xs text-slate-400 group-open:rotate-180 transition-transform">&#9662;</span>
+              </summary>
+              <div id="resProbList" class="mt-3 space-y-2 max-h-64 overflow-y-auto pr-1">
+                <!-- Populated by JS -->
+              </div>
+            </details>
+
+            <!-- Export Summary Action -->
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <span class="text-[11px] text-slate-400">Informe orientativo de diagnóstico</span>
+              <button
+                type="button"
+                id="btnDownloadReport"
+                disabled
+                onclick="downloadDiagnosisReport()"
+                class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 transition-colors shadow-2xs cursor-pointer"
+              >
+                <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span>Descargar Resumen</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Batch Inference View (ZIP) -->
+      <div id="inferModeBatch" class="hidden space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          <!-- Left 2 Cols: ZIP Upload & Action -->
+          <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200/60 p-6 sm:p-7 shadow-sm space-y-5">
+            <div>
+              <h2 class="text-base font-semibold text-slate-900 tracking-tight">Análisis por Lote (.ZIP)</h2>
+              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                Clasifica múltiples muestras fotográficas de forma simultánea subiendo un archivo comprimido .ZIP. El sistema procesará cada imagen con este modelo y generará un ZIP estructurado con carpetas clasificadas por patología y un informe CSV detallado.
+              </p>
+            </div>
+
+            <form id="batchPredictForm" class="space-y-5" onsubmit="event.preventDefault(); submitBatchAnalysis();">
+              <input type="file" id="batchZipInput" accept=".zip,application/zip,application/x-zip-compressed" class="hidden">
+
+              <!-- Dropzone for ZIP -->
+              <div
+                id="batchDropzone"
+                onclick="document.getElementById('batchZipInput').click();"
+                class="relative border-2 border-dashed border-slate-300 hover:border-slate-500 bg-slate-50/70 hover:bg-slate-100/50 rounded-2xl p-6 text-center cursor-pointer transition-all min-h-[200px] flex flex-col items-center justify-center"
+              >
+                <!-- Idle Prompt -->
+                <div id="batchDropzoneIdle" class="space-y-3 flex flex-col items-center justify-center">
+                  <div class="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 shadow-2xs">
+                    <svg class="w-6 h-6 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/>
+                    </svg>
+                  </div>
+                  <div class="space-y-1">
+                    <p class="text-xs sm:text-sm font-semibold text-slate-800">
+                      Arrastra tu archivo .ZIP aquí o haz clic para seleccionar
+                    </p>
+                    <p class="text-[11px] text-slate-400">Archivos .ZIP con imágenes JPG, PNG o WEBP (hasta 200 MB)</p>
+                  </div>
+                  <button
+                    type="button"
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 bg-white ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-all shadow-2xs"
+                  >
+                    Seleccionar Archivo .ZIP
+                  </button>
+                </div>
+
+                <!-- Selected ZIP Prompt -->
+                <div id="batchDropzoneSelected" class="hidden w-full flex flex-col items-center space-y-3">
+                  <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shadow-2xs">
+                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                  <div class="text-center">
+                    <span id="batchZipFileName" class="text-xs sm:text-sm font-semibold text-slate-900 block truncate max-w-sm"></span>
+                    <span id="batchZipFileSize" class="text-[11px] text-slate-400 font-mono"></span>
+                  </div>
+                  <button
+                    type="button"
+                    onclick="event.stopPropagation(); document.getElementById('batchZipInput').click();"
+                    class="text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 ring-1 ring-inset ring-slate-200 px-3 py-1 rounded-lg transition-colors shadow-2xs"
+                  >
+                    Cambiar archivo .ZIP
+                  </button>
+                </div>
+              </div>
+
+              <!-- Action Button -->
+              <button
+                type="submit"
+                id="btnRunBatch"
+                disabled
+                class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold text-white bg-slate-300 cursor-not-allowed shadow-none transition-all"
+              >
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                <span id="btnRunBatchText">Analizar Lote</span>
+              </button>
+            </form>
+
+            <!-- Status Banner -->
+            <div id="batchSuccessAlert" class="hidden p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 space-y-2">
+              <div class="flex items-center gap-2 font-semibold">
+                <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <span>¡Lote procesado y clasificado con éxito!</span>
+              </div>
+              <p class="text-[11px] text-emerald-700 leading-relaxed">
+                La descarga del archivo ZIP con las carpetas organizadas por patología y el reporte <code class="bg-emerald-100/80 px-1 py-0.5 rounded font-mono">report.csv</code> ha comenzado automáticamente.
+              </p>
+              <div class="pt-1">
+                <button
+                  type="button"
+                  id="btnDownloadBatchAgain"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 transition-colors cursor-pointer"
+                >
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  <span>Descargar ZIP nuevamente</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right 1 Col: Process Specification Card -->
+          <div class="bg-white rounded-2xl border border-slate-200/60 p-6 shadow-sm space-y-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Estructura del Lote Resultante</h3>
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100 font-mono text-[11px] text-slate-600 space-y-1 leading-relaxed">
+              <div class="text-slate-800 font-bold">📦 lote_clasificado.zip</div>
+              <div class="pl-3">├── 📁 &lt;Clase_1&gt;/ (e.g. Healthy)</div>
+              <div class="pl-3">├── 📁 &lt;Clase_2&gt;/ (e.g. Repilo)</div>
+              <div class="pl-3">├── 📁 OoD_Anomaly/ (Muestras anómalas)</div>
+              <div class="pl-3">└── 📄 report.csv (filas: filename, class, conf, ood)</div>
+            </div>
+            <div class="text-[11px] text-slate-500 space-y-2">
+              <p>
+                <strong>Asíncrono & Zero-Memory:</strong> La descompresión e inferencia se ejecutan en almacenamiento temporal en disco para evitar sobrecargar la memoria RAM del servidor.
+              </p>
+              <p>
+                <strong>Guardrail OoD Activo:</strong> Las muestras no reconocidas dentro del dominio se identifican y marcan en <code class="font-mono text-slate-700">report.csv</code> con <code class="font-mono text-slate-700">ood_flag=true</code>.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: CLASES Y UMBRALES -->
+    <div id="panel-tab-taxonomy" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Clases Soportadas y Umbrales Óptimos</h2>
+          <p class="text-xs text-slate-500 mt-0.5">
+            Categorías que el modelo clasifica con sus umbrales de certeza calibrados (&tau;) para evitar falsos positivos.
+          </p>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                <th class="py-2.5 px-3">Clase / Patología</th>
+                <th class="py-2.5 px-3">Código Interno</th>
+                <th class="py-2.5 px-3">Umbral Óptimo (&tau;)</th>
+                <th class="py-2.5 px-3">Modo</th>
+              </tr>
+            </thead>
+            <tbody id="taxonomyTableBody" class="divide-y divide-slate-100">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: INTEGRACIÓN API (cURL / Python) -->
+    <div id="panel-tab-api" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-6">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Integración en Aplicaciones Externas</h2>
+          <p class="text-xs text-slate-500 mt-0.5">
+            Consume la inferencia de este modelo mediante HTTP REST directamente desde scripts o aplicaciones clientes.
+          </p>
+        </div>
+
+        <!-- cURL Snippet -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs font-semibold text-slate-700">
+            <span>Comando cURL (Terminal)</span>
+            <button
+              type="button"
+              onclick="copyCodeSnippet('curlSnippet', this)"
+              class="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
+            >
+              Copiar
+            </button>
+          </div>
+          <pre id="curlSnippet" class="p-4 rounded-xl bg-slate-900 text-slate-100 font-mono text-xs overflow-x-auto"></pre>
+        </div>
+
+        <!-- Python Snippet -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs font-semibold text-slate-700">
+            <span>Script Python (requests)</span>
+            <button
+              type="button"
+              onclick="copyCodeSnippet('pythonSnippet', this)"
+              class="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
+            >
+              Copiar
+            </button>
+          </div>
+          <pre id="pythonSnippet" class="p-4 rounded-xl bg-slate-900 text-slate-100 font-mono text-xs overflow-x-auto"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: FICHA TÉCNICA (JSON) -->
+    <div id="panel-tab-json" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Metadatos Registrados del Modelo</h2>
+            <p class="text-xs text-slate-500 mt-0.5">
+              Registro formal en catálogo para conectores federados y trazabilidad.
+            </p>
+          </div>
+          <button
+            type="button"
+            onclick="copyCodeSnippet('rawJsonViewer', this)"
+            class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition-colors shadow-2xs"
+          >
+            Copiar JSON
+          </button>
+        </div>
+        <pre id="rawJsonViewer" class="p-4 rounded-xl bg-slate-900 text-emerald-400 font-mono text-xs max-h-96 overflow-y-auto overflow-x-auto"></pre>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-200 bg-white py-6 mt-12 text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="font-semibold text-slate-700">KHAOS Hub</span>
+        <span class="text-slate-300">&bull;</span>
+        <span class="text-slate-500">Catálogo Federado de Modelos de IA</span>
+      </div>
+      <div class="flex flex-col sm:flex-row items-center gap-x-6 gap-y-2">
+        <nav class="flex flex-wrap items-center gap-x-5 gap-y-1">
+          <a href="https://www.uma.es/servicio-central-de-informatica/info/156901/politica-de-cookies/" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-slate-600 transition-colors">Política de cookies</a>
+          <a href="https://sede.uma.es/opencms/system/modules/sede/contents/footer/normativa" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-slate-600 transition-colors">Política de privacidad</a>
+          <a href="https://sede.uma.es/opencms/system/modules/sede/contents/footer/normativa" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-slate-600 transition-colors">Avisos legales</a>
+        </nav>
+        <span class="text-slate-400">&copy; 2026 Todos los derechos reservados</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const currentSlug = "{{MODEL_SLUG}}" || window.location.pathname.split('/models/')[1]?.split('/')[0] || '';
+    let currentModel = null;
+    let selectedImageFile = null;
+
+    // DOM Elements
+    const breadcrumbDomain = document.getElementById('breadcrumbDomain');
+    const breadcrumbTitle = document.getElementById('breadcrumbTitle');
+    const modelTitle = document.getElementById('modelTitle');
+    const modelDescription = document.getElementById('modelDescription');
+    const modelDomainBadge = document.getElementById('modelDomainBadge');
+    const modelArchBadge = document.getElementById('modelArchBadge');
+    const modelCheckpointBadge = document.getElementById('modelCheckpointBadge');
+    const modelCalBadge = document.getElementById('modelCalBadge');
+    const metaClassesCount = document.getElementById('metaClassesCount');
+    const metaFileSize = document.getElementById('metaFileSize');
+    const inputGuideText = document.getElementById('inputGuideText');
+    const curationLink = document.getElementById('curationLink');
+    const btnDownloadModel = document.getElementById('btnDownloadModel');
+
+    // Tab Panels & Buttons
+    const tabs = {
+      'tab-infer': { panel: 'panel-tab-infer', btn: 'btnTabInfer' },
+      'tab-taxonomy': { panel: 'panel-tab-taxonomy', btn: 'btnTabTaxonomy' },
+      'tab-api': { panel: 'panel-tab-api', btn: 'btnTabApi' },
+      'tab-json': { panel: 'panel-tab-json', btn: 'btnTabJson' }
+    };
+
+    function switchTab(targetTabId) {
+      Object.keys(tabs).forEach(t => {
+        const panel = document.getElementById(tabs[t].panel);
+        const btn = document.getElementById(tabs[t].btn);
+        if (!panel || !btn) return;
+
+        if (t === targetTabId) {
+          panel.classList.remove('hidden');
+          btn.className = 'border-b-2 border-slate-900 text-slate-900 py-2.5 px-1 text-xs sm:text-sm font-semibold flex items-center gap-2';
+        } else {
+          panel.classList.add('hidden');
+          btn.className = 'border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 py-2.5 px-1 text-xs sm:text-sm font-medium flex items-center gap-2 transition-colors';
+        }
+      });
+    }
+
+    // Dropzone Elements
+    const modelDropzone = document.getElementById('modelDropzone');
+    const dropzoneIdle = document.getElementById('dropzoneIdle');
+    const dropzonePreview = document.getElementById('dropzonePreview');
+    const modelImageFile = document.getElementById('modelImageFile');
+    const previewImage = document.getElementById('previewImage');
+    const previewName = document.getElementById('previewName');
+    const btnChangeImage = document.getElementById('btnChangeImage');
+    const btnRunPredict = document.getElementById('btnRunPredict');
+    const modelSaveTraining = document.getElementById('modelSaveTraining');
+
+    // Prediction Elements
+    const predictStatusBadge = document.getElementById('predictStatusBadge');
+    const resultsEmpty = document.getElementById('resultsEmpty');
+    const resultsActive = document.getElementById('resultsActive');
+    const resClass = document.getElementById('resClass');
+    const resConfidence = document.getElementById('resConfidence');
+    const resConfidenceBar = document.getElementById('resConfidenceBar');
+    const resCalibratedBadge = document.getElementById('resCalibratedBadge');
+    const resProbList = document.getElementById('resProbList');
+
+    // Taxonomy & API Snippets
+    const taxonomyTableBody = document.getElementById('taxonomyTableBody');
+    const curlSnippet = document.getElementById('curlSnippet');
+    const pythonSnippet = document.getElementById('pythonSnippet');
+    const rawJsonViewer = document.getElementById('rawJsonViewer');
+
+    function formatText(s) {
+      if (!s) return '';
+      return s.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    async function loadModelData() {
+      try {
+        const res = await fetch(`/api/models/${encodeURIComponent(currentSlug)}`);
+        if (!res.ok) throw new Error('Modelo no encontrado');
+        const data = await res.json();
+        currentModel = data.model;
+
+        document.title = `${currentModel.title} | KHAOS Hub`;
+        breadcrumbDomain.textContent = currentModel.domain || 'General';
+        breadcrumbTitle.textContent = currentModel.title;
+        modelTitle.textContent = currentModel.title;
+        modelDescription.textContent = currentModel.description || 'Sin descripción detallada.';
+        modelDomainBadge.textContent = currentModel.domain || 'General';
+        modelArchBadge.textContent = currentModel.architecture || 'resnet18';
+        modelCheckpointBadge.textContent = currentModel.active_checkpoint ? `pesos: ${currentModel.active_checkpoint}` : 'fuera de servicio (sin checkpoint)';
+        if (!currentModel.active_checkpoint) {
+          modelCheckpointBadge.className = 'px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200';
+          const dropPrompt = document.getElementById('dropPrompt');
+          if (dropPrompt) {
+            dropPrompt.innerHTML = '<span class="text-amber-700 font-semibold">Modelo temporalmente fuera de servicio: No hay pesos activos para inferencia.</span>';
+          }
+          if (btnDownloadModel) {
+            btnDownloadModel.classList.add('pointer-events-none', 'opacity-50');
+          }
+        }
+
+        const isCal = Boolean(data.has_calibration || currentModel.calibrated_thresholds);
+        if (isCal) {
+          modelCalBadge.innerHTML = `
+            <svg class="w-3.5 h-3.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
+            <span class="text-emerald-800 font-semibold">Calibrado OvR</span>
+          `;
+          modelCalBadge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] bg-emerald-50 border border-emerald-200';
+        } else {
+          modelCalBadge.innerHTML = 'Nominal Argmax';
+          modelCalBadge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] bg-slate-100 text-slate-700 border border-slate-200';
+        }
+
+        const classes = currentModel.classes || [];
+        metaClassesCount.textContent = `${classes.length} clases detectables`;
+
+        const sizeMb = data.size_bytes ? (data.size_bytes / (1024 * 1024)).toFixed(1) + ' MB' : '';
+        metaFileSize.textContent = sizeMb;
+
+        if (currentModel.input_guide) inputGuideText.textContent = currentModel.input_guide;
+
+        if (curationLink) curationLink.href = `/models/${encodeURIComponent(currentSlug)}/expert`;
+        if (btnDownloadModel) btnDownloadModel.href = `/download-model?model_slug=${encodeURIComponent(currentSlug)}`;
+
+        renderTaxonomyTable(classes, currentModel.calibrated_thresholds);
+        renderCodeSnippets();
+        rawJsonViewer.textContent = JSON.stringify(data, null, 2);
+
+      } catch (err) {
+        modelTitle.textContent = 'Modelo no encontrado';
+        modelDescription.textContent = 'No se ha podido localizar la ficha de este modelo en el catálogo.';
+      }
+    }
+
+    function renderTaxonomyTable(classes, thresholds) {
+      taxonomyTableBody.innerHTML = '';
+      if (!classes || classes.length === 0) {
+        taxonomyTableBody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-slate-400">No hay clases especificadas</td></tr>';
+        return;
+      }
+
+      classes.forEach(c => {
+        let tau = '0.50';
+        let isCustom = false;
+        if (thresholds && typeof thresholds === 'object') {
+          if (thresholds[c] !== undefined) {
+            tau = Number(thresholds[c]).toFixed(2);
+            isCustom = true;
+          }
+        }
+
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-slate-50/70 transition-colors';
+        row.innerHTML = `
+          <td class="py-2.5 px-3 font-semibold text-slate-900 capitalize">${formatText(c)}</td>
+          <td class="py-2.5 px-3 font-mono text-slate-500">${c}</td>
+          <td class="py-2.5 px-3 font-mono font-bold text-slate-800">&tau; = ${tau}</td>
+          <td class="py-2.5 px-3">
+            <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${isCustom ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-slate-100 text-slate-600'}">
+              ${isCustom ? 'Umbral Calibrado' : 'Nominal 0.50'}
+            </span>
+          </td>
+        `;
+        taxonomyTableBody.appendChild(row);
+      });
+    }
+
+    function renderCodeSnippets() {
+      const origin = window.location.origin || 'http://localhost:8000';
+      const predictUrl = `${origin}/predict?model_slug=${encodeURIComponent(currentSlug)}`;
+
+      curlSnippet.textContent = `# 1. Ejecutar inferencia instantánea pasando el model_slug
+curl -X POST "${predictUrl}" \\
+  -H "Accept: application/json" \\
+  -F "file=@muestra.jpg"`;
+
+      pythonSnippet.textContent = `import requests
+
+url = "${predictUrl}"
+with open("muestra.jpg", "rb") as f:
+    files = {"file": ("muestra.jpg", f, "image/jpeg")}
+    response = requests.post(url, files=files)
+
+data = response.json()
+print("Clase:", data["predicted_class"])
+print("Confianza:", data["confidence"])
+print("Probabilidades:", data["probabilities"])`;
+    }
+
+    function copyCodeSnippet(elementId, btn) {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+      navigator.clipboard.writeText(el.textContent).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = '¡Copiado!';
+        btn.classList.add('text-emerald-700', 'bg-emerald-50');
+        setTimeout(() => {
+          btn.textContent = orig;
+          btn.classList.remove('text-emerald-700', 'bg-emerald-50');
+        }, 2000);
+      });
+    }
+
+    let lastDiagnosisResult = null;
+    let selectedBatchZipFile = null;
+    let lastBatchBlobUrl = null;
+
+    // Reset individual inference results state when a new image is selected
+    function resetInferenceResultState() {
+      resultsActive.classList.add('hidden');
+      resultsEmpty.classList.remove('hidden');
+
+      predictStatusBadge.textContent = 'En Espera';
+      predictStatusBadge.className = 'text-xs font-medium px-2.5 py-0.5 rounded-md bg-slate-50 text-slate-500 ring-1 ring-inset ring-slate-500/10';
+
+      // Clear confidence bars
+      resConfidence.textContent = '0.0%';
+      resConfidenceBar.style.width = '0%';
+
+      // Reset predicted class text and plain interpretation
+      resClass.textContent = '-';
+      const plainInterp = document.getElementById('resPlainInterpretation');
+      if (plainInterp) plainInterp.textContent = '-';
+
+      // Remove OoD warnings and restore primary card visibility
+      const oodCard = document.getElementById('resOodWarningCard');
+      if (oodCard) oodCard.classList.add('hidden');
+      const primaryCard = document.getElementById('resPrimaryCard');
+      if (primaryCard) primaryCard.classList.remove('hidden');
+      const scoreDisplay = document.getElementById('resOodScoreDisplay');
+      if (scoreDisplay) scoreDisplay.textContent = '';
+
+      // Clear probabilities list
+      resProbList.innerHTML = '';
+
+      // Disable and hide Descargar Resumen button until Executed again
+      const btnDownload = document.getElementById('btnDownloadReport');
+      if (btnDownload) {
+        btnDownload.disabled = true;
+        btnDownload.classList.add('hidden');
+      }
+
+      lastDiagnosisResult = null;
+    }
+
+    function downloadDiagnosisReport() {
+      if (!lastDiagnosisResult) return;
+      const dateStr = new Date().toLocaleString('es-ES');
+      const title = modelTitle.textContent || currentSlug;
+      const lines = [
+        '====================================================',
+        'KHAOS Hub - INFORME ORIENTATIVO DE DIAGNÓSTICO',
+        '====================================================',
+        `Fecha de Análisis: ${dateStr}`,
+        `Modelo Utilizado:  ${title} (${currentSlug})`,
+        `Fotografía:        ${selectedImageFile ? selectedImageFile.name : 'captura.jpg'}`,
+        '----------------------------------------------------',
+        'RESULTADO DEL DIAGNÓSTICO:',
+        `Condición Predicha: ${formatText(lastDiagnosisResult.predicted_class)}`,
+        `Nivel de Certeza:   ${((lastDiagnosisResult.confidence || 0) * 100).toFixed(1)}%`,
+        `Guardrail OoD:      ${lastDiagnosisResult.ood_flag ? 'Anomalía Detectada (Fuera de Dominio)' : 'Dentro de Dominio'}`,
+        '----------------------------------------------------',
+        'DISTRIBUCIÓN DE PROBABILIDADES:',
+      ];
+      for (const [k, v] of Object.entries(lastDiagnosisResult.probabilities || {})) {
+        lines.push(`- ${formatText(k).padEnd(20)}: ${(v * 100).toFixed(1)}%`);
+      }
+      lines.push('----------------------------------------------------');
+      lines.push('Aviso fitosanitario: Herramienta probabilística de apoyo.');
+      const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `resumen_diagnostico_${currentSlug}_${Date.now()}.txt`;
+      a.click();
+    }
+
+    // Dropzone event listeners for Individual Inference
+    modelDropzone.addEventListener('click', (e) => {
+      if (e.target !== btnChangeImage && !btnChangeImage.contains(e.target)) {
+        modelImageFile.click();
+      }
+    });
+
+    btnChangeImage.addEventListener('click', (e) => {
+      e.stopPropagation();
+      resetInferenceResultState();
+      modelImageFile.click();
+    });
+
+    modelImageFile.addEventListener('change', (e) => {
+      resetInferenceResultState();
+      if (e.target.files && e.target.files[0]) {
+        handleFile(e.target.files[0]);
+      }
+    });
+
+    const modelCameraFile = document.getElementById('modelCameraFile');
+    if (modelCameraFile) {
+      modelCameraFile.addEventListener('change', (e) => {
+        resetInferenceResultState();
+        if (e.target.files && e.target.files[0]) {
+          handleFile(e.target.files[0]);
+        }
+      });
+    }
+
+    ['dragenter', 'dragover'].forEach(n => {
+      modelDropzone.addEventListener(n, (e) => {
+        e.preventDefault();
+        modelDropzone.classList.add('border-slate-800', 'bg-slate-100/70');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(n => {
+      modelDropzone.addEventListener(n, (e) => {
+        e.preventDefault();
+        modelDropzone.classList.remove('border-slate-800', 'bg-slate-100/70');
+      });
+    });
+
+    modelDropzone.addEventListener('drop', (e) => {
+      resetInferenceResultState();
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    function handleFile(file) {
+      if (!file.type.startsWith('image/')) {
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast('Por favor selecciona un archivo de imagen válido.', 'warning');
+        }
+        return;
+      }
+      resetInferenceResultState();
+      selectedImageFile = file;
+      previewName.textContent = file.name;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        previewImage.src = e.target.result;
+        dropzoneIdle.classList.add('hidden');
+        dropzonePreview.classList.remove('hidden');
+
+        btnRunPredict.disabled = false;
+        btnRunPredict.className = 'w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold text-white bg-slate-900 hover:bg-black shadow-xs cursor-pointer transition-all';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Ingestion & Prediction Form (Individual)
+    document.getElementById('modelPredictForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!selectedImageFile) return;
+
+      btnRunPredict.disabled = true;
+      btnRunPredict.textContent = 'Procesando inferencia...';
+      predictStatusBadge.textContent = 'Analizando...';
+      predictStatusBadge.className = 'text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 animate-pulse';
+
+      const formData = new FormData();
+      formData.append('file', selectedImageFile);
+
+      const save = modelSaveTraining.checked;
+      const url = `/predict?model_slug=${encodeURIComponent(currentSlug)}&save_for_training=${save}`;
+
+      try {
+        const res = await fetch(url, { method: 'POST', body: formData });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || 'Fallo en inferencia');
+        }
+        const data = await res.json();
+        lastDiagnosisResult = data;
+
+        resultsEmpty.classList.add('hidden');
+        resultsActive.classList.remove('hidden');
+
+        // Enable and show Descargar Resumen button
+        const btnDownload = document.getElementById('btnDownloadReport');
+        if (btnDownload) {
+          btnDownload.disabled = false;
+          btnDownload.classList.remove('hidden');
+        }
+
+        const primaryCard = document.getElementById('resPrimaryCard');
+        const oodCard = document.getElementById('resOodWarningCard');
+
+        if (data.ood_flag === true) {
+          // OOD ANOMALY INTERCEPTION
+          predictStatusBadge.textContent = 'Anomalía Detectada';
+          predictStatusBadge.className = 'text-xs font-medium px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200/80';
+
+          if (primaryCard) primaryCard.classList.add('hidden');
+          if (oodCard) {
+            oodCard.classList.remove('hidden');
+            const scoreDisplay = document.getElementById('resOodScoreDisplay');
+            if (scoreDisplay && typeof data.ood_score === 'number') {
+              scoreDisplay.textContent = `Score Anómalo: ${(data.ood_score * 100).toFixed(1)}%`;
+            }
+          }
+
+          // Invalidate raw softmax probabilities
+          resProbList.innerHTML = `
+            <div class="bg-slate-50 border border-dashed border-slate-200 rounded-lg p-5 text-center text-slate-500 space-y-2">
+              <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-400 mx-auto">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </div>
+              <div class="space-y-0.5">
+                <span class="text-xs font-semibold text-slate-700 block">Probabilidades de clase suprimidas</span>
+                <p class="text-[11px] text-slate-400 max-w-sm mx-auto leading-relaxed">
+                  El guardrail de energía libre ha bloqueado la distribución de salida de Softmax para evitar falsos positivos forzados por la red neuronal ante muestras fuera del dominio.
+                </p>
+              </div>
+              <div class="pt-2 max-w-xs mx-auto space-y-1.5 opacity-40">
+                <div class="h-1.5 rounded-full bg-slate-200 animate-pulse w-full"></div>
+                <div class="h-1.5 rounded-full bg-slate-200 animate-pulse w-3/4 mx-auto"></div>
+              </div>
+            </div>
+          `;
+        } else {
+          // NORMAL IN-DISTRIBUTION PREDICTION FLOW
+          if (oodCard) oodCard.classList.add('hidden');
+          if (primaryCard) primaryCard.classList.remove('hidden');
+
+          predictStatusBadge.textContent = 'Completado';
+          predictStatusBadge.className = 'text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
+
+          resClass.textContent = formatText(data.predicted_class || 'Desconocido');
+          const confVal = typeof data.confidence === 'number' ? data.confidence : 0;
+          const confPct = (confVal * 100).toFixed(1);
+          resConfidence.textContent = `${confPct}%`;
+          resConfidenceBar.style.width = `${Math.min(Math.max(confPct, 4), 100)}%`;
+
+          const plainInterp = document.getElementById('resPlainInterpretation');
+          if (plainInterp) {
+            if (confVal >= 0.80) {
+              plainInterp.textContent = `Alta correspondencia visual con "${formatText(data.predicted_class)}".`;
+            } else if (confVal >= 0.50) {
+              plainInterp.textContent = `Certeza moderada para "${formatText(data.predicted_class)}". Se sugiere contraste adicional si existen dudas.`;
+            } else {
+              plainInterp.textContent = 'Resultado de baja certeza. Verifique iluminación y enfoque o envíe el caso a revisión experta HITL.';
+            }
+          }
+
+          if (data.calibrated || data.threshold_applied === 'calibrated') {
+            resCalibratedBadge.textContent = 'Umbral Calibrado OvR';
+            resCalibratedBadge.className = 'px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200';
+          } else {
+            resCalibratedBadge.textContent = 'Nominal Argmax';
+            resCalibratedBadge.className = 'px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200';
+          }
+
+          // Render probabilities
+          resProbList.innerHTML = '';
+          const sorted = Object.entries(data.probabilities || {}).sort((a,b) => b[1] - a[1]);
+          sorted.forEach(([cls, prob], idx) => {
+            const pct = (prob * 100).toFixed(1);
+            const isTop = idx === 0;
+            const row = document.createElement('div');
+            row.className = `p-2 rounded-lg text-xs ${isTop ? 'bg-slate-100 font-semibold text-slate-900' : 'text-slate-600'}`;
+            row.innerHTML = `
+              <div class="flex justify-between mb-1">
+                <span class="capitalize">${formatText(cls)}</span>
+                <span class="font-mono">${pct}%</span>
+              </div>
+              <div class="w-full h-1 rounded-full bg-slate-200 overflow-hidden">
+                <div class="h-full rounded-full ${isTop ? 'bg-slate-900' : 'bg-slate-400'}" style="width: ${pct}%"></div>
+              </div>
+            `;
+            resProbList.appendChild(row);
+          });
+        }
+
+      } catch (err) {
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast('Error en diagnóstico: ' + err.message, 'error');
+        }
+        predictStatusBadge.textContent = 'Error';
+        predictStatusBadge.className = 'text-xs font-semibold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800';
+      } finally {
+        btnRunPredict.disabled = false;
+        btnRunPredict.textContent = 'Ejecutar Diagnóstico';
+      }
+    });
+
+    // =========================================================================
+    // BATCH INFERENCE (ZIP) HANDLERS
+    // =========================================================================
+
+    function setInferenceMode(mode) {
+      const isInd = mode === 'individual';
+      const indView = document.getElementById('inferModeIndividual');
+      const batchView = document.getElementById('inferModeBatch');
+      if (indView) indView.classList.toggle('hidden', !isInd);
+      if (batchView) batchView.classList.toggle('hidden', isInd);
+
+      const btnInd = document.getElementById('btnModeIndividual');
+      const btnBatch = document.getElementById('btnModeBatch');
+
+      if (btnInd && btnBatch) {
+        if (isInd) {
+          btnInd.className = 'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-900 bg-white shadow-2xs transition-all';
+          btnBatch.className = 'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900 transition-all';
+        } else {
+          btnBatch.className = 'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-900 bg-white shadow-2xs transition-all';
+          btnInd.className = 'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900 transition-all';
+        }
+      }
+    }
+
+    const batchZipInput = document.getElementById('batchZipInput');
+    const batchDropzone = document.getElementById('batchDropzone');
+    const batchDropzoneIdle = document.getElementById('batchDropzoneIdle');
+    const batchDropzoneSelected = document.getElementById('batchDropzoneSelected');
+    const batchZipFileName = document.getElementById('batchZipFileName');
+    const batchZipFileSize = document.getElementById('batchZipFileSize');
+    const btnRunBatch = document.getElementById('btnRunBatch');
+    const btnRunBatchText = document.getElementById('btnRunBatchText');
+    const batchSuccessAlert = document.getElementById('batchSuccessAlert');
+    const btnDownloadBatchAgain = document.getElementById('btnDownloadBatchAgain');
+
+    if (batchZipInput) {
+      batchZipInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+          handleBatchZipSelected(e.target.files[0]);
+        }
+      });
+    }
+
+    if (batchDropzone) {
+      ['dragenter', 'dragover'].forEach(n => {
+        batchDropzone.addEventListener(n, (e) => {
+          e.preventDefault();
+          batchDropzone.classList.add('border-slate-800', 'bg-slate-100/70');
+        });
+      });
+
+      ['dragleave', 'drop'].forEach(n => {
+        batchDropzone.addEventListener(n, (e) => {
+          e.preventDefault();
+          batchDropzone.classList.remove('border-slate-800', 'bg-slate-100/70');
+        });
+      });
+
+      batchDropzone.addEventListener('drop', (e) => {
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          handleBatchZipSelected(e.dataTransfer.files[0]);
+        }
+      });
+    }
+
+    function handleBatchZipSelected(file) {
+      if (!file.name.toLowerCase().endsWith('.zip')) {
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast('Por favor selecciona un archivo comprimido .ZIP válido.', 'warning');
+        }
+        return;
+      }
+      selectedBatchZipFile = file;
+      if (batchZipFileName) batchZipFileName.textContent = file.name;
+      if (batchZipFileSize) batchZipFileSize.textContent = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+
+      if (batchDropzoneIdle) batchDropzoneIdle.classList.add('hidden');
+      if (batchDropzoneSelected) batchDropzoneSelected.classList.remove('hidden');
+      if (batchSuccessAlert) batchSuccessAlert.classList.add('hidden');
+
+      if (btnRunBatch) {
+        btnRunBatch.disabled = false;
+        btnRunBatch.className = 'w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold text-white bg-slate-900 hover:bg-black shadow-xs cursor-pointer transition-all';
+      }
+      if (btnRunBatchText) {
+        btnRunBatchText.textContent = `Analizar Lote (${file.name})`;
+      }
+    }
+
+    async function submitBatchAnalysis() {
+      if (!selectedBatchZipFile) return;
+
+      if (btnRunBatch) {
+        btnRunBatch.disabled = true;
+        btnRunBatch.className = 'w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold text-white bg-slate-800 cursor-wait shadow-none transition-all';
+        btnRunBatch.innerHTML = `
+          <svg class="w-4 h-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span>Procesando imágenes, esto puede tardar...</span>
+        `;
+      }
+
+      const formData = new FormData();
+      formData.append('file', selectedBatchZipFile);
+
+      try {
+        const url = `/api/predict/batch?model_slug=${encodeURIComponent(currentSlug)}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || `Error en el procesamiento (${res.status})`);
+        }
+
+        const blob = await res.blob();
+        if (lastBatchBlobUrl) URL.revokeObjectURL(lastBatchBlobUrl);
+        lastBatchBlobUrl = URL.createObjectURL(blob);
+
+        const downloadName = `lote_${currentSlug}_clasificado.zip`;
+        const a = document.createElement('a');
+        a.href = lastBatchBlobUrl;
+        a.download = downloadName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        if (batchSuccessAlert) batchSuccessAlert.classList.remove('hidden');
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast('Lote procesado y descargado exitosamente.', 'success');
+        }
+
+      } catch (err) {
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast('Error al analizar lote: ' + err.message, 'error');
+        }
+      } finally {
+        if (btnRunBatch) {
+          btnRunBatch.disabled = false;
+          btnRunBatch.className = 'w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold text-white bg-slate-900 hover:bg-black shadow-xs cursor-pointer transition-all';
+          btnRunBatch.innerHTML = `
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            <span id="btnRunBatchText">Analizar Lote (${selectedBatchZipFile ? selectedBatchZipFile.name : ''})</span>
+          `;
+        }
+      }
+    }
+
+    if (btnDownloadBatchAgain) {
+      btnDownloadBatchAgain.addEventListener('click', () => {
+        if (!lastBatchBlobUrl) return;
+        const a = document.createElement('a');
+        a.href = lastBatchBlobUrl;
+        a.download = `lote_${currentSlug}_clasificado.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      });
+    }
+        predictStatusBadge.textContent = 'Error';
+        predictStatusBadge.className = 'text-xs font-semibold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800';
+      } finally {
+        btnRunPredict.disabled = false;
+        btnRunPredict.textContent = 'Ejecutar Diagnóstico';
+      }
+    });
+
+    // Initialize
+    loadModelData();
+  </script>
+</body>
+</html>

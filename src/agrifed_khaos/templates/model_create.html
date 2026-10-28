@@ -1,0 +1,2583 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-50/50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KHAOS &bull; Estudio de Creación de Modelos</title>
+  <meta name="description" content="Estudio integral para configurar, entrenar y publicar modelos en el catálogo KHAOS Data Space">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      const origWarn = console.warn;
+      console.warn = function(...args) {
+        if (args.length > 0 && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
+          return;
+        }
+        origWarn.apply(console, args);
+      };
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="stylesheet" href="/static/khaos-ui.css">
+  <script src="/static/khaos-ui.js"></script>
+</head>
+<body class="min-h-full flex flex-col font-sans text-slate-900 antialiased selection:bg-slate-200 selection:text-slate-900">
+
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-40 w-full border-b border-slate-200/60 bg-white/80 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex h-16 items-center justify-between">
+        
+        <!-- Brand Identity -->
+        <a href="/" class="flex items-center gap-3 group">
+          <div class="h-8 w-8 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-2xs group-hover:bg-slate-800 transition-colors">
+            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold tracking-tight text-slate-900">KHAOS <span class="text-slate-400 font-normal">Hub</span></span>
+            <span class="hidden sm:inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-50 text-slate-500 ring-1 ring-inset ring-slate-500/10 uppercase tracking-wider">Data Space</span>
+          </div>
+        </a>
+
+        <!-- Right Actions: Nav + Help -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          <nav class="flex items-center gap-1 bg-slate-100/80 p-1 rounded-lg">
+            <a href="/" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+              Modelos
+            </a>
+            <a href="/expert" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+              Evaluación
+            </a>
+            <a href="/master" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-900 bg-white shadow-2xs">
+              Administración
+            </a>
+          </nav>
+
+          <!-- Contextual Help Trigger in Header -->
+          <button
+            type="button"
+            onclick="openContextualHelp()"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            title="Guía y Ayuda del Módulo"
+          >
+            <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span class="hidden sm:inline">Ayuda</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 py-8">
+
+    <!-- Minimal top navigation -->
+    <a href="/master" class="inline-flex items-center gap-1.5 -ml-2 px-2 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+      Volver a Gobernanza
+    </a>
+
+    <div class="mt-4 mb-8">
+      <h1 class="text-2xl font-semibold text-slate-900 tracking-tight">Estudio de Creación de Modelos</h1>
+    </div>
+
+    <div id="splitContainer" class="flex flex-col lg:flex-row gap-8 lg:gap-2 max-w-screen-2xl mx-auto items-start" style="--aside-w: 30%">
+
+      <!-- LEFT: Builder form (70% by default) -->
+      <div class="w-full lg:flex-1 lg:min-w-0 space-y-6">
+
+        <!-- Section 1: Origen de Datos -->
+        <section id="sectionSource" class="bg-white rounded-2xl border border-slate-200/60 p-6 shadow-sm space-y-5">
+          <div class="flex items-center gap-2.5">
+            <span class="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-semibold flex items-center justify-center">1</span>
+            <h2 class="text-base font-semibold text-slate-900 tracking-tight">Origen de Datos <span class="text-rose-500">*</span></h2>
+          </div>
+
+          <!-- Unified source selector: dataset sources + existing checkpoint -->
+          <div class="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl" role="tablist">
+            <div id="btnModeAutoFl" class="flex flex-1 items-center gap-1.5">
+              <button type="button" id="subtabUpload" role="tab" onclick="setDatasetIngestionMode('upload')" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-2xs text-center transition-all cursor-pointer">Subir Carpeta / ZIP</button>
+              <button type="button" id="subtabServer" role="tab" onclick="setDatasetIngestionMode('server')" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900 text-center transition-all cursor-pointer">Ruta en Servidor</button>
+              <button type="button" id="subtabUrl" role="tab" onclick="setDatasetIngestionMode('url')" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900 text-center transition-all cursor-pointer">Enlace HTTPS</button>
+            </div>
+            <span class="w-px h-5 bg-slate-300/80 shrink-0" aria-hidden="true"></span>
+            <button type="button" id="btnModeManual" role="tab" onclick="setDatasetIngestionMode('manual')" class="shrink-0 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900 text-center transition-all cursor-pointer">Archivo .pt</button>
+          </div>
+          <p id="modeDescriptionLabel" class="text-xs text-slate-500 -mt-2">Entrenamiento automático desde carpetas de imágenes clasificadas.</p>
+
+        <div id="sectionDataset" class="space-y-5">
+        <!-- Modality 1: Upload Folder or ZIP (Visible by default) -->
+        <div id="paneSourceUpload" class="space-y-3">
+          <div
+            id="dropZoneArea"
+            ondragover="handleDragOver(event)"
+            ondragleave="handleDragLeave(event)"
+            ondrop="handleFileDrop(event)"
+            class="border-2 border-dashed border-slate-200 hover:border-slate-400 bg-slate-50/60 hover:bg-slate-100/50 rounded-2xl p-8 text-center transition-all cursor-pointer"
+            onclick="document.getElementById('zipFileInput').click()"
+          >
+            <div class="w-12 h-12 rounded-xl bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-300 mx-auto flex items-center justify-center mb-3">
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            </div>
+            <div class="text-sm font-semibold text-slate-800 mb-1">
+              Arrastra tu archivo comprimido (.zip) o haz clic para seleccionarlo
+            </div>
+            <p class="text-xs text-slate-500 max-w-md mx-auto mb-4">
+              El archivo debe contener una subcarpeta por cada clase que desees detectar (ej: <code class="font-mono text-slate-700 bg-slate-100 px-1 py-0.5 rounded">/sana</code>, <code class="font-mono text-slate-700 bg-slate-100 px-1 py-0.5 rounded">/defecto</code>).
+            </p>
+
+            <div class="flex flex-wrap items-center justify-center gap-2.5" onclick="event.stopPropagation()">
+              <button
+                type="button"
+                id="btnSelectZipFile"
+                onclick="document.getElementById('zipFileInput').click()"
+                class="px-5 py-2.5 rounded-xl text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 transition-colors shadow-2xs flex items-center gap-2 cursor-pointer"
+              >
+                <svg class="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                <span>Seleccionar Archivo .ZIP</span>
+              </button>
+              <button
+                type="button"
+                id="btnSelectFolder"
+                onclick="document.getElementById('folderUploadInput').click()"
+                class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs flex items-center gap-2 cursor-pointer"
+              >
+                <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                <span>O subir carpeta sin comprimir</span>
+              </button>
+            </div>
+
+            <input
+              type="file"
+              id="zipFileInput"
+              accept=".zip,.tar,.tar.gz,.tgz,.tar.bz2,application/zip,application/x-zip-compressed,application/x-tar,application/gzip,multipart/x-zip"
+              class="hidden"
+              onchange="handleZipFileSelected(event)"
+            >
+            <input
+              type="file"
+              id="folderUploadInput"
+              webkitdirectory
+              directory
+              multiple
+              class="hidden"
+              onchange="handleFolderSelected(event)"
+            >
+          </div>
+
+          <div id="uploadProgressContainer" class="hidden p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span id="uploadStatusLabel" class="font-semibold text-slate-700">Subiendo dataset...</span>
+              <span id="uploadPercentLabel" class="font-mono text-indigo-600 font-bold">0%</span>
+            </div>
+            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+              <div id="uploadProgressBar" class="bg-indigo-600 h-2 rounded-full transition-all duration-200" style="width: 0%"></div>
+            </div>
+            <div id="uploadSubStatus" class="text-[11px] text-slate-500 leading-snug hidden"></div>
+          </div>
+        </div>
+
+        <!-- Modality 2: Server Path (Hidden by default) -->
+        <div id="paneSourceServer" class="hidden space-y-3">
+          <div>
+            <label for="datasetPathInput" class="block text-xs font-bold text-slate-700 mb-1">
+              Ruta del Dataset en Servidor (dataset_path) <span class="text-rose-500">*</span>
+            </label>
+            <div class="flex gap-2">
+              <input
+                type="text"
+                id="datasetPathInput"
+                value=""
+                placeholder="Ej: /data/datasets/mi_cultivo/train o /workspace/data/..."
+                class="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50"
+              >
+              <button
+                type="button"
+                id="btnInspectDataset"
+                onclick="inspectDataset()"
+                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-2xs shrink-0 cursor-pointer"
+              >
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <span>Inspeccionar</span>
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-1">
+              Directorio en disco con subcarpetas para cada clase con imágenes (.jpg, .jpeg, .png, .webp).
+            </p>
+          </div>
+
+          <!-- Dataset Quick Suggestions & Discovered Datasets -->
+          <div class="pt-2 border-t border-slate-200/60 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                Datasets Disponibles en Servidor &amp; AgriVision:
+              </span>
+              <button
+                type="button"
+                onclick="loadAvailableServerDatasets()"
+                class="text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer inline-flex items-center gap-1"
+              >
+                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                <span>Actualizar lista</span>
+              </button>
+            </div>
+            <div id="availableDatasetsList" class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Modality 3: Download from HTTPS URL (Hidden by default) -->
+        <div id="paneSourceUrl" class="hidden space-y-3">
+          <div>
+            <label for="datasetUrlInput" class="block text-xs font-bold text-slate-700 mb-1">
+              Enlace de Descarga HTTP / HTTPS (.zip o .tar.gz) <span class="text-rose-500">*</span>
+            </label>
+            <div class="flex gap-2">
+              <input
+                type="url"
+                id="datasetUrlInput"
+                placeholder="https://ejemplo.com/datasets/cultivo_dataset.zip"
+                class="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50"
+              >
+              <button
+                type="button"
+                id="btnFetchUrl"
+                onclick="fetchDatasetFromUrl()"
+                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-2xs shrink-0 cursor-pointer"
+              >
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Descargar e Inspeccionar</span>
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-1">
+              El servidor descargará el archivo comprimido en segundo plano y verificará las imágenes automáticamente.
+            </p>
+          </div>
+
+          <div id="urlDownloadStatus" class="hidden p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600"></div>
+        </div>
+
+        <!-- Inspection Result Card -->
+        <div id="datasetInspectionCard" class="hidden rounded-xl border p-4 space-y-3 transition-all"></div>
+
+        <!-- Train / Val / Test Partitioning Controls -->
+        <div id="dataSplitsSection" class="pt-4 border-t border-slate-200/70 space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <label class="block text-xs font-bold text-slate-800">
+                Partición del Dataset (Train / Val / Test)
+              </label>
+              <p class="text-[11px] text-slate-500">
+                Distribución porcentual para entrenamiento, validación y test sobre el conjunto de datos.
+              </p>
+            </div>
+            <span id="splitTotalBadge" class="text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              Total: 100%
+            </span>
+          </div>
+
+          <!-- Pre-Split Detected Read-Only Visualizer -->
+          <div id="preSplitBanner" class="hidden rounded-xl bg-slate-50/80 border border-slate-200/90 p-3.5 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-800">
+                <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+                <span id="preSplitLabel">Partición predefinida detectada en disco</span>
+              </span>
+              <span id="preSplitPercentagesBadge" class="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200/70">
+                Distribución detectada: 80% / 10% / 10%
+              </span>
+            </div>
+            <!-- Mini Stacked Progress Bar -->
+            <div class="w-full h-2 rounded-full bg-slate-200/80 overflow-hidden flex">
+              <div id="preSplitBarTrain" class="h-full bg-indigo-600 transition-all duration-300" style="width: 80%" title="Train"></div>
+              <div id="preSplitBarVal" class="h-full bg-emerald-500 transition-all duration-300" style="width: 10%" title="Val"></div>
+              <div id="preSplitBarTest" class="h-full bg-sky-400 transition-all duration-300" style="width: 10%" title="Test"></div>
+            </div>
+            <div class="flex items-center justify-between text-[10px] font-mono text-slate-500">
+              <span id="preSplitCountTrain">Train: -</span>
+              <span id="preSplitCountVal">Val: -</span>
+              <span id="preSplitCountTest">Test: -</span>
+            </div>
+          </div>
+
+          <!-- 3 Numeric Inputs for Flat Datasets -->
+          <div id="splitInputsGrid" class="grid grid-cols-3 gap-3">
+            <div>
+              <label for="splitTrainInput" class="block text-[11px] font-semibold text-slate-700 mb-1">
+                Entrenamiento (Train %)
+              </label>
+              <div class="relative">
+                <input
+                  type="number"
+                  id="splitTrainInput"
+                  min="10"
+                  max="95"
+                  step="1"
+                  value="80"
+                  oninput="onSplitInputChange()"
+                  class="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono bg-white"
+                >
+                <span class="absolute right-3 top-1.5 text-xs text-slate-400 pointer-events-none">%</span>
+              </div>
+            </div>
+
+            <div>
+              <label for="splitValInput" class="block text-[11px] font-semibold text-slate-700 mb-1">
+                Validación (Val %)
+              </label>
+              <div class="relative">
+                <input
+                  type="number"
+                  id="splitValInput"
+                  min="0"
+                  max="50"
+                  step="1"
+                  value="10"
+                  oninput="onSplitInputChange()"
+                  class="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono bg-white"
+                >
+                <span class="absolute right-3 top-1.5 text-xs text-slate-400 pointer-events-none">%</span>
+              </div>
+            </div>
+
+            <div>
+              <label for="splitTestInput" class="block text-[11px] font-semibold text-slate-700 mb-1">
+                Test / Evaluación (Test %)
+              </label>
+              <div class="relative">
+                <input
+                  type="number"
+                  id="splitTestInput"
+                  min="0"
+                  max="50"
+                  step="1"
+                  value="10"
+                  oninput="onSplitInputChange()"
+                  class="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono bg-white"
+                >
+                <span class="absolute right-3 top-1.5 text-xs text-slate-400 pointer-events-none">%</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="splitValidationError" class="hidden text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
+            La suma de Train, Val y Test debe ser exactamente 100%.
+          </div>
+
+          <!-- Unlabeled Data Alert Banner -->
+          <div id="unlabeledAlertBanner" class="hidden rounded-xl bg-purple-50/80 border border-purple-200/80 p-3.5 text-xs text-purple-900 flex items-start gap-2.5">
+            <svg class="w-4 h-4 text-purple-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="16" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <div class="leading-relaxed">
+              <span class="font-semibold text-purple-950">Muestras no clasificadas detectadas:</span>
+              <span id="unlabeledCountMsg" class="ml-1 text-purple-800">
+                Se detectaron <strong id="unlabeledCountNumber">0</strong> imágenes sin clasificar. Se omitirán del entrenamiento base y se enviarán a la bandeja de Curación Experta (HITL).
+              </span>
+            </div>
+          </div>
+        </div>
+        </div>
+
+        <!-- Existing checkpoint (manual mode) -->
+        <div id="sectionManualCheckpoint" class="hidden">
+          <label for="manualCheckpointSelect" class="block text-xs font-medium text-slate-700 mb-1.5">
+            Archivo de pesos en el servidor (models/*.pt) <span class="text-rose-500">*</span>
+          </label>
+          <select
+            id="manualCheckpointSelect"
+            class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-400 transition-shadow"
+          >
+            <option value="">Cargando checkpoints...</option>
+          </select>
+        </div>
+      </section>
+
+        <!-- Section 2: Identidad del Modelo -->
+        <section class="bg-white rounded-2xl border border-slate-200/60 p-6 shadow-sm space-y-5">
+          <div class="flex items-center gap-2.5">
+            <span class="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-semibold flex items-center justify-center">2</span>
+            <h2 class="text-base font-semibold text-slate-900 tracking-tight">Identidad del Modelo</h2>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-5 gap-4">
+            <div class="sm:col-span-3">
+              <label for="titleInput" class="block text-xs font-medium text-slate-700 mb-1.5">Título <span class="text-rose-500">*</span></label>
+              <input type="text" id="titleInput" value="" placeholder="Ej: Clasificación de defectos en pieza" oninput="handleTitleInput()" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-400 transition-shadow">
+            </div>
+            <div class="sm:col-span-2">
+              <label for="domainSelect" class="block text-xs font-medium text-slate-700 mb-1.5">Dominio</label>
+              <select id="domainSelect" onchange="handleDomainChange()" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-400 transition-shadow">
+                <option value="Agroalimentario & Agricultura">Agroalimentario &amp; Agricultura</option>
+                <option value="Industria & Manufactura">Industria &amp; Manufactura</option>
+                <option value="Control de Calidad & Inspección">Control de Calidad &amp; Inspección</option>
+                <option value="Visión Artificial" selected>Visión Artificial</option>
+                <option value="Biomedicina & Sanidad">Biomedicina &amp; Sanidad</option>
+                <option value="Medio Ambiente & Recursos">Medio Ambiente &amp; Recursos</option>
+                <option value="Logística & Transporte">Logística &amp; Transporte</option>
+                <option value="General">General</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label for="descriptionInput" class="block text-xs font-medium text-slate-700 mb-1.5">Descripción</label>
+            <textarea id="descriptionInput" rows="3" oninput="updateLivePreview()" placeholder="Qué detecta el modelo y qué valor aporta..." class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-400 transition-shadow resize-none"></textarea>
+          </div>
+
+          <details class="group rounded-xl border border-slate-200/70 bg-slate-50/60 px-4 py-3">
+            <summary class="flex items-center justify-between cursor-pointer select-none list-none text-xs font-medium text-slate-600 hover:text-slate-900">
+              <span>Metadatos Opcionales / Específicos</span>
+              <svg class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+            </summary>
+            <div class="mt-4 pt-4 border-t border-slate-200/70 space-y-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label for="slugInput" class="block text-xs font-medium text-slate-700 mb-1.5">Identificador URL (Slug)</label>
+                  <input type="text" id="slugInput" value="" maxlength="50" placeholder="Se genera a partir del título" oninput="updateLivePreview()" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-400 transition-shadow font-mono text-xs bg-slate-50">
+                </div>
+                <div>
+                  <label for="thumbnailUrlInput" class="block text-xs font-medium text-slate-700 mb-1.5">Miniatura</label>
+                  <input type="hidden" id="thumbnailBase64Input" value="">
+                  <input type="text" id="thumbnailUrlInput" value="" placeholder="URL (https://...) o automática del dataset" oninput="handleThumbnailTextInput()" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-400 transition-shadow font-mono text-xs">
+                  <div id="thumbnailPreviewBox" class="hidden flex items-center justify-between gap-2.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <img id="thumbnailPreviewImg" src="" alt="Miniatura extraída" class="w-9 h-7 rounded object-cover border border-slate-200 shrink-0 bg-slate-100">
+                      <div class="min-w-0">
+                        <p class="text-xs font-medium text-slate-700 truncate">Miniatura extraída del dataset</p>
+                        <p class="text-[10px] text-slate-400 truncate">Imagen WebP optimizada</p>
+                      </div>
+                    </div>
+                    <button type="button" id="btnRemoveThumbnail" onclick="clearBase64Thumbnail()" class="text-xs font-medium text-rose-600 hover:text-rose-700 px-2 py-1 rounded-md hover:bg-rose-50 transition-colors shrink-0 cursor-pointer">
+                      Quitar
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label for="cropInput" class="block text-xs font-medium text-slate-700 mb-1.5">Sujeto / Categoría</label>
+                  <input type="text" id="cropInput" value="" placeholder="Ej: Olivo, pieza, material" oninput="updateLivePreview()" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-400 transition-shadow">
+                </div>
+                <div>
+                  <label for="targetElementInput" class="block text-xs font-medium text-slate-700 mb-1.5">Elemento Analizado</label>
+                  <input type="text" id="targetElementInput" value="" placeholder="Ej: Hoja, superficie, soldadura" oninput="updateLivePreview()" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-400 transition-shadow">
+                </div>
+                <div>
+                  <label for="purposeInput" class="block text-xs font-medium text-slate-700 mb-1.5">Propósito</label>
+                  <input type="text" id="purposeInput" value="" placeholder="Ej: Control de calidad" oninput="updateLivePreview()" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-400 transition-shadow">
+                </div>
+              </div>
+              <div>
+                <label for="tagsInput" class="block text-xs font-medium text-slate-700 mb-1.5">Etiquetas de búsqueda (separadas por coma)</label>
+                <input type="text" id="tagsInput" value="" placeholder="ej: defecto, mancha, fisura" oninput="updateLivePreview()" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-400 transition-shadow">
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label for="classesInput" class="block text-xs font-medium text-slate-700">Clases detectables</label>
+                  <span id="classesLockBadge" class="hidden inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200/80">
+                    <svg class="w-3 h-3 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <span>Bloqueadas por dataset</span>
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  id="classesInput"
+                  value=""
+                  placeholder="Se autocompletarán al inspeccionar el dataset..."
+                  oninput="updateLivePreview()"
+                  class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-400 transition-shadow font-mono text-xs"
+                >
+                <p id="classesHelperText" class="text-[11px] text-slate-400 mt-1">
+                  Se configurarán automáticamente desde las carpetas del dataset inspeccionado.
+                </p>
+              </div>
+              <div>
+                <label for="inputGuideInput" class="block text-xs font-medium text-slate-700 mb-1.5">Guía de captura para el usuario</label>
+                <input type="text" id="inputGuideInput" value="" placeholder="Ej: Fotografía cenital con luz natural" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-400 transition-shadow">
+              </div>
+            </div>
+          </details>
+        </section>
+
+      <!-- STEP 2: Architecture & Hardware Parameters (Auto-FL Mode) -->
+      <section id="sectionArch" class="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2.5">
+            <span class="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-semibold flex items-center justify-center">3</span>
+            <h2 class="text-base font-semibold text-slate-900 tracking-tight">Arquitectura de Red &amp; Entrenamiento</h2>
+            <span id="archSourceStatusBadge" class="hidden" aria-hidden="true"></span>
+          </div>
+          <button
+            type="button"
+            id="btnAutoRecommendArch"
+            onclick="fetchArchRecommendation()"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-indigo-700 bg-indigo-50/80 hover:bg-indigo-100/90 border border-indigo-200/80 transition-all shadow-2xs hover:shadow-xs active:scale-[0.98] cursor-pointer shrink-0"
+            title="Optimizar arquitectura e hiperparámetros según el perfil del dataset"
+          >
+            <svg class="w-3.5 h-3.5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/>
+            </svg>
+            <span>Recomendar Arquitectura</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="archSelect" class="block text-xs font-bold text-slate-700 mb-1">Arquitectura de Red</label>
+            <select
+              id="archSelect"
+              onchange="onArchUserChange()"
+              class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white font-mono"
+            >
+              <option value="auto">auto (Recomendación inteligente)</option>
+              <option value="resnet18" selected>resnet18 (Balance robusto precisión/cómputo)</option>
+              <option value="mobilenet_v3_small">mobilenet_v3_small (Ultra-ligero edge/IoT)</option>
+              <option value="convnext_tiny">convnext_tiny (Alta capacidad de detalle)</option>
+              <option value="efficientnet_b0">efficientnet_b0 (Eficiencia moderna)</option>
+              <option value="efficientnet_v2_s">efficientnet_v2_s (Eficiencia SOTA)</option>
+              <option value="swin_t">swin_t (Swin Vision Transformer - Alta capacidad espacial)</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="epochsInput" class="block text-xs font-bold text-slate-700 mb-1">Épocas de Entrenamiento</label>
+            <input
+              type="number"
+              id="epochsInput"
+              value="30"
+              min="10"
+              max="100"
+              oninput="updateLivePreview()"
+              class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+            <p class="text-xs text-slate-500 mt-1">El entrenamiento se detendrá automáticamente si el modelo alcanza su máxima precisión (Early Stopping).</p>
+          </div>
+        </div>
+
+        <!-- Collapsible Advanced Training & Federated Hardware Parameters -->
+        <details class="group rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+          <summary class="flex items-center justify-between cursor-pointer select-none list-none text-xs font-semibold text-slate-700">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span>Parámetros Avanzados de Hardware &amp; Hiperparámetros</span>
+            </div>
+            <svg class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </summary>
+          <div class="pt-3 mt-3 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label for="clientTierSelect" class="block text-xs font-bold text-slate-700 mb-1">Tier Cliente FL Objetivo</label>
+              <select
+                id="clientTierSelect"
+                onchange="updateLivePreview()"
+                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              >
+                <option value="cpu-low" selected>CPU Bajo (Edge / Raspberry Pi / Dispositivo rural)</option>
+                <option value="cpu-high">CPU Alto (Estación de trabajo / Gateway multicore)</option>
+                <option value="gpu">GPU Dedicada (Jetson / Servidor local con CUDA)</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="batchSizeInput" class="block text-xs font-bold text-slate-700 mb-1">Batch Size</label>
+              <select
+                id="batchSizeInput"
+                onchange="updateLivePreview()"
+                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white font-mono"
+              >
+                <option value="16">16 (Bajo consumo de memoria)</option>
+                <option value="32" selected>32 (Estándar recomendado)</option>
+                <option value="64">64 (Para GPUs con mayor VRAM)</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="lrInput" class="block text-xs font-bold text-slate-700 mb-1">Learning Rate (lr)</label>
+              <input
+                type="number"
+                id="lrInput"
+                value="0.001"
+                step="0.0001"
+                min="0.00001"
+                max="0.1"
+                oninput="updateLivePreview()"
+                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white font-mono"
+              >
+            </div>
+
+            <div>
+              <label for="transferLearningSelect" class="block text-xs font-bold text-slate-700 mb-1">Estrategia de Transfer Learning</label>
+              <select
+                id="transferLearningSelect"
+                onchange="updateLivePreview()"
+                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              >
+                <option value="partial" selected>Fine-Tuning Parcial (Últimos bloques) - Recomendado</option>
+                <option value="head_only">Linear Probing (Solo Cabezal)</option>
+                <option value="full">Full Fine-Tuning (Toda la red)</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="lossFunctionSelect" class="block text-xs font-bold text-slate-700 mb-1">Función de Pérdida / Loss</label>
+              <select
+                id="lossFunctionSelect"
+                onchange="updateLivePreview()"
+                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              >
+                <option value="ce" selected>Cross-Entropy (Estándar)</option>
+                <option value="weighted_ce">Weighted Cross-Entropy (Balanceo automático)</option>
+                <option value="focal">Focal Loss (Especial para clases difíciles/minorías)</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="augmentationSelect" class="block text-xs font-bold text-slate-700 mb-1">Data Augmentation</label>
+              <select
+                id="augmentationSelect"
+                onchange="updateLivePreview()"
+                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              >
+                <option value="basic" selected>Básico (Flips &amp; Rotaciones leves)</option>
+                <option value="randaugment">Agresivo (RandAugment - Máxima robustez)</option>
+              </select>
+            </div>
+          </div>
+        </details>
+
+        <div id="archRecommendationNotice" class="hidden p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-200 text-xs text-slate-700"></div>
+      </section>
+
+      </div>
+
+      <!-- Resize handle: drag to widen the preview (double-click to reset) -->
+      <div id="splitHandle" role="separator" aria-orientation="vertical" aria-label="Ajustar ancho de la vista previa" tabindex="0"
+        title="Arrastra para ajustar la vista previa (doble clic para restablecer)"
+        class="hidden lg:flex self-stretch w-4 shrink-0 items-center justify-center cursor-col-resize group select-none">
+        <span class="w-0.5 h-12 rounded-full bg-slate-200 group-hover:bg-slate-400 group-focus:bg-indigo-400 group-active:bg-indigo-500 transition-colors"></span>
+      </div>
+
+      <!-- RIGHT: Sticky preview + CTA (30% by default) -->
+      <aside class="w-full lg:w-[var(--aside-w)] lg:shrink-0 lg:sticky lg:top-24 h-fit space-y-4">
+        <div id="previewEmptyState" class="border-2 border-dashed border-slate-200 bg-slate-50 rounded-2xl flex flex-col items-center justify-center py-16 px-8 text-center text-slate-400 transition-opacity duration-300">
+          <svg class="w-10 h-10 mb-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18"/><path d="M7 14h6"/><path d="M7 17h3"/>
+          </svg>
+          <p class="text-sm max-w-[16rem] leading-relaxed">Configura tu modelo a la izquierda para previsualizar su ficha aquí.</p>
+        </div>
+
+        <section id="secPreviewCard" class="hidden opacity-0 transition-opacity duration-300 bg-white rounded-2xl border border-slate-200/60 p-6 shadow-sm space-y-5">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-semibold text-slate-900 tracking-tight">Vista Previa en el Catálogo</h3>
+              <p class="text-xs text-slate-500">Así lo verán los usuarios.</p>
+            </div>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>En vivo
+            </span>
+          </div>
+
+          <div id="liveCatalogCardHost" class="w-full"></div>
+          <div class="hidden" aria-hidden="true">
+            <span id="previewDomainBadge">Agricultura</span>
+            <span id="previewArchBadge">resnet18</span>
+            <h3 id="previewTitle">Nuevo Modelo</h3>
+            <p id="previewDescription"></p>
+            <span id="previewClassesCount">0 clases</span>
+            <div id="previewClassesContainer"></div>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/60 space-y-2 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="font-medium text-slate-800">Resumen</span>
+              <span id="summaryModePill" class="text-[10px] font-mono px-2 py-0.5 rounded bg-white ring-1 ring-inset ring-slate-200 text-slate-600">Auto-FL</span>
+            </div>
+            <div class="space-y-1.5 text-slate-500 font-mono text-[11px]">
+              <div class="flex justify-between gap-3"><span>Slug</span><span id="summarySlug" class="font-semibold text-slate-900 truncate">-</span></div>
+              <div class="flex justify-between gap-3"><span>Origen</span><span id="summarySource" class="truncate max-w-[200px] text-right text-slate-900">-</span></div>
+              <div class="flex justify-between gap-3"><span>Red</span><span id="summaryArchEpochs" class="text-slate-900">resnet18 &bull; 5 épocas</span></div>
+              <div class="flex justify-between gap-3"><span>Clases</span><span id="summaryClasses" class="text-slate-900 font-semibold">0 clases</span></div>
+            </div>
+          </div>
+
+          <div class="space-y-1.5 text-xs">
+            <span class="text-[11px] font-medium text-slate-500">Términos de búsqueda</span>
+            <div id="previewSearchTags" class="flex flex-wrap gap-1.5">
+              <span class="text-[11px] text-slate-400">Sin etiquetas</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- CTA + job monitor -->
+      <!-- STEP 5: Final Action Dispatcher & Job Monitor -->
+      <div class="p-5 bg-white rounded-2xl border border-slate-200/60 shadow-sm space-y-4">
+        <p id="actionPipelineNotice" class="text-xs text-slate-500 leading-relaxed">
+          Al iniciar el entrenamiento, el sistema ejecutará el aprendizaje en segundo plano (Job Runner) y publicará automáticamente el modelo en el catálogo una vez completado.
+        </p>
+
+        <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-1">
+          <a
+            href="/master"
+            class="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-xs text-center transition-colors"
+          >
+            Cancelar
+          </a>
+          <button
+            type="button"
+            id="btnLaunchPipeline"
+            onclick="launchModelCreation()"
+            disabled aria-disabled="true" class="w-full sm:w-auto py-2.5 px-6 rounded-xl text-white bg-slate-900 hover:bg-slate-800 font-semibold text-xs shadow-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer opacity-50 cursor-not-allowed pointer-events-none"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            <span id="btnLaunchText">Iniciar Entrenamiento y Publicar en Hub</span>
+          </button>
+        </div>
+
+        <div id="launchFeedback" class="hidden p-3.5 rounded-xl text-xs font-semibold text-center" aria-live="polite"></div>
+
+        <!-- Live Inline Job Progress Console (Step 6) -->
+        <div id="studioLiveJobBox" class="hidden rounded-xl border border-slate-800 bg-slate-950 p-3.5 text-slate-200 space-y-2">
+          <div class="flex items-center justify-between text-[11px]">
+            <span id="studioJobStatusTitle" class="font-bold text-indigo-400 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
+              Entrenando en segundo plano...
+            </span>
+            <a href="/master" class="text-[10px] font-semibold text-slate-400 hover:text-white underline">Abrir Consola MLOps &rarr;</a>
+          </div>
+          <pre id="studioJobLogTail" class="text-[10px] font-mono text-emerald-300 max-h-36 overflow-y-auto whitespace-pre-wrap leading-relaxed bg-slate-900/90 p-2.5 rounded-lg border border-slate-800"></pre>
+        </div>
+      </div>
+      </aside>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-200 bg-white py-6 mt-16 text-xs text-slate-500">
+    <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="font-semibold text-slate-700">KHAOS Hub</span>
+        <span class="text-slate-300">&bull;</span>
+        <span class="text-slate-500">Catálogo Federado de Modelos de IA</span>
+      </div>
+      <div class="flex flex-col sm:flex-row items-center gap-x-6 gap-y-2">
+        <nav class="flex flex-wrap items-center gap-x-5 gap-y-1">
+          <a href="https://www.uma.es/servicio-central-de-informatica/info/156901/politica-de-cookies/" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-slate-600 transition-colors">Política de cookies</a>
+          <a href="https://sede.uma.es/opencms/system/modules/sede/contents/footer/normativa" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-slate-600 transition-colors">Política de privacidad</a>
+          <a href="https://sede.uma.es/opencms/system/modules/sede/contents/footer/normativa" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-slate-600 transition-colors">Avisos legales</a>
+        </nav>
+        <span class="text-slate-400">&copy; 2026 Todos los derechos reservados</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Script for Studio Functionality & Real-Time Sync -->
+  <script>
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Data-driven Taxonomy Dictionary: add a single rule line to support new Data Space verticals
+    const TAXONOMY_MAP = [
+      { keywords: ['olive', 'olivo', 'olearius', 'repilo', 'aceituna'], sujeto: 'Olivo', elemento: 'Hoja / Cultivo', proposito: 'Diagnóstico fitosanitario' },
+      { keywords: ['tomato', 'tomate', 'blight', 'tizon', 'horticola'], sujeto: 'Tomate', elemento: 'Hoja', proposito: 'Control de patologías foliares' },
+      { keywords: ['tumor', 'lesion', 'xray', 'mri', 'retina', 'cell', 'celula', 'biomedicina', 'sanidad'], sujeto: 'Medicina / Paciente', elemento: 'Órgano / Tejido', proposito: 'Cribado de apoyo clínico' },
+      { keywords: ['defect', 'defecto', 'crack', 'scratch', 'dent', 'weld', 'soldadura', 'pcb', 'industria', 'manufactura'], sujeto: 'Industria / Manufactura', elemento: 'Pieza de Ensamblaje', proposito: 'Inspección y control de calidad' },
+      { keywords: ['drone', 'dron', 'uav', 'aerial', 'ndvi', 'satellite', 'parcela', 'forest', 'wildfire'], sujeto: 'Drones / Teledetección', elemento: 'Terreno Agrícola', proposito: 'Monitorización aérea de cultivos' }
+    ];
+
+    let currentMode = 'autofl';
+    let detectedClasses = ['sana', 'hongo_carpocapsa', 'defecto_cascara'];
+    let lastInspectedTotalImages = 0;
+    let lastInspectedData = null;
+    let lastImbalanceRatio = 1.0;
+    let isDatasetPreSplit = false;
+    let lastRecommendedArch = 'resnet18';
+    let physicalCheckpoints = [];
+    let studioJobPoller = null;
+    let datasetReady = false;
+    let datasetUploading = false;
+    let datasetHasCorrupted = false;
+    let datasetCorruptedCount = 0;
+    let previewRevealed = null;
+
+    function onSplitInputChange() {
+      const tr = parseFloat(document.getElementById('splitTrainInput')?.value) || 0;
+      const vl = parseFloat(document.getElementById('splitValInput')?.value) || 0;
+      const ts = parseFloat(document.getElementById('splitTestInput')?.value) || 0;
+      const total = tr + vl + ts;
+      const badge = document.getElementById('splitTotalBadge');
+      const err = document.getElementById('splitValidationError');
+      if (badge) {
+        badge.textContent = `Total: ${total}%`;
+        if (total === 100) {
+          badge.className = 'text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
+          if (err) err.classList.add('hidden');
+        } else {
+          badge.className = 'text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200';
+          if (err) {
+            err.classList.remove('hidden');
+            err.textContent = `La suma actual es ${total}%. Debe ser exactamente 100% para particionar correctamente.`;
+          }
+        }
+      }
+    }
+
+    const CTA_DISABLED_CLASSES = ['opacity-50', 'cursor-not-allowed', 'pointer-events-none'];
+
+    function setPreviewRevealed(show) {
+      if (previewRevealed === show) return;
+      const first = previewRevealed === null;
+      previewRevealed = show;
+      const empty = document.getElementById('previewEmptyState');
+      const card = document.getElementById('secPreviewCard');
+      if (!empty || !card) return;
+      const [hideEl, showEl] = show ? [empty, card] : [card, empty];
+      showEl.classList.remove('hidden');
+      if (first) {
+        showEl.classList.remove('opacity-0');
+        hideEl.classList.add('hidden', 'opacity-0');
+        return;
+      }
+      hideEl.classList.add('opacity-0');
+      requestAnimationFrame(() => requestAnimationFrame(() => showEl.classList.remove('opacity-0')));
+      setTimeout(() => {
+        if (previewRevealed === show) hideEl.classList.add('hidden');
+      }, 300);
+    }
+
+    function refreshStudioGate() {
+      const title = (document.getElementById('titleInput')?.value || '').trim();
+      const sourceOk = currentMode === 'autofl'
+        ? (datasetReady && !datasetHasCorrupted)
+        : Boolean(document.getElementById('manualCheckpointSelect')?.value);
+      const sourceTouched = currentMode === 'autofl' ? (datasetReady || datasetUploading) : sourceOk;
+
+      setPreviewRevealed(title.length > 0 || sourceTouched);
+
+      const btn = document.getElementById('btnLaunchPipeline');
+      // Do not interfere while a launch is in flight (spinner visible)
+      if (!btn || btn.querySelector('.animate-spin')) return;
+      const ready = title.length > 0 && sourceOk && !datasetHasCorrupted;
+      btn.disabled = !ready;
+      btn.setAttribute('aria-disabled', String(!ready));
+      CTA_DISABLED_CLASSES.forEach(c => btn.classList.toggle(c, !ready));
+      if (datasetHasCorrupted) {
+        btn.title = `Entrenamiento bloqueado: Se detectaron ${datasetCorruptedCount} archivos corruptos en el dataset.`;
+      } else {
+        btn.removeAttribute('title');
+      }
+    }
+
+    function formatClassName(s) {
+      if (!s) return '';
+      if (window.KhaosUI && KhaosUI.formatText) {
+        return KhaosUI.formatText(s);
+      }
+      return String(s).replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    function unlockClassesInput() {
+      const classesIn = document.getElementById('classesInput');
+      if (classesIn) {
+        classesIn.readOnly = false;
+        classesIn.classList.remove('bg-slate-50', 'text-slate-600', 'cursor-not-allowed');
+        classesIn.classList.add('bg-white');
+      }
+      const lockBadge = document.getElementById('classesLockBadge');
+      if (lockBadge) lockBadge.classList.add('hidden');
+      const helperText = document.getElementById('classesHelperText');
+      if (helperText) {
+        helperText.textContent = 'Se configurarán automáticamente desde las carpetas del dataset inspeccionado.';
+        helperText.className = 'text-[11px] text-slate-400 mt-1';
+      }
+    }
+
+    const SLUG_STOP_WORDS = new Set([
+      'de', 'del', 'la', 'las', 'el', 'los', 'y', 'e', 'o', 'u', 'en', 'para', 'por', 'con', 'sin', 'a', 'al', 'un', 'una',
+      'of', 'the', 'and', 'for', 'in', 'on', 'to', 'with', 'by', 'from', 'a', 'an'
+    ]);
+
+    function slugify(text, maxLen = 50) {
+      if (!text) return '';
+      const normalized = text
+        .toString()
+        .toLowerCase()
+        .trim()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s-]/g, ' ');
+
+      const rawTokens = normalized.split(/[\s-]+/).filter(Boolean);
+      const filtered = rawTokens.filter(w => !SLUG_STOP_WORDS.has(w));
+      const tokens = filtered.length > 0 ? filtered : rawTokens;
+
+      let result = '';
+      for (const word of tokens) {
+        const candidate = result ? `${result}-${word}` : word;
+        if (candidate.length > maxLen) {
+          if (!result) {
+            result = word.slice(0, maxLen).replace(/-+$/, '');
+          }
+          break;
+        }
+        result = candidate;
+      }
+      return result;
+    }
+
+    function getEffectiveThumbnailUrl() {
+      const b64 = (document.getElementById('thumbnailBase64Input')?.value || '').trim();
+      if (b64) return b64;
+      return (document.getElementById('thumbnailUrlInput')?.value || '').trim();
+    }
+
+    function setThumbnailValue(val) {
+      const raw = (val || '').trim();
+      const b64In = document.getElementById('thumbnailBase64Input');
+      const urlIn = document.getElementById('thumbnailUrlInput');
+      const previewBox = document.getElementById('thumbnailPreviewBox');
+      const previewImg = document.getElementById('thumbnailPreviewImg');
+      if (!b64In || !urlIn || !previewBox || !previewImg) return;
+
+      if (raw.startsWith('data:image')) {
+        b64In.value = raw;
+        urlIn.value = '';
+        urlIn.classList.add('hidden');
+        previewImg.src = raw;
+        previewBox.classList.remove('hidden');
+      } else {
+        b64In.value = '';
+        urlIn.value = raw;
+        urlIn.classList.remove('hidden');
+        previewImg.src = '';
+        previewBox.classList.add('hidden');
+      }
+    }
+
+    function handleThumbnailTextInput() {
+      const urlIn = document.getElementById('thumbnailUrlInput');
+      if (urlIn && urlIn.value.trim().startsWith('data:image')) {
+        setThumbnailValue(urlIn.value.trim());
+      }
+      updateLivePreview();
+    }
+
+    function clearBase64Thumbnail() {
+      setThumbnailValue('');
+      const urlIn = document.getElementById('thumbnailUrlInput');
+      if (urlIn) urlIn.focus();
+      updateLivePreview();
+    }
+
+    function extractMetadataHeuristics(domain, classes, title) {
+      const classArr = Array.isArray(classes)
+        ? classes.map(c => String(c || '').trim()).filter(Boolean)
+        : String(classes || '').split(',').map(c => c.trim()).filter(Boolean);
+
+      const cleanClassTags = classArr.map(c => c.replace(/[_-]+/g, ' ').trim().toLowerCase()).filter(Boolean);
+      const combinedText = [domain || '', title || '', ...cleanClassTags].join(' ').toLowerCase();
+
+      // 1. Auto-populate "Etiquetas de búsqueda" by joining class names
+      const tagsValue = cleanClassTags.join(', ');
+      const tagsIn = document.getElementById('tagsInput');
+      if (tagsIn && cleanClassTags.length > 0 && (!tagsIn.value.trim() || tagsIn.dataset.autoFilled === 'true')) {
+        tagsIn.value = tagsValue;
+        tagsIn.dataset.autoFilled = 'true';
+      }
+
+      // 2. Data-driven lookup against TAXONOMY_MAP
+      const matchedRule = TAXONOMY_MAP.find(rule =>
+        Array.isArray(rule.keywords) && rule.keywords.some(kw => combinedText.includes(String(kw).toLowerCase()))
+      );
+
+      const fieldMappings = [
+        { id: 'cropInput', val: matchedRule?.sujeto || '' },
+        { id: 'targetElementInput', val: matchedRule?.elemento || '' },
+        { id: 'purposeInput', val: matchedRule?.proposito || '' }
+      ];
+
+      fieldMappings.forEach(({ id, val }) => {
+        const el = document.getElementById(id);
+        if (el && val && (!el.value.trim() || el.dataset.autoFilled === 'true')) {
+          el.value = val;
+          el.dataset.autoFilled = 'true';
+        }
+      });
+
+      return {
+        tags: tagsValue,
+        sujeto: matchedRule?.sujeto || '',
+        elemento: matchedRule?.elemento || '',
+        proposito: matchedRule?.proposito || ''
+      };
+    }
+
+    function handleDomainChange() {
+      const domain = document.getElementById('domainSelect')?.value || '';
+      const title = document.getElementById('titleInput')?.value || '';
+      const rawClasses = (document.getElementById('classesInput')?.value || '').split(',').map(s => s.trim()).filter(Boolean);
+      extractMetadataHeuristics(domain, rawClasses.length ? rawClasses : detectedClasses, title);
+      updateLivePreview();
+    }
+
+    function handleTitleInput() {
+      const title = document.getElementById('titleInput').value;
+      const slugInput = document.getElementById('slugInput');
+      slugInput.value = slugify(title);
+      updateLivePreview();
+    }
+
+    function scrollToPreview() {
+      const el = document.getElementById('secPreviewCard');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    function onArchUserChange() {
+      const badge = document.getElementById('archSourceStatusBadge');
+      if (badge) {
+        badge.className = 'hidden';
+        badge.textContent = '';
+      }
+      updateLivePreview();
+    }
+
+    function applyQuickDatasetPath(path) {
+      document.getElementById('datasetPathInput').value = path;
+      inspectDataset();
+    }
+
+    function togglePreviewModal(show) {
+      const modal = document.getElementById('previewModal');
+      if (!modal) return;
+      if (show) {
+        updateLivePreview();
+        modal.classList.remove('hidden');
+      } else {
+        modal.classList.add('hidden');
+      }
+    }
+
+    function setCreationMode(mode) {
+      currentMode = mode;
+      const descLabel = document.getElementById('modeDescriptionLabel');
+      const secDataset = document.getElementById('sectionDataset');
+      const secManual = document.getElementById('sectionManualCheckpoint');
+      const secArch = document.getElementById('sectionArch');
+      const btnText = document.getElementById('btnLaunchText');
+      const notice = document.getElementById('actionPipelineNotice');
+      const modePill = document.getElementById('summaryModePill');
+
+      if (mode === 'autofl') {
+        if (descLabel) descLabel.textContent = 'Entrenamiento automático desde carpetas de imágenes clasificadas.';
+        secDataset.classList.remove('hidden');
+        secManual.classList.add('hidden');
+        secArch.classList.remove('hidden');
+        if (btnText) btnText.textContent = 'Iniciar Entrenamiento y Publicar en Hub';
+        if (modePill) modePill.textContent = 'Auto-FL';
+        if (notice) notice.textContent = 'Al pulsar el botón, el servidor iniciará el entrenamiento asíncrono no bloqueante mediante el Job Runner y solo publicará el modelo en el catálogo cuando el entrenamiento finalice con éxito.';
+      } else {
+        unlockClassesInput();
+        if (descLabel) descLabel.textContent = 'Registra un archivo de pesos (.pt) ya entrenado, sin reentrenar.';
+        secManual.classList.remove('hidden');
+        secDataset.classList.add('hidden');
+        secArch.classList.add('hidden');
+        if (btnText) btnText.textContent = 'Guardar y Registrar en Catálogo';
+        if (modePill) modePill.textContent = 'Manual .pt';
+        if (notice) notice.textContent = 'El modelo quedará inmediatamente registrado en el catálogo público asociado al checkpoint físico seleccionado.';
+        loadPhysicalCheckpoints();
+      }
+      updateLivePreview();
+    }
+
+    function updateLivePreview() {
+      const title = document.getElementById('titleInput').value.trim() || 'Nuevo Modelo';
+      const slug = document.getElementById('slugInput').value.trim() || slugify(title) || 'nuevo-modelo';
+      const domain = document.getElementById('domainSelect').value;
+      const crop = (document.getElementById('cropInput')?.value || '').trim();
+      const targetElement = (document.getElementById('targetElementInput')?.value || '').trim();
+      const purpose = (document.getElementById('purposeInput')?.value || '').trim();
+      const thumbnailUrl = getEffectiveThumbnailUrl();
+      const arch = currentMode === 'autofl' ? document.getElementById('archSelect').value : 'checkpoint .pt';
+      const epochs = document.getElementById('epochsInput')?.value || '30';
+      const description = document.getElementById('descriptionInput').value.trim() || 'Sin descripción todavía...';
+      const rawClasses = document.getElementById('classesInput').value.split(',').map(s => s.trim()).filter(Boolean);
+      const rawTags = document.getElementById('tagsInput').value.split(',').map(s => s.trim()).filter(Boolean);
+
+      // Render shared catalog card HTML
+      const cardHtml = (window.KhaosUI && KhaosUI.renderCatalogCardHtml) ? KhaosUI.renderCatalogCardHtml({
+        slug: slug,
+        title: title,
+        domain: domain,
+        crop: crop,
+        target_element: targetElement,
+        purpose: purpose,
+        thumbnail_url: thumbnailUrl || null,
+        architecture: arch,
+        description: description,
+        classes: rawClasses,
+        num_classes: rawClasses.length,
+        versions: ['v1']
+      }, { previewMode: true }) : '';
+
+      // Update in-page card host
+      const cardHost = document.getElementById('liveCatalogCardHost');
+      if (cardHost) cardHost.innerHTML = cardHtml;
+
+      // Update modal card host
+      const modalHost = document.getElementById('modalCatalogCardHost');
+      if (modalHost) modalHost.innerHTML = cardHtml;
+
+      // Update Pre-launch summary
+      const sumSlug = document.getElementById('summarySlug');
+      const sumSource = document.getElementById('summarySource');
+      const sumArch = document.getElementById('summaryArchEpochs');
+      const sumClasses = document.getElementById('summaryClasses');
+      const dsPathVal = document.getElementById('datasetPathInput')?.value || '';
+      const sourceLabel = currentMode === 'autofl'
+        ? (dsPathVal ? dsPathVal.split('/').filter(Boolean).slice(-2).join('/') : 'Carpeta pendiente de selección')
+        : (document.getElementById('manualCheckpointSelect')?.value || 'Pendiente .pt');
+      const archLabel = currentMode === 'autofl' ? `${arch} • ${epochs} épocas` : 'Pesos pre-entrenados';
+
+      if (sumSlug) sumSlug.textContent = slug;
+      if (sumSource) sumSource.textContent = sourceLabel;
+      if (sumArch) sumArch.textContent = archLabel;
+      if (sumClasses) sumClasses.textContent = `${rawClasses.length} clases`;
+
+      // Sync modal summary elements
+      const mSlug = document.getElementById('modalSummarySlug');
+      const mSource = document.getElementById('modalSummarySource');
+      const mArch = document.getElementById('modalSummaryArch');
+      const mClasses = document.getElementById('modalSummaryClasses');
+      if (mSlug) mSlug.textContent = slug;
+      if (mSource) mSource.textContent = sourceLabel;
+      if (mArch) mArch.textContent = archLabel;
+      if (mClasses) mClasses.textContent = `${rawClasses.length} clases`;
+
+      // Sync legacy hooks
+      document.getElementById('previewTitle').textContent = title;
+      document.getElementById('previewDomainBadge').textContent = domain;
+      document.getElementById('previewArchBadge').textContent = arch;
+      document.getElementById('previewDescription').textContent = description;
+      document.getElementById('previewClassesCount').textContent = `${rawClasses.length} clases`;
+
+      const classesCont = document.getElementById('previewClassesContainer');
+      if (classesCont) {
+        classesCont.innerHTML = '';
+        if (rawClasses.length === 0) {
+          classesCont.innerHTML = '<span class="text-xs text-slate-400">Sin clases definidas</span>';
+        } else {
+          rawClasses.slice(0, 4).forEach(c => {
+            const span = document.createElement('span');
+            span.className = 'px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200';
+            span.textContent = formatClassName(c);
+            classesCont.appendChild(span);
+          });
+          if (rawClasses.length > 4) {
+            const moreSpan = document.createElement('span');
+            moreSpan.className = 'px-2 py-0.5 text-[11px] font-semibold text-slate-500';
+            moreSpan.textContent = `+${rawClasses.length - 4} más`;
+            classesCont.appendChild(moreSpan);
+          }
+        }
+      }
+
+      const tagsCont = document.getElementById('previewSearchTags');
+      if (tagsCont) {
+        tagsCont.innerHTML = '';
+        if (rawTags.length === 0) {
+          tagsCont.innerHTML = '<span class="text-[11px] text-slate-400 italic">Escribe etiquetas en el formulario para previsualizarlas aquí.</span>';
+        } else {
+          rawTags.forEach(t => {
+            const span = document.createElement('span');
+            span.className = 'px-1.5 py-0.5 rounded text-[10px] bg-white border border-slate-200 text-slate-600 font-mono';
+            span.textContent = t;
+            tagsCont.appendChild(span);
+          });
+        }
+      }
+      if (rawTags.length === 0) {
+        tagsCont.innerHTML = '<span class="text-xs text-slate-400">Sin etiquetas</span>';
+      } else {
+        rawTags.forEach(t => {
+          const span = document.createElement('span');
+          span.className = 'px-1.5 py-0.5 rounded text-[10px] bg-white border border-slate-200 text-slate-600';
+          span.textContent = t;
+          tagsCont.appendChild(span);
+        });
+      }
+      refreshStudioGate();
+    }
+
+    let currentIngestionMode = 'server';
+
+    function setDatasetIngestionMode(mode) {
+      const tabs = {
+        upload: document.getElementById('subtabUpload'),
+        server: document.getElementById('subtabServer'),
+        url: document.getElementById('subtabUrl'),
+        manual: document.getElementById('btnModeManual'),
+      };
+      const activeExtra = 'bg-white text-slate-900 shadow-2xs';
+      const inactiveExtra = 'text-slate-500 hover:text-slate-900';
+      Object.entries(tabs).forEach(([key, el]) => {
+        if (!el) return;
+        const on = key === mode;
+        ['bg-white', 'text-slate-900', 'shadow-2xs', 'text-slate-500', 'hover:text-slate-900'].forEach(c => el.classList.remove(c));
+        (on ? activeExtra : inactiveExtra).split(' ').forEach(c => el.classList.add(c));
+        el.setAttribute('aria-selected', String(on));
+      });
+
+      if (mode === 'manual') {
+        if (currentMode !== 'manual') setCreationMode('manual');
+        return;
+      }
+
+      currentIngestionMode = mode;
+      const paneServer = document.getElementById('paneSourceServer');
+      const paneUpload = document.getElementById('paneSourceUpload');
+      const paneUrl = document.getElementById('paneSourceUrl');
+      if (paneServer) paneServer.classList.toggle('hidden', mode !== 'server');
+      if (paneUpload) paneUpload.classList.toggle('hidden', mode !== 'upload');
+      if (paneUrl) paneUrl.classList.toggle('hidden', mode !== 'url');
+      if (currentMode !== 'autofl') setCreationMode('autofl');
+    }
+
+    // Resizable split: preview column width (percentage), persisted locally
+    function initSplitResize() {
+      const container = document.getElementById('splitContainer');
+      const handle = document.getElementById('splitHandle');
+      if (!container || !handle) return;
+      const MIN = 25, MAX = 55, DEFAULT = 30;
+      const apply = (pct) => {
+        const v = Math.min(MAX, Math.max(MIN, pct));
+        container.style.setProperty('--aside-w', v + '%');
+        handle.setAttribute('aria-valuenow', String(Math.round(v)));
+        try { localStorage.setItem('khaos.previewWidth', String(v)); } catch (e) { /* ignore */ }
+        return v;
+      };
+      try {
+        const saved = parseFloat(localStorage.getItem('khaos.previewWidth'));
+        if (!isNaN(saved)) apply(saved);
+      } catch (e) { /* ignore */ }
+
+      let dragging = false;
+      handle.addEventListener('pointerdown', (e) => {
+        dragging = true;
+        handle.setPointerCapture(e.pointerId);
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'col-resize';
+      });
+      handle.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        const r = container.getBoundingClientRect();
+        apply(((r.right - e.clientX) / r.width) * 100);
+      });
+      const stop = () => {
+        dragging = false;
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+      };
+      handle.addEventListener('pointerup', stop);
+      handle.addEventListener('pointercancel', stop);
+      handle.addEventListener('dblclick', () => apply(DEFAULT));
+      handle.addEventListener('keydown', (e) => {
+        const cur = parseFloat(container.style.getPropertyValue('--aside-w')) || DEFAULT;
+        if (e.key === 'ArrowLeft') { apply(cur + 2); e.preventDefault(); }
+        if (e.key === 'ArrowRight') { apply(cur - 2); e.preventDefault(); }
+        if (e.key === 'Home' || e.key === 'Enter') { apply(DEFAULT); e.preventDefault(); }
+      });
+    }
+
+    function getHealthStyle(score) {
+      if (score < 70) {
+        return {
+          bar: 'bg-red-500',
+          dot: 'bg-red-500',
+          badge: 'bg-red-50 text-red-700 border-red-200',
+          label: 'Crítica'
+        };
+      }
+      if (score < 90) {
+        return {
+          bar: 'bg-amber-500',
+          dot: 'bg-amber-500',
+          badge: 'bg-amber-50 text-amber-800 border-amber-200',
+          label: 'Atención'
+        };
+      }
+      return {
+        bar: 'bg-emerald-500',
+        dot: 'bg-emerald-500',
+        badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        label: 'Óptima'
+      };
+    }
+
+    function updateHealthScoreUI(newScore) {
+      const s = Math.max(0, Math.min(100, Number(newScore) || 0));
+      const st = getHealthStyle(s);
+      const badgeEl = document.getElementById('inspectedHealthBadge');
+      const dotEl = document.getElementById('inspectedHealthDot');
+      const textEl = document.getElementById('inspectedHealthText');
+      const barEl = document.getElementById('inspectedHealthBar');
+      if (badgeEl) {
+        badgeEl.className = `inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold border transition-colors duration-300 kh-tabular-nums ${st.badge}`;
+      }
+      if (dotEl) {
+        dotEl.className = `w-1.5 h-1.5 rounded-full transition-colors duration-300 ${st.dot}`;
+      }
+      if (textEl) {
+        textEl.textContent = `Salud ${s}/100`;
+      }
+      if (barEl) {
+        barEl.className = `h-full transition-all duration-500 ${st.bar}`;
+        barEl.style.width = `${s}%`;
+      }
+    }
+
+    function dismissDiagnosticBanner(rowId) {
+      const el = document.getElementById(rowId);
+      if (!el) return;
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(-2px)';
+      setTimeout(() => {
+        el.remove();
+        const list = document.getElementById('diagnosticsListContainer');
+        if (list && list.children.length === 0) {
+          list.classList.add('hidden');
+        }
+      }, 160);
+    }
+
+    function replaceBannerWithResolvedState(rowId, messageText) {
+      const el = document.getElementById(rowId);
+      if (!el) return;
+      el.className = 'flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-emerald-50/60 border border-emerald-200/80 text-xs text-emerald-800 transition-all duration-200';
+      el.innerHTML = `
+        <div class="flex items-center gap-2 min-w-0">
+          <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <span class="font-medium truncate">${messageText}</span>
+        </div>
+        <button type="button" onclick="dismissDiagnosticBanner('${rowId}')" class="text-emerald-600/70 hover:text-emerald-900 p-0.5 rounded transition-colors shrink-0" title="Cerrar aviso">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      `;
+    }
+
+    async function triggerDatasetClean(options = { removeDuplicates: true, removeCorrupted: false }) {
+      const dsPath = document.getElementById('datasetPathInput')?.value;
+      if (!dsPath) return;
+
+      const btn = options.removeCorrupted
+        ? document.getElementById('btnPurgeCorrupted')
+        : document.getElementById('btnDeduplicate');
+      const origText = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `
+          <svg class="w-3 h-3 animate-spin text-current" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+          <span>Limpiando...</span>
+        `;
+      }
+
+      try {
+        const res = await fetch('/api/master/datasets/deduplicate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dataset_path: dsPath,
+            remove_duplicates: Boolean(options.removeDuplicates),
+            remove_corrupted: Boolean(options.removeCorrupted)
+          })
+        });
+        const payload = await res.json();
+        if (!res.ok) {
+          throw new Error(payload.detail || 'Error al limpiar el dataset');
+        }
+
+        // a) Update total images and per-class counts in UI
+        if (typeof payload.total_images === 'number') {
+          lastInspectedTotalImages = payload.total_images;
+          const totalEl = document.getElementById('inspectedTotalImagesLabel');
+          if (totalEl) {
+            totalEl.textContent = `${payload.total_images} imágenes`;
+          }
+        }
+        if (payload.image_counts) {
+          Object.entries(payload.image_counts).forEach(([cls, cnt]) => {
+            const badgeCnt = document.querySelector(`[data-class-count="${CSS.escape(cls)}"]`);
+            if (badgeCnt) badgeCnt.textContent = String(cnt);
+          });
+        }
+
+        // b) Update warning state to clean confirmation
+        if (options.removeDuplicates) {
+          const removed = payload.deleted_count ?? 0;
+          replaceBannerWithResolvedState(
+            'diagRowDuplicates',
+            `Dataset libre de duplicados (${removed} archivo${removed === 1 ? '' : 's'} eliminado${removed === 1 ? '' : 's'})`
+          );
+        }
+        if (options.removeCorrupted) {
+          const purged = payload.corrupted_removed ?? 0;
+          datasetHasCorrupted = false;
+          datasetCorruptedCount = 0;
+          datasetReady = true;
+          const topDot = document.getElementById('inspectedStatusDot');
+          if (topDot) topDot.className = 'w-2 h-2 rounded-full bg-emerald-500 shrink-0';
+          const topTitle = document.getElementById('inspectedStatusTitle');
+          if (topTitle) topTitle.textContent = 'Dataset verificado';
+          replaceBannerWithResolvedState(
+            'diagRowCorrupted',
+            `Integridad restaurada (${purged} archivo${purged === 1 ? '' : 's'} corrupto${purged === 1 ? '' : 's'} eliminado${purged === 1 ? '' : 's'})`
+          );
+          refreshStudioGate();
+        }
+
+        // c) Dynamically recalculate/update the Health Score badge & progress bar
+        const newScore = payload.health_profile?.health_score ?? 100;
+        updateHealthScoreUI(newScore);
+        updateLivePreview();
+      } catch (err) {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = origText;
+        }
+        alert(err.message || 'No se pudo completar la limpieza del dataset.');
+      }
+    }
+
+    function applyQuickFixImbalance() {
+      const lossSel = document.getElementById('lossFunctionSelect');
+      if (lossSel) {
+        lossSel.value = 'weighted_ce';
+        lossSel.dispatchEvent(new Event('change'));
+      }
+      replaceBannerWithResolvedState(
+        'diagRowImbalance',
+        'Weighted Cross-Entropy activado para compensar clases minoritarias'
+      );
+    }
+
+    function applyQuickFixResolution() {
+      const archSel = document.getElementById('archSelect');
+      if (archSel && archSel.value === 'swin_t') {
+        archSel.value = 'resnet18';
+        onArchUserChange();
+      }
+      const augSel = document.getElementById('augmentationSelect');
+      if (augSel) {
+        augSel.value = 'randaugment';
+      }
+      replaceBannerWithResolvedState(
+        'diagRowResolution',
+        'Preprocesado multi-escala (RandAugment) y backbone resiliente aplicados'
+      );
+    }
+
+    function applyQuickFixSingleClass() {
+      const classesIn = document.getElementById('classesInput');
+      if (classesIn) {
+        classesIn.readOnly = false;
+        classesIn.classList.remove('bg-slate-50', 'text-slate-600', 'cursor-not-allowed');
+        classesIn.classList.add('bg-white');
+        classesIn.focus();
+      }
+      const lockBadge = document.getElementById('classesLockBadge');
+      if (lockBadge) lockBadge.classList.add('hidden');
+      replaceBannerWithResolvedState(
+        'diagRowSingleClass',
+        'Edición manual de clases desbloqueada en la pestaña Configuración'
+      );
+    }
+
+    function renderInspectionResult(data, isSuccess) {
+      const card = document.getElementById('datasetInspectionCard');
+      if (!card) return;
+      card.classList.remove('hidden');
+      datasetUploading = false;
+
+      const hp = data && data.health_profile ? data.health_profile : {
+        health_score: 100,
+        corrupted_count: 0,
+        duplicates_count: 0,
+        resolution_warning: false
+      };
+
+      datasetHasCorrupted = Boolean(hp.corrupted_count > 0);
+      datasetCorruptedCount = hp.corrupted_count || 0;
+      datasetReady = Boolean(isSuccess && data.valid && !datasetHasCorrupted);
+
+      if (isSuccess && data.valid) {
+        card.className = 'rounded-xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden transition-all';
+        const isYolo = data.format === 'yolo_detection';
+        lastInspectedData = data;
+        lastInspectedTotalImages = data.total_images || 0;
+
+        const countsArr = Object.values(data.image_counts || {}).map(Number);
+        const minCount = countsArr.length ? Math.min(...countsArr) : 0;
+        const maxCount = countsArr.length ? Math.max(...countsArr) : 0;
+        const imbalanceRatio = minCount > 0 ? (maxCount / minCount) : 1;
+        lastImbalanceRatio = imbalanceRatio;
+        isDatasetPreSplit = Boolean(data.is_pre_split);
+
+        const st = getHealthStyle(hp.health_score);
+
+        // Build clean, reactive diagnostic rows with Action + Dismiss (×)
+        const diagnosticRows = [];
+
+        // 1. Corrupted files (Critical)
+        if (hp.corrupted_count > 0) {
+          diagnosticRows.push(`
+            <div id="diagRowCorrupted" class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 px-3 py-2 rounded-lg bg-red-50/70 border border-red-200/90 text-xs text-red-900 transition-all duration-150">
+              <div class="flex items-start gap-2 min-w-0">
+                <span class="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 shrink-0"></span>
+                <div class="leading-snug">
+                  <span class="font-semibold text-red-950">${hp.corrupted_count} archivo${hp.corrupted_count === 1 ? '' : 's'} corrupto${hp.corrupted_count === 1 ? '' : 's'} detectado${hp.corrupted_count === 1 ? '' : 's'}.</span>
+                  <span class="text-red-800/90 ml-1">Cabeceras ilegibles bloquean el DataLoader de entrenamiento.</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+                <button type="button" id="btnPurgeCorrupted" class="inline-flex items-center gap-1.5 bg-white hover:bg-red-100/80 text-red-800 border border-red-300 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors shadow-2xs cursor-pointer">
+                  <span>Eliminar corruptos</span>
+                </button>
+              </div>
+            </div>
+          `);
+        }
+
+        // 2. Exact MD5 Duplicates (Data Leakage)
+        if (hp.duplicates_count > 0) {
+          diagnosticRows.push(`
+            <div id="diagRowDuplicates" class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 px-3 py-2 rounded-lg bg-amber-50/60 border border-amber-200/80 text-xs text-amber-900 transition-all duration-150">
+              <div class="flex items-start gap-2 min-w-0">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0"></span>
+                <div class="leading-snug">
+                  <span class="font-semibold text-slate-900">${hp.duplicates_count} duplicado${hp.duplicates_count === 1 ? '' : 's'} exacto${hp.duplicates_count === 1 ? '' : 's'} (MD5).</span>
+                  <span class="text-slate-600 ml-1">Riesgo de data leakage entre particiones de entrenamiento y validación.</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+                <button type="button" id="btnDeduplicate" class="inline-flex items-center gap-1.5 bg-amber-100/90 hover:bg-amber-200/80 text-amber-900 border border-amber-300/80 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer">
+                  <span>Limpiar duplicados</span>
+                </button>
+                <button type="button" onclick="dismissDiagnosticBanner('diagRowDuplicates')" class="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-amber-100/50 transition-colors cursor-pointer" title="Ignorar advertencia">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            </div>
+          `);
+        }
+
+        // 3. High Resolution Variance
+        if (hp.resolution_warning) {
+          const resRange = (hp.min_resolution && hp.max_resolution && hp.min_resolution[0] > 0)
+            ? `(${hp.min_resolution[0]}×${hp.min_resolution[1]} a ${hp.max_resolution[0]}×${hp.max_resolution[1]} px)`
+            : '';
+          diagnosticRows.push(`
+            <div id="diagRowResolution" class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200/90 text-xs text-slate-700 transition-all duration-150">
+              <div class="flex items-start gap-2 min-w-0">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0"></span>
+                <div class="leading-snug">
+                  <span class="font-semibold text-slate-900">Alta varianza de resolución ${resRange}.</span>
+                  <span class="text-slate-600 ml-1">Puede afectar el reescalado en arquitecturas sensibles como ViT/Swin.</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+                <button type="button" onclick="applyQuickFixResolution()" class="inline-flex items-center gap-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors shadow-2xs cursor-pointer">
+                  <span>Ajustar preprocesado</span>
+                </button>
+                <button type="button" onclick="dismissDiagnosticBanner('diagRowResolution')" class="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-200/50 transition-colors cursor-pointer" title="Ignorar advertencia">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            </div>
+          `);
+        }
+
+        // 4. Class Imbalance or Single Class
+        if ((data.classes || []).length < 2) {
+          diagnosticRows.push(`
+            <div id="diagRowSingleClass" class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200/90 text-xs text-slate-700 transition-all duration-150">
+              <div class="flex items-start gap-2 min-w-0">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0"></span>
+                <div class="leading-snug">
+                  <span class="font-semibold text-slate-900">Solo 1 clase detectada.</span>
+                  <span class="text-slate-600 ml-1">Se recomiendan al menos 2 clases para clasificación supervisada.</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+                <button type="button" onclick="applyQuickFixSingleClass()" class="inline-flex items-center gap-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors shadow-2xs cursor-pointer">
+                  <span>Editar clases</span>
+                </button>
+                <button type="button" onclick="dismissDiagnosticBanner('diagRowSingleClass')" class="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-200/50 transition-colors cursor-pointer" title="Ignorar advertencia">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            </div>
+          `);
+        } else if (imbalanceRatio > 5.0) {
+          diagnosticRows.push(`
+            <div id="diagRowImbalance" class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200/90 text-xs text-slate-700 transition-all duration-150">
+              <div class="flex items-start gap-2 min-w-0">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0"></span>
+                <div class="leading-snug">
+                  <span class="font-semibold text-slate-900">Desbalance de clases (${imbalanceRatio.toFixed(1)}×).</span>
+                  <span class="text-slate-600 ml-1">Activa una función de pérdida balanceada para proteger clases minoritarias.</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+                <button type="button" onclick="applyQuickFixImbalance()" class="inline-flex items-center gap-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors shadow-2xs cursor-pointer">
+                  <span>Usar Weighted Loss</span>
+                </button>
+                <button type="button" onclick="dismissDiagnosticBanner('diagRowImbalance')" class="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-200/50 transition-colors cursor-pointer" title="Ignorar advertencia">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            </div>
+          `);
+        }
+
+        const classBadgesHtml = Object.entries(data.image_counts || {}).map(([cls, cnt]) => `
+          <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-white border border-slate-200/90 text-slate-700 shadow-2xs">
+            <span class="truncate max-w-[160px]">${formatClassName(cls)}</span>
+            <span data-class-count="${cls}" class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 kh-tabular-nums">${cnt}</span>
+          </div>
+        `).join('');
+
+        card.innerHTML = `
+          <!-- Header Bar -->
+          <div class="px-4 py-2.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-slate-50/40">
+            <div class="flex items-center gap-2 min-w-0">
+              <span id="inspectedStatusDot" class="w-2 h-2 rounded-full ${datasetHasCorrupted ? 'bg-red-500' : 'bg-emerald-500'} shrink-0"></span>
+              <span id="inspectedStatusTitle" class="text-xs font-semibold text-slate-900">
+                ${datasetHasCorrupted ? 'Errores de integridad detectados' : (isYolo ? 'Dataset YOLO verificado' : 'Dataset verificado')}
+              </span>
+              <span class="text-[11px] font-mono text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200/80 truncate max-w-[260px]" title="${data.dataset_path}">${data.dataset_path}</span>
+              ${data.recommended_arch ? `<span class="hidden md:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-100 text-slate-600 border border-slate-200/70">Sugerido: ${data.recommended_arch}</span>` : ''}
+            </div>
+
+            <div class="flex items-center gap-3 shrink-0">
+              <span id="inspectedTotalImagesLabel" class="font-mono text-xs font-semibold text-slate-700 kh-tabular-nums">
+                ${isYolo ? `${data.total_boxes} cajas · ${data.total_images} imágenes` : `${data.total_images} imágenes`}
+              </span>
+              <span class="h-3.5 w-px bg-slate-200"></span>
+              <div class="flex items-center gap-2">
+                <span id="inspectedHealthBadge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold border transition-colors duration-300 kh-tabular-nums ${st.badge}">
+                  <span id="inspectedHealthDot" class="w-1.5 h-1.5 rounded-full transition-colors duration-300 ${st.dot}"></span>
+                  <span id="inspectedHealthText">Salud ${hp.health_score}/100</span>
+                </span>
+                <div class="hidden sm:block w-14 h-1.5 bg-slate-100 rounded-full overflow-hidden shrink-0 border border-slate-200/60" title="Índice de salud del dataset (${st.label})">
+                  <div id="inspectedHealthBar" class="h-full ${st.bar} transition-all duration-500" style="width: ${hp.health_score}%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Classes Strip -->
+          <div class="px-4 py-2.5 flex flex-wrap items-center gap-1.5 max-h-32 overflow-y-auto">
+            <span class="text-[11px] font-medium text-slate-400 mr-1">${data.classes.length} clases:</span>
+            ${classBadgesHtml}
+          </div>
+
+          <!-- Diagnostics & Actionable Remedies -->
+          <div id="diagnosticsListContainer" class="${diagnosticRows.length ? 'px-4 pb-3 pt-1 space-y-1.5 border-t border-slate-100' : 'hidden'}">
+            ${diagnosticRows.join('')}
+          </div>
+        `;
+
+        // Attach Vanilla JS listeners for deduplication and corruption purge
+        const btnDedup = document.getElementById('btnDeduplicate');
+        if (btnDedup) {
+          btnDedup.addEventListener('click', () => triggerDatasetClean({ removeDuplicates: true, removeCorrupted: false }));
+        }
+        const btnPurgeCorr = document.getElementById('btnPurgeCorrupted');
+        if (btnPurgeCorr) {
+          btnPurgeCorr.addEventListener('click', () => triggerDatasetClean({ removeDuplicates: false, removeCorrupted: true }));
+        }
+
+        document.getElementById('datasetPathInput').value = data.dataset_path;
+        detectedClasses = data.classes;
+
+        // Dynamic UI for Data Splits & Pre-Split Detection
+        const preSplitBanner = document.getElementById('preSplitBanner');
+        const splitTrainIn = document.getElementById('splitTrainInput');
+        const splitValIn = document.getElementById('splitValInput');
+        const splitTestIn = document.getElementById('splitTestInput');
+
+        if (data.is_pre_split) {
+          if (preSplitBanner) preSplitBanner.classList.remove('hidden');
+          if (splitTrainIn) {
+            splitTrainIn.disabled = true;
+            splitTrainIn.classList.add('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+          }
+          if (splitValIn) {
+            splitValIn.disabled = true;
+            splitValIn.classList.add('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+          }
+          if (splitTestIn) {
+            splitTestIn.disabled = true;
+            splitTestIn.classList.add('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+          }
+          const pcts = data.split_percentages || { train: 75, val: 15, test: 10 };
+          const counts = data.split_distribution || {};
+          const pBadge = document.getElementById('preSplitPercentagesBadge');
+          if (pBadge) {
+            pBadge.textContent = `Distribución detectada: ${pcts.train}% / ${pcts.val}% / ${pcts.test}%`;
+          }
+          const bTrain = document.getElementById('preSplitBarTrain');
+          if (bTrain) bTrain.style.width = `${pcts.train}%`;
+          const bVal = document.getElementById('preSplitBarVal');
+          if (bVal) bVal.style.width = `${pcts.val}%`;
+          const bTest = document.getElementById('preSplitBarTest');
+          if (bTest) bTest.style.width = `${pcts.test}%`;
+
+          const cTrain = document.getElementById('preSplitCountTrain');
+          if (cTrain) cTrain.textContent = `Train: ${counts.train ?? '-'} imgs (${pcts.train}%)`;
+          const cVal = document.getElementById('preSplitCountVal');
+          if (cVal) cVal.textContent = `Val: ${counts.val ?? '-'} imgs (${pcts.val}%)`;
+          const cTest = document.getElementById('preSplitCountTest');
+          if (cTest) cTest.textContent = `Test: ${counts.test ?? '-'} imgs (${pcts.test}%)`;
+        } else {
+          if (preSplitBanner) preSplitBanner.classList.add('hidden');
+          if (splitTrainIn) {
+            splitTrainIn.disabled = false;
+            splitTrainIn.classList.remove('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+          }
+          if (splitValIn) {
+            splitValIn.disabled = false;
+            splitValIn.classList.remove('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+          }
+          if (splitTestIn) {
+            splitTestIn.disabled = false;
+            splitTestIn.classList.remove('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+          }
+        }
+
+        // Unlabeled Data Alert Banner
+        const unlBanner = document.getElementById('unlabeledAlertBanner');
+        const unlCountEl = document.getElementById('unlabeledCountNumber');
+        if (data.unlabeled_count && data.unlabeled_count > 0) {
+          if (unlBanner) unlBanner.classList.remove('hidden');
+          if (unlCountEl) unlCountEl.textContent = data.unlabeled_count;
+        } else {
+          if (unlBanner) unlBanner.classList.add('hidden');
+        }
+        const classesIn = document.getElementById('classesInput');
+        if (classesIn) {
+          classesIn.value = data.classes.join(', ');
+          classesIn.readOnly = true;
+          classesIn.classList.add('bg-slate-50', 'text-slate-600', 'cursor-not-allowed');
+          classesIn.classList.remove('bg-white');
+        }
+        const lockBadge = document.getElementById('classesLockBadge');
+        if (lockBadge) lockBadge.classList.remove('hidden');
+        const helperText = document.getElementById('classesHelperText');
+        if (helperText) {
+          helperText.textContent = 'Clases bloqueadas: Extraídas automáticamente del dataset.';
+          helperText.className = 'text-[11px] text-slate-500 font-medium mt-1';
+        }
+
+        // Ingest suggestions & apply frontend Smart Metadata Extraction Engine
+        const titleIn = document.getElementById('titleInput');
+        const slugIn = document.getElementById('slugInput');
+        if (titleIn && (!titleIn.value.trim() || titleIn.value.trim() === 'Nuevo Modelo') && data.suggested_title) {
+          titleIn.value = data.suggested_title;
+          if (slugIn) {
+            slugIn.value = slugify(titleIn.value);
+          }
+        }
+
+        const descIn = document.getElementById('descriptionInput');
+        if (descIn && !descIn.value.trim() && data.suggested_description) {
+          descIn.value = data.suggested_description;
+        }
+
+        const domainSel = document.getElementById('domainSelect');
+        if (domainSel && data.suggested_domain) {
+          const matchOpt = Array.from(domainSel.options).find(o => o.value === data.suggested_domain || o.value.includes(data.suggested_domain.split(' ')[0]));
+          if (matchOpt) {
+            domainSel.value = matchOpt.value;
+          }
+        }
+
+        // Run frontend heuristic extraction engine for tags, subject, and target element
+        extractMetadataHeuristics(
+          domainSel ? domainSel.value : '',
+          data.classes || [],
+          titleIn ? titleIn.value : ''
+        );
+
+        if (!getEffectiveThumbnailUrl() && data.thumbnail_b64) {
+          setThumbnailValue(data.thumbnail_b64);
+        }
+
+        fetchArchRecommendation(false);
+        refreshStudioGate();
+      } else {
+        refreshStudioGate();
+        card.className = 'rounded-xl border border-red-200 bg-white p-4 space-y-1.5 shadow-2xs';
+        card.innerHTML = `
+          <div class="flex items-center gap-2 text-red-900 font-semibold text-xs">
+            <span class="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
+            <span>Dataset no válido o sin imágenes compatibles</span>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed pl-4">${data.error || data.detail || 'No se pudieron leer clases con imágenes válidas.'}</p>
+        `;
+      }
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      const el = document.getElementById('dropZoneArea');
+      if (el) el.classList.add('border-indigo-500', 'bg-indigo-50/50');
+    }
+
+    function handleDragLeave(e) {
+      e.preventDefault();
+      const el = document.getElementById('dropZoneArea');
+      if (el) el.classList.remove('border-indigo-500', 'bg-indigo-50/50');
+    }
+
+    function isArchiveFileName(name) {
+      const s = (name || '').toLowerCase();
+      return s.endsWith('.zip') || s.endsWith('.tar.gz') || s.endsWith('.tgz') || s.endsWith('.tar') || s.endsWith('.tar.bz2');
+    }
+
+    function handleFileDrop(e) {
+      e.preventDefault();
+      const el = document.getElementById('dropZoneArea');
+      if (el) el.classList.remove('border-indigo-500', 'bg-indigo-50/50');
+      const files = e.dataTransfer.files;
+      if (!files || files.length === 0) return;
+
+      if (files.length === 1 && isArchiveFileName(files[0].name)) {
+        uploadSingleArchive(files[0]);
+        return;
+      }
+
+      for (let i = 0; i < files.length; i++) {
+        if (isArchiveFileName(files[i].name)) {
+          uploadSingleArchive(files[i]);
+          return;
+        }
+      }
+
+      uploadMultipleFiles(files);
+    }
+
+    function handleZipFileSelected(e) {
+      const file = e.target.files && e.target.files[0];
+      if (file) {
+        uploadSingleArchive(file);
+      }
+      e.target.value = '';
+    }
+
+    function handleFolderSelected(e) {
+      const files = e.target.files;
+      if (files && files.length > 0) {
+        uploadMultipleFiles(files);
+      }
+      e.target.value = '';
+    }
+
+    function uploadSingleArchive(file) {
+      const formData = new FormData();
+      formData.append('file', file);
+      executeUpload(formData, file.name);
+    }
+
+    function uploadMultipleFiles(files) {
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        formData.append('files', files[i]);
+        formData.append('paths', files[i].webkitRelativePath || files[i].name);
+      }
+      executeUpload(formData, `${files.length} archivos de carpeta`);
+    }
+
+    function executeUpload(formData, labelText) {
+      const pContainer = document.getElementById('uploadProgressContainer');
+      const pBar = document.getElementById('uploadProgressBar');
+      const pPercent = document.getElementById('uploadPercentLabel');
+      const pStatus = document.getElementById('uploadStatusLabel');
+      const pSub = document.getElementById('uploadSubStatus');
+
+      datasetUploading = true;
+      datasetReady = false;
+      refreshStudioGate();
+      pContainer.classList.remove('hidden');
+      pStatus.textContent = `Subiendo ${labelText}...`;
+      pBar.classList.remove('animate-pulse');
+      pBar.style.width = '0%';
+      pPercent.textContent = '0%';
+      if (pSub) {
+        pSub.classList.add('hidden');
+        pSub.textContent = '';
+      }
+
+      let elapsedTimer = null;
+      let secondsCount = 0;
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/master/datasets/upload');
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          pBar.style.width = pct + '%';
+          pPercent.textContent = pct + '%';
+          if (pct >= 100) {
+            pBar.classList.add('animate-pulse');
+            pStatus.innerHTML = '<span class="inline-block animate-spin mr-1.5">&bull;</span> Subida completada (100%). Descomprimiendo y analizando clases en servidor...';
+            if (pSub) {
+              pSub.classList.remove('hidden');
+              pSub.textContent = 'Procesando en servidor: 1s transcurrido (el tiempo varía según el tamaño del archivo)...';
+            }
+            if (!elapsedTimer) {
+              elapsedTimer = setInterval(() => {
+                secondsCount++;
+                if (pSub) {
+                  pSub.textContent = `Procesando en servidor: ${secondsCount}s transcurridos (descomprimiendo archivos y verificando imágenes)...`;
+                }
+              }, 1000);
+            }
+          }
+        }
+      };
+
+      const cleanup = () => {
+        if (elapsedTimer) {
+          clearInterval(elapsedTimer);
+          elapsedTimer = null;
+        }
+        pContainer.classList.add('hidden');
+        pBar.classList.remove('animate-pulse');
+      };
+
+      xhr.onload = () => {
+        cleanup();
+        try {
+          const data = JSON.parse(xhr.responseText);
+          renderInspectionResult(data, xhr.status === 200);
+        } catch (e) {
+          renderInspectionResult({ error: 'Respuesta inválida del servidor: ' + xhr.responseText }, false);
+        }
+      };
+
+      xhr.onerror = () => {
+        cleanup();
+        renderInspectionResult({ error: 'Error de red durante la subida.' }, false);
+      };
+
+      xhr.send(formData);
+    }
+
+    async function loadAvailableServerDatasets() {
+      const container = document.getElementById('availableDatasetsList');
+      if (!container) return;
+      try {
+        const res = await fetch('/api/master/datasets/available');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.datasets && data.datasets.length > 0) {
+          container.innerHTML = data.datasets.map(ds => `
+            <button
+              type="button"
+              onclick="applyQuickDatasetPath('${ds.class_path}')"
+              class="text-left p-2.5 rounded-xl border border-slate-200 bg-white hover:border-indigo-400 hover:bg-indigo-50/20 transition-all shadow-2xs group"
+            >
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">${ds.badge || 'Dataset'}</span>
+                <span class="text-[10px] text-slate-400 font-mono">${ds.total_images.toLocaleString()} fotos</span>
+              </div>
+              <div class="text-xs font-bold text-slate-800 group-hover:text-indigo-700 truncate">${ds.title}</div>
+              <div class="text-[10px] text-slate-400 font-mono truncate" title="${ds.root_path}">${ds.root_path}</div>
+            </button>
+          `).join('');
+        }
+      } catch (e) {
+        console.warn('No se pudieron precargar datasets automáticos:', e);
+      }
+    }
+
+    async function fetchDatasetFromUrl() {
+      const url = document.getElementById('datasetUrlInput').value.trim();
+      const statusBox = document.getElementById('urlDownloadStatus');
+      const btn = document.getElementById('btnFetchUrl');
+
+      if (!url) {
+        alert('Por favor introduzca la URL de descarga.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="animate-spin inline-block mr-1">&bull;</span> Descargando...';
+      statusBox.classList.remove('hidden');
+      statusBox.textContent = 'Descargando archivo comprimido desde el enlace remoto y extrayendo en servidor...';
+
+      try {
+        const res = await fetch('/api/master/datasets/fetch-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: url })
+        });
+        const data = await res.json();
+        statusBox.classList.add('hidden');
+        renderInspectionResult(data, res.ok);
+      } catch (err) {
+        statusBox.classList.remove('hidden');
+        statusBox.textContent = 'Error durante la descarga: ' + err.message;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Descargar e Inspeccionar</span>';
+      }
+    }
+
+    async function inspectDataset() {
+      const path = document.getElementById('datasetPathInput').value.trim();
+      const btn = document.getElementById('btnInspectDataset');
+
+      if (!path) {
+        alert('Por favor introduzca la ruta del dataset.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="animate-spin inline-block mr-1">&bull;</span> Inspeccionando...';
+
+      try {
+        const res = await fetch('/api/master/datasets/inspect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dataset_path: path })
+        });
+
+        const data = await res.json();
+        renderInspectionResult(data, res.ok);
+      } catch (err) {
+        renderInspectionResult({ error: 'Error de conexión al inspeccionar dataset: ' + err.message }, false);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span>Inspeccionar</span>';
+      }
+    }
+
+    function fetchArchRecommendation(showToast = true) {
+      const notice = document.getElementById('archRecommendationNotice');
+      if (!notice) return;
+      notice.classList.remove('hidden');
+
+      const hasDataset = Boolean(lastInspectedData && lastInspectedTotalImages > 0);
+      const totalImages = lastInspectedTotalImages || 0;
+      let selectedArch = 'resnet18';
+      let selectedTl = 'head_only';
+      let selectedAug = 'basic';
+      let selectedBatch = '16';
+      let tierLabel = '';
+      let rationale = '';
+
+      if (!hasDataset) {
+        tierLabel = 'Configuración Base (Sin Dataset Inspeccionado)';
+        rationale = 'No se ha inspeccionado un dataset aún. Se han configurado los hiperparámetros estándar recomendados para datasets pequeños (ResNet-18, Linear Probing, Batch 16). Para una calibración a medida basada en volumen real y desbalance, inspecciona o sube tu dataset primero.';
+        selectedArch = 'resnet18';
+        selectedTl = 'head_only';
+        selectedAug = 'basic';
+        selectedBatch = '16';
+      } else if (totalImages > 5000) {
+        tierLabel = `Dataset Grande (${totalImages.toLocaleString()} imágenes > 5.000)`;
+        rationale = `Volumen robusto (${totalImages.toLocaleString()} imgs): EfficientNet-V2-S con Fine-Tuning Parcial y RandAugment agresivo maximiza la capacidad representacional y precisión frente a alta variabilidad.`;
+        selectedArch = 'efficientnet_v2_s';
+        selectedTl = 'partial';
+        selectedAug = 'randaugment';
+        selectedBatch = '32';
+      } else if (totalImages >= 1000) {
+        tierLabel = `Dataset Mediano (${totalImages.toLocaleString()} imágenes: 1.000 - 5.000)`;
+        rationale = `Volumen intermedio (${totalImages.toLocaleString()} imgs): EfficientNet-B0 con Fine-Tuning Parcial y batch 32 ofrece el mejor ratio precisión/parámetros con convergencia equilibrada.`;
+        selectedArch = 'efficientnet_b0';
+        selectedTl = 'partial';
+        selectedAug = 'basic';
+        selectedBatch = '32';
+      } else {
+        tierLabel = `Dataset Pequeño (${totalImages.toLocaleString()} imágenes < 1.000)`;
+        rationale = `Volumen reducido (${totalImages.toLocaleString()} imgs): ResNet-18 con Linear Probing (head_only) y batch 16 previene el sobreajuste (overfitting) y optimiza la generalización sin alterar pesos base de ImageNet.`;
+        selectedArch = 'resnet18';
+        selectedTl = 'head_only';
+        selectedAug = 'basic';
+        selectedBatch = '16';
+      }
+
+      // Imbalance check: ratio > 5x
+      let isImbalanced = false;
+      let ratioDisplay = '1.0';
+      if (lastInspectedData && lastInspectedData.image_counts) {
+        const counts = Object.values(lastInspectedData.image_counts).map(Number);
+        if (counts.length > 1) {
+          const validCounts = counts.filter(c => c > 0);
+          if (validCounts.length > 1) {
+            const min = Math.min(...validCounts);
+            const max = Math.max(...validCounts);
+            if (min > 0) {
+              const ratio = max / min;
+              ratioDisplay = ratio.toFixed(1);
+              if (ratio > 5.0) {
+                isImbalanced = true;
+              }
+            }
+          }
+        }
+      } else if (lastImbalanceRatio > 5.0) {
+        isImbalanced = true;
+        ratioDisplay = lastImbalanceRatio.toFixed(1);
+      }
+
+      // Dynamically set all MLOps selects
+      const archSelect = document.getElementById('archSelect');
+      if (archSelect && Array.from(archSelect.options).some(o => o.value === selectedArch)) {
+        archSelect.value = selectedArch;
+      }
+      const tlSelect = document.getElementById('transferLearningSelect');
+      if (tlSelect && Array.from(tlSelect.options).some(o => o.value === selectedTl)) {
+        tlSelect.value = selectedTl;
+      }
+      const augSelect = document.getElementById('augmentationSelect');
+      if (augSelect && Array.from(augSelect.options).some(o => o.value === selectedAug)) {
+        augSelect.value = selectedAug;
+      }
+      const bsSelect = document.getElementById('batchSizeInput');
+      if (bsSelect && Array.from(bsSelect.options).some(o => o.value === selectedBatch)) {
+        bsSelect.value = selectedBatch;
+      }
+
+      const lossSelect = document.getElementById('lossFunctionSelect');
+      if (isImbalanced) {
+        if (lossSelect) lossSelect.value = 'focal';
+        if (showToast && window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast(
+            `Desbalance severo detectado (${ratioDisplay}×): Se activó Focal Loss para proteger clases minoritarias.`,
+            'info',
+            4500
+          );
+        }
+      } else if (lossSelect && lossSelect.value === 'focal') {
+        lossSelect.value = 'ce';
+      }
+
+      lastRecommendedArch = selectedArch;
+      onArchUserChange();
+      updateLivePreview();
+
+      // Render sleek feedback notice
+      notice.className = 'p-4 rounded-xl bg-indigo-50/80 border border-indigo-200/90 text-xs text-slate-800 space-y-2 shadow-2xs transition-all';
+      notice.innerHTML = `
+        <div class="flex items-center justify-between font-bold text-slate-900 border-b border-indigo-100 pb-2">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+            <span>Recomendación Inteligente MLOps &bull; ${escapeHtml(tierLabel)}</span>
+          </div>
+          <span class="font-mono uppercase font-bold text-indigo-700 bg-white px-2.5 py-0.5 rounded-md border border-indigo-200/80 shadow-2xs">${selectedArch}</span>
+        </div>
+        <p class="text-[12px] text-slate-600 leading-relaxed">${rationale}</p>
+        <div class="pt-1 flex flex-wrap items-center gap-2 text-[11px] font-mono">
+          <span class="bg-white/90 px-2 py-0.5 rounded border border-indigo-100 text-slate-700">TL: <strong>${selectedTl}</strong></span>
+          <span class="bg-white/90 px-2 py-0.5 rounded border border-indigo-100 text-slate-700">Batch: <strong>${selectedBatch}</strong></span>
+          <span class="bg-white/90 px-2 py-0.5 rounded border border-indigo-100 text-slate-700">Aug: <strong>${selectedAug}</strong></span>
+          <span class="bg-white/90 px-2 py-0.5 rounded border border-indigo-100 ${isImbalanced ? 'text-amber-800 font-bold border-amber-200 bg-amber-50' : 'text-slate-700'}">
+            Loss: <strong>${isImbalanced ? 'focal (Focal Loss)' : 'ce'}</strong>
+          </span>
+        </div>
+        ${isImbalanced ? `
+          <div class="text-[11px] text-amber-800 bg-amber-50/90 border border-amber-200/80 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span><strong>Desbalance severo (${ratioDisplay}×):</strong> Focal Loss activado para evitar colapso predictivo hacia la clase mayoritaria.</span>
+          </div>
+        ` : ''}
+      `;
+    }
+
+    async function loadPhysicalCheckpoints() {
+      const select = document.getElementById('manualCheckpointSelect');
+      select.innerHTML = '<option value="">Cargando checkpoints...</option>';
+      try {
+        const res = await fetch('/api/master/checkpoints');
+        const data = await res.json();
+        select.innerHTML = '';
+        const list = data.checkpoints || data.models || [];
+        if (list.length > 0) {
+          list.forEach(cp => {
+            const name = cp.name || cp.active_checkpoint;
+            if (!name) return;
+            const opt = document.createElement('option');
+            opt.value = name;
+            const mb = cp.size_bytes ? (cp.size_bytes / (1024 * 1024)).toFixed(1) : (cp.size_mb || '42.7');
+            opt.textContent = `${name} (${mb} MB)`;
+            select.appendChild(opt);
+          });
+          select.onchange = updateLivePreview;
+          updateLivePreview();
+        } else {
+          select.innerHTML = '<option value="">No hay checkpoints .pt en models/</option>';
+        }
+      } catch (e) {
+        select.innerHTML = '<option value="">Error cargando checkpoints</option>';
+      }
+    }
+
+    function pollStudioJobStatus(slug) {
+      const jobBox = document.getElementById('studioLiveJobBox');
+      const jobTitle = document.getElementById('studioJobStatusTitle');
+      const jobLogs = document.getElementById('studioJobLogTail');
+      const feedback = document.getElementById('launchFeedback');
+      const btn = document.getElementById('btnLaunchPipeline');
+
+      if (jobBox) jobBox.classList.remove('hidden');
+      if (studioJobPoller) clearInterval(studioJobPoller);
+
+      studioJobPoller = setInterval(async () => {
+        try {
+          const r = await fetch('/api/master/status');
+          if (!r.ok) return;
+          const st = await r.json();
+          const logs = st.logs || [];
+          if (jobLogs && logs.length > 0) {
+            jobLogs.textContent = logs.slice(-12).join('\n');
+            jobLogs.scrollTop = jobLogs.scrollHeight;
+          }
+
+          if (!st.is_running) {
+            clearInterval(studioJobPoller);
+            studioJobPoller = null;
+            if (st.last_exit_code === 0) {
+              if (jobTitle) {
+                jobTitle.className = 'font-bold text-emerald-400 flex items-center gap-1.5';
+                jobTitle.innerHTML = '<svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> <span>Entrenamiento finalizado y modelo publicado (exit 0)</span>';
+              }
+              feedback.className = 'p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold text-center space-y-2';
+              feedback.innerHTML = `
+                <div class="text-sm font-bold text-emerald-950 flex items-center justify-center gap-1.5">
+                  <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Modelo Entrenado y Publicado en KHAOS Hub</span>
+                </div>
+                <div class="flex items-center justify-center gap-2 pt-1">
+                  <a href="/models/${encodeURIComponent(slug)}" class="px-3 py-1.5 rounded-lg bg-emerald-700 text-white font-bold hover:bg-emerald-800">Ver Ficha Pública</a>
+                  <a href="/master" class="px-3 py-1.5 rounded-lg bg-white border border-emerald-300 text-emerald-900 font-bold hover:bg-emerald-100">Ir a Administración</a>
+                </div>
+              `;
+              feedback.classList.remove('hidden');
+              if (window.KhaosUI && KhaosUI.toast) {
+                KhaosUI.toast('Entrenamiento completado y modelo publicado con éxito.', 'success');
+              }
+            } else {
+              if (jobTitle) {
+                jobTitle.className = 'font-bold text-rose-400 flex items-center gap-1.5';
+                jobTitle.innerHTML = `<svg class="w-3.5 h-3.5 text-rose-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> <span>El proceso terminó con código ${st.last_exit_code}</span>`;
+              }
+              feedback.className = 'p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold text-center';
+              feedback.textContent = `El entrenamiento falló (código ${st.last_exit_code}). Revisa la traza en la consola inferior, corrige la configuración y vuelve a intentarlo.`;
+              feedback.classList.remove('hidden');
+              btn.disabled = false;
+              btn.innerHTML = '<span>Reintentar Entrenamiento</span>';
+            }
+          }
+        } catch (err) {
+          console.warn('Error consultando estado del Job Runner:', err);
+        }
+      }, 1200);
+    }
+
+    async function launchModelCreation() {
+      const btn = document.getElementById('btnLaunchPipeline');
+      const feedback = document.getElementById('launchFeedback');
+      feedback.classList.add('hidden');
+
+      const title = document.getElementById('titleInput').value.trim();
+      const slug = document.getElementById('slugInput').value.trim() || slugify(title);
+      const domain = document.getElementById('domainSelect').value;
+      const crop = (document.getElementById('cropInput')?.value || '').trim();
+      const targetElement = (document.getElementById('targetElementInput')?.value || '').trim();
+      const purpose = (document.getElementById('purposeInput')?.value || '').trim();
+      const thumbnailUrl = getEffectiveThumbnailUrl();
+      const description = document.getElementById('descriptionInput').value.trim();
+      const inputGuide = document.getElementById('inputGuideInput').value.trim();
+      const rawClasses = document.getElementById('classesInput').value.split(',').map(s => s.trim()).filter(Boolean);
+
+      if (!title) {
+        if (window.KhaosUI && KhaosUI.toast) KhaosUI.toast('Por favor introduzca el título del modelo.', 'warning');
+        return;
+      }
+
+      if (currentMode === 'autofl' && datasetHasCorrupted) {
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast(`Entrenamiento bloqueado: Se detectaron ${datasetCorruptedCount} archivo(s) corrupto(s) en el dataset.`, 'error');
+        } else {
+          alert(`Entrenamiento bloqueado: Se detectaron ${datasetCorruptedCount} archivo(s) corrupto(s) en el dataset.`);
+        }
+        btn.disabled = true;
+        return;
+      }
+
+      btn.disabled = true;
+
+      if (currentMode === 'autofl') {
+        const datasetPath = document.getElementById('datasetPathInput').value.trim();
+        const epochs = Math.min(100, Math.max(10, parseInt(document.getElementById('epochsInput').value, 10) || 30));
+        const batchSize = parseInt(document.getElementById('batchSizeInput').value, 10) || 32;
+        const lr = parseFloat(document.getElementById('lrInput')?.value || '0.001') || 0.001;
+        const arch = document.getElementById('archSelect').value;
+        const clientTier = document.getElementById('clientTierSelect').value;
+        const transferLearning = document.getElementById('transferLearningSelect')?.value || 'partial';
+        const lossFunction = document.getElementById('lossFunctionSelect')?.value || 'ce';
+        const augmentation = document.getElementById('augmentationSelect')?.value || 'basic';
+
+        const trainSplitVal = isDatasetPreSplit
+          ? null
+          : (parseFloat(document.getElementById('splitTrainInput')?.value) || 80) / 100;
+        const valSplitVal = isDatasetPreSplit
+          ? null
+          : (parseFloat(document.getElementById('splitValInput')?.value) || 10) / 100;
+        const testSplitVal = isDatasetPreSplit
+          ? null
+          : (parseFloat(document.getElementById('splitTestInput')?.value) || 10) / 100;
+
+        if (!isDatasetPreSplit) {
+          const tr = parseFloat(document.getElementById('splitTrainInput')?.value) || 0;
+          const vl = parseFloat(document.getElementById('splitValInput')?.value) || 0;
+          const ts = parseFloat(document.getElementById('splitTestInput')?.value) || 0;
+          if (Math.round(tr + vl + ts) !== 100) {
+            if (window.KhaosUI && KhaosUI.toast) {
+              KhaosUI.toast(
+                `La partición de datos (Train: ${tr}%, Val: ${vl}%, Test: ${ts}%) debe sumar exactamente 100%.`,
+                'warning'
+              );
+            }
+            btn.disabled = false;
+            return;
+          }
+        }
+
+        if (!datasetPath) {
+          if (window.KhaosUI && KhaosUI.toast) KhaosUI.toast('Por favor introduzca o inspeccione la ruta del dataset.', 'warning');
+          btn.disabled = false;
+          return;
+        }
+
+        btn.innerHTML = '<span class="animate-spin inline-block mr-2">&bull;</span> Iniciando Job Runner...';
+
+        try {
+          const res = await fetch('/api/master/models/auto-fl', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: title,
+              slug: slug,
+              domain: domain,
+              crop: crop,
+              target_element: targetElement,
+              purpose: purpose,
+              thumbnail_url: thumbnailUrl || null,
+              description: description,
+              input_guide: inputGuide,
+              dataset_path: datasetPath,
+              epochs: epochs,
+              batch_size: batchSize,
+              lr: lr,
+              architecture: arch,
+              target_client_tier: clientTier,
+              transfer_learning: transferLearning,
+              loss_function: lossFunction,
+              augmentation: augmentation,
+              train_split: trainSplitVal,
+              val_split: valSplitVal,
+              test_split: testSplitVal
+            })
+          });
+
+          const data = await res.json();
+          if (res.status === 202) {
+            btn.innerHTML = '<span class="animate-spin inline-block mr-2">&bull;</span> Encolado &bull; Redirigiendo...';
+            btn.disabled = true;
+
+            // Immediate notification on the current screen
+            if (window.KhaosUI && KhaosUI.toast) {
+              KhaosUI.toast('Creación del modelo en cola. Redirigiendo a Administración...', 'info', 2500);
+            }
+
+            feedback.className = 'p-5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold text-center space-y-3 shadow-2xs';
+            feedback.innerHTML = `
+              <div class="font-bold text-sm text-slate-900 flex items-center justify-center gap-2">
+                <svg class="w-4 h-4 text-indigo-600 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                <span>Creación del modelo en cola</span>
+              </div>
+              <p class="text-[12px] text-slate-600 leading-relaxed max-w-lg mx-auto">
+                El modelo <strong>${escapeHtml(title)}</strong> se ha enviado al Job Runner. Redirigiendo al panel de administración para seguir el progreso del entrenamiento en segundo plano...
+              </p>
+              <div class="pt-1 flex items-center justify-center gap-3">
+                <a href="/master?launched=${encodeURIComponent(slug)}&title=${encodeURIComponent(title)}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs shadow-2xs transition-all">
+                  <span>Ir a Administración Ahora</span>
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                </a>
+              </div>
+            `;
+            feedback.classList.remove('hidden');
+
+            setTimeout(() => {
+              window.location.href = `/master?launched=${encodeURIComponent(slug)}&title=${encodeURIComponent(title)}`;
+            }, 1800);
+          } else {
+            feedback.className = 'p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs text-center';
+            feedback.textContent = 'Error: ' + (data.detail || res.statusText);
+            feedback.classList.remove('hidden');
+            btn.disabled = false;
+            btn.innerHTML = '<span>Iniciar Entrenamiento y Publicar en Hub</span>';
+          }
+        } catch (err) {
+          feedback.className = 'p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs text-center';
+          feedback.textContent = 'Error de conexión: ' + err.message;
+          feedback.classList.remove('hidden');
+          btn.disabled = false;
+          btn.innerHTML = '<span>Iniciar Entrenamiento y Publicar en Hub</span>';
+        }
+      } else {
+        // Manual checkpoint mode
+        const checkpoint = document.getElementById('manualCheckpointSelect').value;
+        if (!checkpoint) {
+          if (window.KhaosUI && KhaosUI.toast) KhaosUI.toast('Por favor seleccione un archivo checkpoint .pt', 'warning');
+          btn.disabled = false;
+          return;
+        }
+
+        btn.innerHTML = '<span class="animate-spin inline-block mr-2">&bull;</span> Registrando...';
+        try {
+          const res = await fetch('/api/models/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: title,
+              slug: slug,
+              domain: domain,
+              crop: crop,
+              target_element: targetElement,
+              purpose: purpose,
+              thumbnail_url: thumbnailUrl || null,
+              description: description,
+              input_guide: inputGuide,
+              classes: rawClasses,
+              num_classes: rawClasses.length,
+              active_checkpoint: checkpoint
+            })
+          });
+
+          if (res.ok) {
+            try {
+              sessionStorage.setItem('khaos_flash_toast', JSON.stringify({
+                message: `Modelo "${title}" registrado con éxito en el catálogo.`,
+                type: 'success',
+                duration: 6000
+              }));
+            } catch (e) { /* ignore */ }
+            feedback.className = 'p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold text-center';
+            feedback.innerHTML = '<span class="inline-flex items-center gap-1.5"><svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Modelo registrado con éxito en el catálogo. Redirigiendo a Administración...</span>';
+            feedback.classList.remove('hidden');
+            setTimeout(() => {
+              window.location.href = '/master';
+            }, 1200);
+          } else {
+            const data = await res.json();
+            feedback.className = 'p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs text-center';
+            feedback.textContent = 'Error: ' + (data.detail || res.statusText);
+            feedback.classList.remove('hidden');
+            btn.disabled = false;
+            btn.innerHTML = '<span>Guardar y Registrar en Catálogo</span>';
+          }
+        } catch (err) {
+          feedback.className = 'p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs text-center';
+          feedback.textContent = 'Error de conexión: ' + err.message;
+          feedback.classList.remove('hidden');
+          btn.disabled = false;
+          btn.innerHTML = '<span>Guardar y Registrar en Catálogo</span>';
+        }
+      }
+    }
+
+    function openContextualHelp() {
+      if (window.KhaosUI && KhaosUI.openHelp) {
+        KhaosUI.openHelp('master');
+      }
+    }
+
+    // Initialize defaults on load
+    document.addEventListener('DOMContentLoaded', () => {
+      setDatasetIngestionMode('upload');
+      initSplitResize();
+      const pathInput = document.getElementById('datasetPathInput');
+      if (pathInput) {
+        pathInput.addEventListener('input', () => {
+          datasetReady = false;
+          unlockClassesInput();
+          refreshStudioGate();
+        });
+      }
+      ['tagsInput', 'cropInput', 'targetElementInput', 'purposeInput'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('input', () => {
+            el.dataset.autoFilled = 'false';
+          });
+        }
+      });
+      const classesIn = document.getElementById('classesInput');
+      if (classesIn) {
+        classesIn.addEventListener('change', () => {
+          const domain = document.getElementById('domainSelect')?.value || '';
+          const title = document.getElementById('titleInput')?.value || '';
+          const rawClasses = classesIn.value.split(',').map(s => s.trim()).filter(Boolean);
+          extractMetadataHeuristics(domain, rawClasses, title);
+          updateLivePreview();
+        });
+      }
+      window.addEventListener('dragover', (e) => e.preventDefault());
+      window.addEventListener('drop', (e) => {
+        const dropZone = document.getElementById('dropZoneArea');
+        if (!dropZone || !dropZone.contains(e.target)) {
+          e.preventDefault();
+        }
+      });
+      updateLivePreview();
+      loadAvailableServerDatasets();
+    });
+  </script>
+</body>
+</html>
+

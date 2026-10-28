@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-50/50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KHAOS &bull; Espacio de Curación Experta</title>
+  <meta name="description" content="Panel de Validación Agronómica & Curación HITL">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      const origWarn = console.warn;
+      console.warn = function(...args) {
+        if (args.length > 0 && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
+          return;
+        }
+        origWarn.apply(console, args);
+      };
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="stylesheet" href="/static/khaos-ui.css">
+  <script src="/static/khaos-ui.js"></script>
+</head>
+<body class="min-h-full flex flex-col font-sans text-slate-900 antialiased selection:bg-slate-200 selection:text-slate-900">
+
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-40 w-full border-b border-slate-200/60 bg-white/80 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
+      <div class="flex h-16 items-center justify-between">
+        
+        <!-- Brand Identity -->
+        <a href="/" class="flex items-center gap-3 group">
+          <div class="h-8 w-8 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-2xs group-hover:bg-slate-800 transition-colors">
+            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold tracking-tight text-slate-900">KHAOS <span class="text-slate-400 font-normal">Hub</span></span>
+            <span class="hidden sm:inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-50 text-slate-500 ring-1 ring-inset ring-slate-500/10 uppercase tracking-wider">Data Space</span>
+          </div>
+        </a>
+
+        <!-- Right Actions: Nav + Help -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          <!-- Navigation Links: Harmonized Linear Aesthetic -->
+          <nav class="flex items-center gap-1 bg-slate-100/80 p-1 rounded-lg">
+            <a href="/" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+              Modelos
+              <span class="sr-only">Catálogo de Modelos</span>
+            </a>
+            <a href="/expert" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-900 bg-white shadow-2xs">
+              Evaluación
+              <span class="sr-only">Panel de Validación Agronómica</span>
+            </a>
+            <a href="/master" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+              Administración
+            </a>
+          </nav>
+
+          <!-- Contextual Help Trigger in Header -->
+          <button
+            type="button"
+            onclick="openContextualHelp()"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            title="Guía y Ayuda del Módulo"
+          >
+            <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span class="hidden sm:inline">Ayuda</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-10 space-y-8">
+
+    <!-- VIEW 1: GLOBAL EXPERT HUB (When no model slug is selected) -->
+    <div id="globalExpertHubView" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl border border-slate-200/60 p-6 sm:p-8 shadow-sm space-y-1.5">
+        <h1 class="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">
+          Espacio de Curación Experta
+        </h1>
+        <p class="text-sm text-slate-500 leading-relaxed max-w-2xl">
+          Selecciona un modelo para revisar predicciones con baja confianza y colaborar en su mejora continua.
+        </p>
+      </div>
+
+      <!-- Models List Grid for Curation Selection -->
+      <div id="expertModelsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- VIEW 2: DEDICATED MODEL EXPERT WORKSPACE (When a slug is active) -->
+    <div id="scopedModelExpertView" class="hidden space-y-6">
+
+      <!-- Breadcrumbs & Model Banner -->
+      <div class="flex items-center justify-between">
+        <a href="/expert" class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 px-2.5 py-1.5 rounded-lg transition-colors">
+          <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+          <span>Volver al Catálogo de Curación</span>
+        </a>
+
+        <a id="viewModelConsumerBtn" href="/" class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 px-2.5 py-1.5 rounded-lg transition-colors">
+          <span>Ver Ficha Pública</span>
+          <span class="text-slate-400">&rarr;</span>
+        </a>
+      </div>
+
+      <!-- Scoped Header Card -->
+      <div class="bg-white rounded-2xl border border-slate-200/60 p-6 sm:p-7 shadow-sm space-y-4">
+        <div class="flex flex-wrap items-center gap-2">
+          <span id="scopedDomainBadge" class="px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-500/10 uppercase tracking-wider">
+            -
+          </span>
+          <span id="scopedSlugBadge" class="px-2 py-0.5 rounded-md text-[10px] font-mono text-slate-500 bg-slate-50 ring-1 ring-inset ring-slate-500/10">
+            slug: -
+          </span>
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 id="scopedModelTitle" class="text-2xl font-semibold text-slate-900 tracking-tight">
+              Cargando modelo...
+            </h1>
+            <p id="scopedModelDesc" class="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
+              -
+            </p>
+          </div>
+
+          <!-- Live Model Stats Pill -->
+          <div class="flex items-center gap-4 bg-slate-50/70 ring-1 ring-inset ring-slate-200/60 rounded-xl px-5 py-2.5 self-start sm:self-auto shadow-2xs">
+            <div class="text-center">
+              <div id="statScopedPending" class="text-base font-semibold text-amber-600 font-mono">0</div>
+              <div class="text-[10px] uppercase font-medium text-slate-400">Pendientes</div>
+            </div>
+            <div class="h-6 w-px bg-slate-200"></div>
+            <div class="text-center">
+              <div id="statScopedVerified" class="text-base font-semibold text-emerald-600 font-mono">0</div>
+              <div class="text-[10px] uppercase font-medium text-slate-400">Verificadas</div>
+            </div>
+            <div class="h-6 w-px bg-slate-200"></div>
+            <div class="text-center">
+              <div id="statScopedRejected" class="text-base font-semibold text-slate-400 font-mono">0</div>
+              <div class="text-[10px] uppercase font-medium text-slate-400">Descartes</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Two-Tab Switcher -->
+      <div class="flex border-b border-slate-200/80 space-x-2 sm:space-x-4">
+        <button
+          id="btnTabCuration"
+          onclick="setTab('curation')"
+          class="flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-semibold border-b-2 border-slate-900 text-slate-900 transition-colors"
+        >
+          <svg class="w-4 h-4 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <span>Curación de Datos (HITL)</span>
+          <span id="tabCountBadge" class="ml-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20 font-mono">
+            0
+          </span>
+        </button>
+
+        <button
+          id="btnTabFederated"
+          onclick="setTab('federated')"
+          class="flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-900 transition-colors"
+        >
+          <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>
+          <span>Colaboración Federada On-Premise</span>
+        </button>
+      </div>
+
+      <!-- TAB 1 CONTENT: DATA CURATION GALLERY -->
+      <section id="panelCuration" class="space-y-6">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/60 shadow-sm">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="text-sm sm:text-base font-semibold text-slate-900 tracking-tight">Cola de Validación de Muestras</h2>
+              <span class="sr-only">Cola de Fotografías por Validar</span>
+              <span id="scopedQueueCountText" class="text-xs font-medium px-2.5 py-0.5 rounded-md bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10 kh-tabular-nums">
+                0 muestras
+              </span>
+              <span id="sessionReviewedBadge" class="text-xs font-medium px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20 kh-tabular-nums">
+                0 validadas en sesión
+              </span>
+            </div>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+              Muestras priorizadas por menor confianza (Uncertainty Sampling) para maximizar la ganancia del modelo.
+            </p>
+          </div>
+
+          <!-- Filter & Sort Controls for High-Efficiency HITL Review -->
+          <div class="flex flex-wrap items-center gap-2">
+            <select
+              id="hitlClassFilterSelect"
+              onchange="applyHitlQueueFilters()"
+              aria-label="Filtrar por clase predicha"
+              class="text-xs rounded-xl bg-slate-50 border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none py-2 px-3 text-slate-800 font-medium transition-all"
+            >
+              <option value="all">Todas las clases predichas</option>
+            </select>
+
+            <select
+              id="hitlSortSelect"
+              onchange="applyHitlQueueFilters()"
+              aria-label="Ordenar por nivel de confianza"
+              class="text-xs rounded-xl bg-slate-50 border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none py-2 px-3 text-slate-800 font-medium transition-all"
+            >
+              <option value="uncertainty_asc">Menor confianza primero (Prioritario)</option>
+              <option value="low_only">Solo dudosos (&lt; 65% confianza)</option>
+              <option value="confidence_desc">Mayor confianza primero</option>
+            </select>
+
+            <button
+              onclick="loadScopedQueue()"
+              class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-700 bg-white ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-colors shadow-2xs"
+            >
+              Actualizar Cola
+            </button>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="scopedQueueLoading" class="py-16 text-center text-slate-400">
+          <p class="text-xs">Cargando cola de revisión para este modelo...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div id="scopedQueueEmpty" class="hidden py-16 px-6 text-center bg-white border border-slate-200/60 rounded-2xl shadow-sm max-w-md mx-auto space-y-3">
+          <div class="w-12 h-12 rounded-xl bg-emerald-50 ring-1 ring-inset ring-emerald-600/20 flex items-center justify-center mx-auto text-emerald-600 shadow-2xs">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-slate-900 tracking-tight">Cola de validación vacía</h3>
+            <p class="text-xs text-slate-500 mt-1">No quedan muestras pendientes de auditar en este modelo.</p>
+          </div>
+        </div>
+
+        <!-- Responsive Cards Grid -->
+        <div id="scopedCardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- TAB 2 CONTENT: FEDERATED ON-PREMISE NODE -->
+      <section id="panelFederated" class="hidden space-y-6">
+
+        <!-- Privacy & Zero Data Leakage Guarantee Banner -->
+        <div class="rounded-2xl border border-emerald-200/80 bg-emerald-50/50 p-5 sm:p-6 text-slate-900 shadow-2xs space-y-2">
+          <div class="flex items-start sm:items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <div class="space-y-0.5">
+              <h3 class="text-sm font-semibold text-emerald-950 flex items-center gap-2">
+                <span>Garantía de Soberanía del Dato &bull; Zero Data Leakage (FedProx)</span>
+                <span class="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">100% On-Premise</span>
+              </h3>
+              <p class="text-xs text-emerald-800/90 leading-relaxed">
+                Tus datos privados <strong>nunca salen de tu equipo ni se transmiten por la red</strong>. El entrenamiento se realiza íntegramente en tu propia máquina. Únicamente se calculan e intercambian los pesos matemáticos del modelo para nutrir la federación.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3-Step Guided Workflow Grid -->
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+          
+          <!-- PASO 1: DESCARGA DE RECURSOS -->
+          <div class="bg-white rounded-2xl border border-slate-200/60 p-6 sm:p-7 shadow-sm space-y-5">
+            <div class="flex items-center justify-between">
+              <span class="px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider text-slate-600 bg-slate-50 ring-1 ring-inset ring-slate-500/10">
+                Paso 1: Descarga
+              </span>
+              <span class="text-[11px] font-mono text-slate-400">Archivos Base</span>
+            </div>
+
+            <div>
+              <h3 class="text-base font-semibold text-slate-900 tracking-tight">Descargar Checkpoint & Script</h3>
+              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                Descarga los pesos base actuales del modelo y el script oficial de entrenamiento en una carpeta local de tu ordenador.
+              </p>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-slate-50/70 ring-1 ring-inset ring-slate-200/60 text-xs space-y-1.5 font-mono shadow-2xs">
+              <div class="text-slate-600 truncate">Modelo: <span id="fedActiveName" class="text-slate-900 font-semibold">-</span></div>
+              <div class="text-slate-600 truncate">Dominio: <span id="fedActiveDomain" class="text-slate-900 font-semibold">-</span></div>
+            </div>
+
+            <div class="space-y-2.5 pt-1">
+              <a
+                id="btnDownloadModelWeights"
+                href="/download-model"
+                download
+                class="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-2xs"
+              >
+                <svg class="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span>Descargar Pesos Base (.pt)</span>
+              </a>
+
+              <a
+                id="btnDownloadClientScript"
+                href="/download-client-script"
+                download="client_trainer.py"
+                class="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-medium text-slate-800 bg-slate-100 hover:bg-slate-200 transition-all ring-1 ring-slate-200"
+              >
+                <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10 9 9 9 8 9"/>
+                </svg>
+                <span>Descargar Script (client_trainer.py)</span>
+              </a>
+            </div>
+
+            <!-- Pre-requisites pill -->
+            <div class="p-3 rounded-xl bg-amber-50/60 ring-1 ring-inset ring-amber-600/10 text-xs space-y-1.5">
+              <div class="font-medium text-amber-900 flex items-center gap-1.5 text-[11px]">
+                <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>Requisitos en tu máquina (Python 3.9+)</span>
+              </div>
+              <div class="bg-white/80 p-1.5 rounded-lg font-mono text-[11px] text-slate-800 select-all border border-amber-200/50 flex items-center justify-between">
+                <span>pip install torch torchvision</span>
+                <button type="button" onclick="navigator.clipboard.writeText('pip install torch torchvision'); if(window.KhaosUI && KhaosUI.toast) KhaosUI.toast('Copiado', 'info', 1500);" class="text-[10px] text-amber-700 hover:underline">copiar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- PASO 2: ORGANIZAR DATOS Y ENTRENAR LOCALMENTE -->
+          <div class="bg-white rounded-2xl border border-slate-200/60 p-6 sm:p-7 shadow-sm space-y-5">
+            <div class="flex items-center justify-between">
+              <span class="px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider text-slate-600 bg-slate-50 ring-1 ring-inset ring-slate-500/10">
+                Paso 2: Entrenamiento Local
+              </span>
+              <span class="text-[11px] font-mono text-slate-400">On-Premise</span>
+            </div>
+
+            <div>
+              <h3 class="text-base font-semibold text-slate-900 tracking-tight">Estructura & Comando</h3>
+              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                Coloca tus fotos privadas en una subcarpeta para cada clase y lanza el script en tu terminal.
+              </p>
+            </div>
+
+            <!-- Folder structure diagram -->
+            <div class="space-y-1.5">
+              <label class="block text-[11px] font-semibold text-slate-700 uppercase tracking-wider">Estructura de carpetas recomendada:</label>
+              <pre id="fedFolderTreePreview" class="p-3 rounded-xl bg-slate-900 text-slate-100 font-mono text-[11px] leading-tight overflow-x-auto shadow-inner select-all">mi_carpeta/
+├── client_trainer.py
+├── modelo_base.pt
+└── mis_datos/
+    ├── clase_1/
+    │   └── foto_01.jpg
+    └── clase_2/
+        └── foto_02.jpg</pre>
+            </div>
+
+            <!-- Command execution tabs -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <label class="text-[11px] font-semibold text-slate-700 uppercase tracking-wider">Comando de terminal:</label>
+                <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[10px]">
+                  <button type="button" id="btnToggleFedStd" onclick="switchFedCommandMode('standard')" class="px-2 py-0.5 rounded-md font-medium text-slate-900 bg-white shadow-2xs">Estándar</button>
+                  <button type="button" id="btnToggleFedAuto" onclick="switchFedCommandMode('auto')" class="px-2 py-0.5 rounded-md font-medium text-slate-500 hover:text-slate-900">Auto-Envío</button>
+                </div>
+              </div>
+
+              <!-- Standard Command -->
+              <div id="fedSnippetStdContainer" class="relative group">
+                <pre id="codeSnippetFedCommand" class="p-3.5 pr-20 rounded-xl bg-slate-900 text-emerald-400 font-mono text-[11px] leading-relaxed overflow-x-auto shadow-inner select-all">python3 client_trainer.py \
+  --data-dir mis_datos \
+  --weights-in modelo_base.pt \
+  --weights-out update_local.pt \
+  --epochs 2</pre>
+                <button
+                  type="button"
+                  id="btnCopyFedStd"
+                  onclick="copyFedCommand('codeSnippetFedCommand', this)"
+                  class="absolute top-2.5 right-2.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors shadow-2xs"
+                  title="Copiar comando al portapapeles"
+                >
+                  <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                  <span>Copiar</span>
+                </button>
+              </div>
+
+              <!-- Auto-Submit Command (hidden by default) -->
+              <div id="fedSnippetAutoContainer" class="hidden relative group">
+                <pre id="codeSnippetFedAuto" class="p-3.5 pr-20 rounded-xl bg-slate-900 text-blue-400 font-mono text-[11px] leading-relaxed overflow-x-auto shadow-inner select-all">python3 client_trainer.py \
+  --data-dir mis_datos \
+  --weights-in modelo_base.pt \
+  --weights-out update_local.pt \
+  --epochs 2 \
+  --server-url http://localhost:8000</pre>
+                <button
+                  type="button"
+                  id="btnCopyFedAuto"
+                  onclick="copyFedCommand('codeSnippetFedAuto', this)"
+                  class="absolute top-2.5 right-2.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors shadow-2xs"
+                  title="Copiar comando al portapapeles"
+                >
+                  <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                  <span>Copiar</span>
+                </button>
+              </div>
+
+              <p class="text-[11px] text-slate-500 leading-normal pt-1">
+                &bull; Al terminar generará <code class="text-slate-800 font-mono bg-slate-100 px-1 py-0.5 rounded">update_local.pt</code> y <code class="text-slate-800 font-mono bg-slate-100 px-1 py-0.5 rounded">update_local.meta.json</code>.
+              </p>
+            </div>
+          </div>
+
+          <!-- PASO 3: APORTACIÓN AL HUB -->
+          <div class="bg-white rounded-2xl border border-slate-200/60 p-6 sm:p-7 shadow-sm space-y-5">
+            <div class="flex items-center justify-between">
+              <span class="px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider text-slate-600 bg-slate-50 ring-1 ring-inset ring-slate-500/10">
+                Paso 3: Aportación
+              </span>
+              <span class="text-[11px] font-mono text-slate-400">Consolidación</span>
+            </div>
+
+            <div>
+              <h3 class="text-base font-semibold text-slate-900 tracking-tight">Subir Parámetros al Hub</h3>
+              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                Envía tus pesos entrenados localmente con su manifiesto para agregarlos a la federación de este modelo.
+              </p>
+            </div>
+
+            <form id="uploadScopedFedForm" class="space-y-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5 flex items-center justify-between">
+                  <span>Pesos Locales (.pt):</span>
+                  <span class="text-[10px] text-slate-400 font-mono">update_local.pt</span>
+                </label>
+                <input type="file" id="scopedPtFile" accept=".pt" required class="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-slate-100 file:text-slate-800 bg-slate-50 ring-1 ring-inset ring-slate-200 rounded-xl p-1.5 focus:ring-2 focus:ring-blue-500">
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5 flex items-center justify-between">
+                  <span>Manifiesto (.meta.json):</span>
+                  <span class="text-[10px] text-slate-400 font-mono">update_local.meta.json</span>
+                </label>
+                <input type="file" id="scopedMetaFile" accept=".json" required class="block w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-slate-100 file:text-slate-800 bg-slate-50 ring-1 ring-inset ring-slate-200 rounded-xl p-1.5 focus:ring-2 focus:ring-blue-500">
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5 flex items-center justify-between">
+                  <span>Token de Autorización (opcional):</span>
+                  <span class="text-[10px] text-slate-400">Si el servidor lo requiere</span>
+                </label>
+                <input type="password" id="scopedFedAuthToken" placeholder="Bearer token o déjalo vacío..." class="block w-full text-xs text-slate-800 bg-slate-50 ring-1 ring-inset ring-slate-200 rounded-xl p-2 focus:ring-2 focus:ring-blue-500 focus:bg-white placeholder:text-slate-400">
+              </div>
+
+              <button
+                type="submit"
+                id="btnSubmitScopedFed"
+                class="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-2xs mt-2"
+              >
+                <svg class="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <span>Enviar a la Federación de este Modelo</span>
+              </button>
+            </form>
+          </div>
+
+        </div>
+
+        <!-- Collapsible FAQ / Knowledge Accordion -->
+        <div class="bg-white rounded-2xl border border-slate-200/60 p-5 sm:p-6 shadow-sm">
+          <details class="group">
+            <summary class="flex items-center justify-between cursor-pointer list-none text-xs sm:text-sm font-semibold text-slate-900 select-none">
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <span>Preguntas Frecuentes & Garantías Técnicas sobre el Entrenamiento On-Premise</span>
+              </div>
+              <svg class="w-4 h-4 text-slate-400 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </summary>
+            <div class="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-5 text-xs text-slate-600 leading-relaxed">
+              <div class="space-y-1">
+                <div class="font-semibold text-slate-800">&iquest;Se sube alguna imagen a internet?</div>
+                <p>Nunca. Ni una sola imagen o píxel sale de tu máquina. El script calcula localmente las matrices de gradiente y solo exporta números flotantes correspondientes a los parámetros del modelo.</p>
+              </div>
+              <div class="space-y-1">
+                <div class="font-semibold text-slate-800">&iquest;Necesito una GPU cara?</div>
+                <p>No. Por defecto el script utiliza PyTorch multi-hilo en tu procesador (CPU) y requiere solo 2 épocas breves (~30-60 segundos en un ordenador convencional). Si tienes GPU NVIDIA CUDA, la detectará automáticamente.</p>
+              </div>
+              <div class="space-y-1">
+                <div class="font-semibold text-slate-800">&iquest;Cómo funciona FedProx?</div>
+                <p>FedProx añade una penalización proximal matemática para evitar que los datos locales desvíen excesivamente el modelo o sobreajusten clases raras, garantizando convergencia estable en la agregación.</p>
+              </div>
+            </div>
+          </details>
+        </div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+  <script>
+    // URL Resolution
+    let activeSlug = "{{MODEL_SLUG}}";
+    if (!activeSlug) {
+      const match = window.location.pathname.match(/\/models\/([^\/]+)\/expert/);
+      if (match) activeSlug = match[1];
+    }
+
+    const globalExpertHubView = document.getElementById('globalExpertHubView');
+    const scopedModelExpertView = document.getElementById('scopedModelExpertView');
+    const expertModelsList = document.getElementById('expertModelsList');
+
+    const scopedDomainBadge = document.getElementById('scopedDomainBadge');
+    const scopedSlugBadge = document.getElementById('scopedSlugBadge');
+    const scopedModelTitle = document.getElementById('scopedModelTitle');
+    const scopedModelDesc = document.getElementById('scopedModelDesc');
+    const viewModelConsumerBtn = document.getElementById('viewModelConsumerBtn');
+    const statScopedPending = document.getElementById('statScopedPending');
+    const statScopedVerified = document.getElementById('statScopedVerified');
+    const statScopedRejected = document.getElementById('statScopedRejected');
+    const tabCountBadge = document.getElementById('tabCountBadge');
+    const scopedQueueCountText = document.getElementById('scopedQueueCountText');
+
+    const btnTabCuration = document.getElementById('btnTabCuration');
+    const btnTabFederated = document.getElementById('btnTabFederated');
+    const panelCuration = document.getElementById('panelCuration');
+    const panelFederated = document.getElementById('panelFederated');
+
+    const scopedCardsContainer = document.getElementById('scopedCardsContainer');
+    const scopedQueueLoading = document.getElementById('scopedQueueLoading');
+    const scopedQueueEmpty = document.getElementById('scopedQueueEmpty');
+
+    const fedActiveName = document.getElementById('fedActiveName');
+    const fedActiveDomain = document.getElementById('fedActiveDomain');
+    const btnDownloadModelWeights = document.getElementById('btnDownloadModelWeights');
+
+    let currentModelData = null;
+    let knownModelClasses = [];
+    let rawQueueItems = [];
+    let sessionReviewedCount = 0;
+
+    function incrementSessionReviewed() {
+      sessionReviewedCount++;
+      const badge = document.getElementById('sessionReviewedBadge');
+      if (badge) {
+        badge.textContent = `${sessionReviewedCount} revisada${sessionReviewedCount === 1 ? '' : 's'} en sesión`;
+      }
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatText(s) {
+      if (!s) return '';
+      return s.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    // Tab Switching
+    function setTab(tab) {
+      if (!panelCuration || !panelFederated || !btnTabCuration || !btnTabFederated) return;
+      if (tab === 'curation') {
+        panelCuration.classList.remove('hidden');
+        panelFederated.classList.add('hidden');
+        btnTabCuration.className = 'flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-semibold border-b-2 border-slate-900 text-slate-900 transition-colors';
+        btnTabFederated.className = 'flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-900 transition-colors';
+      } else {
+        panelCuration.classList.add('hidden');
+        panelFederated.classList.remove('hidden');
+        btnTabFederated.className = 'flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-semibold border-b-2 border-slate-900 text-slate-900 transition-colors';
+        btnTabCuration.className = 'flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-900 transition-colors';
+      }
+    }
+
+    // Init Logic
+    if (activeSlug) {
+      scopedModelExpertView.classList.remove('hidden');
+      initScopedModelView(activeSlug);
+    } else {
+      globalExpertHubView.classList.remove('hidden');
+      initGlobalExpertHub();
+    }
+
+    // 1. Global View (List of models with pending counts)
+    async function initGlobalExpertHub() {
+      try {
+        const res = await fetch('/api/models?page_size=100');
+        const data = await res.json();
+        const models = data.models || [];
+
+        expertModelsList.innerHTML = '';
+        if (models.length === 0) {
+          expertModelsList.innerHTML = `
+            <div class="col-span-full py-16 px-6 text-center bg-white rounded-2xl border border-slate-200/60 shadow-sm max-w-xl mx-auto space-y-4">
+              <div class="w-12 h-12 rounded-xl bg-slate-50 ring-1 ring-inset ring-slate-200/60 flex items-center justify-center mx-auto text-slate-400 shadow-2xs">
+                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                </svg>
+              </div>
+              <div class="space-y-1">
+                <h3 class="text-sm sm:text-base font-semibold text-slate-900 tracking-tight">Sin Modelos para Curación</h3>
+                <p class="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                  Actualmente no hay modelos registrados en el catálogo. Una vez desplegados por el equipo de administración, podrás validar inferencias y auditar colas de campo aquí.
+                </p>
+              </div>
+              <div class="pt-2">
+                <a href="/" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-slate-700 bg-white ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-all shadow-2xs">
+                  <span>Ir al Catálogo de Modelos</span>
+                  <span class="text-slate-400">&rarr;</span>
+                </a>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        for (const m of models) {
+          const slug = m.slug || m.name?.replace('.pt', '') || 'model';
+          // Query stats for this specific model
+          let pending = 0;
+          try {
+            const sRes = await fetch(`/api/feedback/stats?model_slug=${encodeURIComponent(slug)}`);
+            if (sRes.ok) {
+              const sData = await sRes.json();
+              pending = sData.pending || 0;
+            }
+          } catch(e) {}
+
+          const card = document.createElement('div');
+          card.className = 'group bg-white rounded-2xl border border-slate-200/60 p-6 shadow-sm hover:border-slate-400 hover:shadow-md transition-all duration-300 flex flex-col justify-between space-y-5 cursor-pointer';
+          card.onclick = (e) => {
+            if (e.target.closest('a')) return;
+            window.location.href = `/models/${encodeURIComponent(slug)}/expert`;
+          };
+          card.innerHTML = `
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10 uppercase">
+                  ${escapeHtml(m.domain || 'General')}
+                </span>
+                <span class="px-2.5 py-0.5 rounded-md text-[11px] font-mono font-medium ${pending > 0 ? 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20' : 'bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10'}">
+                  ${pending} pendientes
+                </span>
+              </div>
+              <h3 class="text-base font-semibold text-slate-900 group-hover:text-slate-700 transition-colors tracking-tight">${escapeHtml(m.title || formatText(slug))}</h3>
+              <p class="text-xs text-slate-500 line-clamp-2 leading-relaxed">${escapeHtml(m.description || 'Modelo de visión artificial.')}</p>
+            </div>
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <span class="text-[11px] font-mono text-slate-400">${(m.classes || []).length} clases</span>
+              <a href="/models/${encodeURIComponent(slug)}/expert" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-2xs">
+                <span>Entrar a Curación</span>
+                <span class="text-slate-400">&rarr;</span>
+              </a>
+            </div>
+          `;
+          expertModelsList.appendChild(card);
+        }
+
+      } catch (err) {
+        expertModelsList.innerHTML = `<div class="col-span-full py-8 text-center text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl">Error cargando modelos: ${err.message}</div>`;
+      }
+    }
+
+    // 2. Scoped Model View
+    async function initScopedModelView(slug) {
+      try {
+        const res = await fetch(`/api/models/${encodeURIComponent(slug)}`);
+        if (!res.ok) throw new Error('Modelo no encontrado');
+        const data = await res.json();
+        currentModelData = data.model;
+        knownModelClasses = currentModelData.classes || [];
+
+        scopedDomainBadge.textContent = currentModelData.domain || 'General';
+        scopedSlugBadge.textContent = `slug: ${slug}`;
+        scopedModelTitle.textContent = currentModelData.title;
+        scopedModelDesc.textContent = currentModelData.description || 'Modelo especializado para inferencia y clasificación.';
+        viewModelConsumerBtn.href = `/models/${encodeURIComponent(slug)}`;
+
+        fedActiveName.textContent = currentModelData.active_checkpoint;
+        fedActiveDomain.textContent = currentModelData.domain || 'General';
+        btnDownloadModelWeights.href = `/download-model?model_slug=${encodeURIComponent(slug)}`;
+        btnDownloadModelWeights.setAttribute('download', currentModelData.active_checkpoint || `${slug}.pt`);
+
+        // Populate dynamic folder structure and CLI commands
+        const ckpt = currentModelData.active_checkpoint || `${slug}_base.pt`;
+        const serverOrigin = window.location.origin;
+        const classes = currentModelData.classes || ['clase_1', 'clase_2'];
+
+        const folderPreview = document.getElementById('fedFolderTreePreview');
+        if (folderPreview) {
+          const c1 = classes[0] || 'clase_1';
+          const c2 = classes[1] || 'clase_2';
+          folderPreview.textContent = `mi_carpeta/\n├── client_trainer.py\n├── ${ckpt}\n└── mis_datos/\n    ├── ${c1}/\n    │   └── foto_01.jpg\n    └── ${c2}/\n        └── foto_02.jpg`;
+        }
+
+        const snippetStd = document.getElementById('codeSnippetFedCommand');
+        if (snippetStd) {
+          snippetStd.textContent = `python3 client_trainer.py \\\n  --data-dir mis_datos \\\n  --weights-in ${ckpt} \\\n  --weights-out update_local.pt \\\n  --epochs 2`;
+        }
+
+        const snippetAuto = document.getElementById('codeSnippetFedAuto');
+        if (snippetAuto) {
+          snippetAuto.textContent = `python3 client_trainer.py \\\n  --data-dir mis_datos \\\n  --weights-in ${ckpt} \\\n  --weights-out update_local.pt \\\n  --epochs 2 \\\n  --server-url ${serverOrigin}`;
+        }
+
+        await loadScopedStats();
+        await loadScopedQueue();
+
+      } catch (err) {
+        scopedModelTitle.textContent = 'Error al cargar modelo';
+        scopedModelDesc.textContent = err.message;
+      }
+    }
+
+    async function loadScopedStats() {
+      try {
+        const res = await fetch(`/api/feedback/stats?model_slug=${encodeURIComponent(activeSlug)}`);
+        if (!res.ok) return;
+        const d = await res.json();
+
+        statScopedPending.textContent = d.pending || 0;
+        statScopedVerified.textContent = d.verified_total || 0;
+        statScopedRejected.textContent = d.rejected || 0;
+        tabCountBadge.textContent = d.pending || 0;
+        scopedQueueCountText.textContent = `${d.pending || 0} muestras`;
+      } catch (e) {}
+    }
+
+    async function loadScopedQueue() {
+      scopedQueueLoading.classList.remove('hidden');
+      scopedQueueEmpty.classList.add('hidden');
+      scopedCardsContainer.innerHTML = '';
+
+      try {
+        const res = await fetch(`/api/feedback/pending?model_slug=${encodeURIComponent(activeSlug)}`);
+        if (!res.ok) throw new Error('Error al consultar cola');
+        const data = await res.json();
+        rawQueueItems = data.items || [];
+        scopedQueueLoading.classList.add('hidden');
+
+        populateHitlClassFilter(rawQueueItems);
+        applyHitlQueueFilters();
+
+      } catch (err) {
+        scopedQueueLoading.classList.add('hidden');
+        scopedCardsContainer.innerHTML = `<div class="col-span-full py-8 text-center text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl">Error: ${err.message}</div>`;
+      }
+    }
+
+    function populateHitlClassFilter(items) {
+      const sel = document.getElementById('hitlClassFilterSelect');
+      if (!sel) return;
+      const currentVal = sel.value || 'all';
+      const predSet = new Set();
+      items.forEach(it => {
+        if (it.predicted_class) predSet.add(it.predicted_class);
+      });
+      sel.innerHTML = '<option value="all">Todas las clases predichas</option>';
+      Array.from(predSet).sort().forEach(cls => {
+        const opt = document.createElement('option');
+        opt.value = cls;
+        opt.textContent = formatText(cls);
+        sel.appendChild(opt);
+      });
+      if (Array.from(sel.options).some(o => o.value === currentVal)) {
+        sel.value = currentVal;
+      }
+    }
+
+    function applyHitlQueueFilters() {
+      const clsFilter = document.getElementById('hitlClassFilterSelect')?.value || 'all';
+      const sortMode = document.getElementById('hitlSortSelect')?.value || 'uncertainty_asc';
+
+      let filtered = rawQueueItems.slice();
+      if (clsFilter !== 'all') {
+        filtered = filtered.filter(it => it.predicted_class === clsFilter);
+      }
+      if (sortMode === 'low_only') {
+        filtered = filtered.filter(it => (it.confidence || 0) < 0.65);
+      }
+      if (sortMode === 'confidence_desc') {
+        filtered.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+      } else {
+        filtered.sort((a, b) => (a.confidence || 0) - (b.confidence || 0));
+      }
+
+      if (filtered.length === 0) {
+        scopedCardsContainer.innerHTML = '';
+        scopedQueueEmpty.classList.remove('hidden');
+        return;
+      }
+      scopedQueueEmpty.classList.add('hidden');
+      renderScopedCards(filtered);
+    }
+
+    function renderScopedCards(items) {
+      scopedCardsContainer.innerHTML = '';
+      items.forEach(item => {
+        const card = document.createElement('div');
+        card.id = `card-${item.item_id}`;
+        card.className = 'group bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden flex flex-col justify-between transition-all duration-300 hover:shadow-md hover:border-slate-300/80';
+
+        const confVal = item.confidence || 0;
+        const confPct = (confVal * 100).toFixed(1);
+        const predFormatted = formatText(item.predicted_class || 'Desconocido');
+        const isLowConf = confVal < 0.60;
+
+        // Build clean class options
+        const optionsHtml = knownModelClasses.map(c => `
+          <option value="${c}" ${c === item.predicted_class ? 'selected' : ''}>${formatText(c)}</option>
+        `).join('');
+
+        card.innerHTML = `
+          <div>
+            <div class="relative h-44 w-full bg-slate-100 overflow-hidden">
+              <img src="/api/feedback/image/${item.item_id}" alt="Muestra ${item.item_id}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+              <span class="absolute top-2.5 right-2.5 px-2.5 py-0.5 rounded-md text-[10px] font-mono font-medium kh-tabular-nums shadow-2xs ${isLowConf ? 'bg-amber-500 text-white' : 'bg-slate-900/80 backdrop-blur-xs text-white'}">
+                ${confPct}%
+              </span>
+              ${isLowConf ? '<span class="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md text-[9px] font-medium uppercase tracking-wider bg-slate-900/80 text-amber-300 backdrop-blur-xs">Alta Incertidumbre</span>' : ''}
+            </div>
+
+            <div class="p-4 space-y-2">
+              <div class="flex items-center justify-between text-[10px] uppercase font-semibold tracking-wider text-slate-400">
+                <span>Predicción</span>
+                <span class="font-mono text-slate-400">#${String(item.item_id).slice(0, 6)}</span>
+              </div>
+              <div class="text-sm font-semibold text-slate-900 truncate tracking-tight" title="${predFormatted}">${predFormatted}</div>
+              <div class="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full rounded-full ${isLowConf ? 'bg-amber-500' : 'bg-slate-900'}" style="width: ${confPct}%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stacked Action Zone (Clean, ergonomic, no clipped buttons) -->
+          <div class="p-4 pt-3 space-y-2.5 border-t border-slate-100 bg-slate-50/40">
+            <!-- Confirm Button (Full Width) -->
+            <button
+              type="button"
+              onclick="validateItem('${item.item_id}', '${item.predicted_class}')"
+              class="btn-hitl-confirm w-full py-2.5 px-3 rounded-lg text-xs font-medium text-white bg-slate-900 hover:bg-emerald-700 transition-all shadow-2xs"
+            >
+              &check; Confirmar Predicción
+            </button>
+
+            <!-- Correct with Dropdown (Flex, full width) -->
+            <div class="flex items-center gap-1.5">
+              <select id="sel-${item.item_id}" aria-label="Reasignar clase" class="flex-1 text-xs rounded-lg bg-slate-50 border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 focus:bg-white py-1.5 px-2 text-slate-800 truncate font-medium transition-all">
+                ${optionsHtml}
+                <option value="__NEW__">+ Nueva clase...</option>
+              </select>
+              <button
+                type="button"
+                onclick="correctItem('${item.item_id}')"
+                class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+              >
+                Corregir
+              </button>
+            </div>
+
+            <!-- Ambiguity / Discard with explicit reason -->
+            <div class="flex items-center gap-1.5 pt-1 border-t border-slate-100">
+              <select id="rej-${item.item_id}" aria-label="Motivo de descarte" class="flex-1 text-[11px] rounded-md bg-slate-50 border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-rose-500 focus:bg-white py-1 px-1.5 text-slate-600 transition-all">
+                <option value="calidad_insuficiente">Foto borrosa / baja calidad</option>
+                <option value="sintoma_ambiguo">Síntoma ambiguo / dudoso</option>
+                <option value="fuera_de_dominio">Muestra fuera de dominio</option>
+              </select>
+              <button
+                type="button"
+                onclick="discardItem('${item.item_id}')"
+                class="shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium text-rose-600 hover:bg-rose-50 transition-colors"
+              >
+                Descartar
+              </button>
+            </div>
+          </div>
+        `;
+        scopedCardsContainer.appendChild(card);
+      });
+    }
+
+    async function validateItem(itemId, chosenClass) {
+      await sendValidation(itemId, chosenClass);
+    }
+
+    async function correctItem(itemId) {
+      const select = document.getElementById(`sel-${itemId}`);
+      let cls = select.value;
+      if (cls === '__NEW__') {
+        const custom = prompt('Introduce el nombre de la nueva clase:');
+        if (!custom || !custom.trim()) return;
+        cls = custom.trim().toLowerCase().replace(/\s+/g, '_');
+      }
+      await sendValidation(itemId, cls);
+    }
+
+    async function sendValidation(itemId, verifiedClass) {
+      const card = document.getElementById(`card-${itemId}`);
+      if (card) { card.style.pointerEvents = 'none'; card.style.opacity = '0.5'; }
+      try {
+        const res = await fetch(`/api/feedback/verify/${itemId}?verified_class=${encodeURIComponent(verifiedClass)}`, { method: 'POST' });
+        if (!res.ok) throw new Error('Error al certificar');
+        rawQueueItems = rawQueueItems.filter(it => it.item_id !== itemId);
+        incrementSessionReviewed();
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast(`Muestra certificada como "${formatText(verifiedClass)}"`, 'success', 2500);
+        }
+        dismissCard(card);
+        loadScopedStats();
+      } catch (err) {
+        if (window.KhaosUI && KhaosUI.toast) KhaosUI.toast('Error: ' + err.message, 'error');
+        if (card) { card.style.pointerEvents = 'auto'; card.style.opacity = '1'; }
+      }
+    }
+
+    async function discardItem(itemId) {
+      const reasonSel = document.getElementById(`rej-${itemId}`);
+      const reason = reasonSel ? reasonSel.value : 'expert_discard';
+      const card = document.getElementById(`card-${itemId}`);
+      if (card) { card.style.pointerEvents = 'none'; card.style.opacity = '0.5'; }
+      try {
+        const res = await fetch(`/api/feedback/reject/${itemId}?reason=${encodeURIComponent(reason)}`, { method: 'POST' });
+        if (!res.ok) throw new Error('Error al descartar');
+        rawQueueItems = rawQueueItems.filter(it => it.item_id !== itemId);
+        incrementSessionReviewed();
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast(`Muestra descartada (${formatText(reason)})`, 'info', 2500);
+        }
+        dismissCard(card);
+        loadScopedStats();
+      } catch (err) {
+        if (window.KhaosUI && KhaosUI.toast) KhaosUI.toast('Error: ' + err.message, 'error');
+        if (card) { card.style.pointerEvents = 'auto'; card.style.opacity = '1'; }
+      }
+    }
+
+    function dismissCard(card) {
+      if (!card) return;
+      card.style.transition = 'all 0.25s ease-out';
+      card.style.opacity = '0';
+      card.style.transform = 'scale(0.95)';
+      setTimeout(() => {
+        card.remove();
+        if (scopedCardsContainer.children.length === 0) {
+          scopedQueueEmpty.classList.remove('hidden');
+        } else {
+          const nextBtn = scopedCardsContainer.querySelector('.btn-hitl-confirm');
+          if (nextBtn) nextBtn.focus();
+        }
+      }, 250);
+    }
+
+    // Federated Mode Switch & Copy Command Helpers
+    function switchFedCommandMode(mode) {
+      const stdContainer = document.getElementById('fedSnippetStdContainer');
+      const autoContainer = document.getElementById('fedSnippetAutoContainer');
+      const btnStd = document.getElementById('btnToggleFedStd');
+      const btnAuto = document.getElementById('btnToggleFedAuto');
+      if (!stdContainer || !autoContainer || !btnStd || !btnAuto) return;
+      if (mode === 'auto') {
+        stdContainer.classList.add('hidden');
+        autoContainer.classList.remove('hidden');
+        btnAuto.className = 'px-2 py-0.5 rounded-md font-medium text-slate-900 bg-white shadow-2xs';
+        btnStd.className = 'px-2 py-0.5 rounded-md font-medium text-slate-500 hover:text-slate-900';
+      } else {
+        autoContainer.classList.add('hidden');
+        stdContainer.classList.remove('hidden');
+        btnStd.className = 'px-2 py-0.5 rounded-md font-medium text-slate-900 bg-white shadow-2xs';
+        btnAuto.className = 'px-2 py-0.5 rounded-md font-medium text-slate-500 hover:text-slate-900';
+      }
+    }
+
+    function copyFedCommand(id, btnElement) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const text = el.textContent.trim();
+      navigator.clipboard.writeText(text).then(() => {
+        if (btnElement) {
+          const original = btnElement.innerHTML;
+          btnElement.innerHTML = `
+            <svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span class="text-emerald-300 font-semibold">¡Copiado!</span>
+          `;
+          setTimeout(() => { btnElement.innerHTML = original; }, 2000);
+        }
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast('Comando copiado al portapapeles', 'success', 2000);
+        }
+      }).catch(() => {
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast('No se pudo copiar automáticamente', 'warning');
+        }
+      });
+    }
+
+    // Scoped Federated Upload
+    document.getElementById('uploadScopedFedForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pt = document.getElementById('scopedPtFile').files[0];
+      const meta = document.getElementById('scopedMetaFile').files[0];
+      const tokenInput = document.getElementById('scopedFedAuthToken');
+      const token = tokenInput ? tokenInput.value.trim() : '';
+      if (!pt || !meta) return;
+
+      const btn = document.getElementById('btnSubmitScopedFed');
+      btn.disabled = true;
+      btn.textContent = 'Enviando parámetros...';
+
+      const formData = new FormData();
+      formData.append('file', pt);
+      formData.append('manifest', meta);
+
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      try {
+        const res = await fetch(`/submit-update?model_slug=${encodeURIComponent(activeSlug)}`, {
+          method: 'POST',
+          headers: headers,
+          body: formData
+        });
+        const d = await res.json();
+        if (res.ok) {
+          if (window.KhaosUI && KhaosUI.toast) {
+            KhaosUI.toast('¡Parámetros recibidos y validados exitosamente!', 'success', 4000);
+          } else {
+            alert('¡Parámetros recibidos y validados exitosamente para la federación de este modelo!');
+          }
+          document.getElementById('uploadScopedFedForm').reset();
+        } else {
+          const msg = d.detail || res.statusText || 'Error al enviar parámetros';
+          if (window.KhaosUI && KhaosUI.toast) {
+            KhaosUI.toast(`Error: ${msg}`, 'error', 4000);
+          } else {
+            alert('Error: ' + msg);
+          }
+        }
+      } catch (err) {
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast(`Error de red: ${err.message}`, 'error', 4000);
+        } else {
+          alert('Error de red: ' + err.message);
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Enviar a la Federación de este Modelo';
+      }
+    });
+  </script>
+</body>
+</html>
