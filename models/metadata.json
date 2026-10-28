@@ -14,15 +14,9 @@
   ],
   "img_size": 224,
   "calibrated_thresholds": {
-    "aculus_olearius": 0.63,
-    "antracnosis": 0.5,
-    "cochinilla_tizne": 0.44,
-    "deficiencia_nutricional": 0.19,
-    "fumagina": 0.51,
-    "repilo": 0.45,
-    "sano": 0.21,
-    "tuberculosis": 0.78,
-    "virosis": 0.87
+    "sana": 0.05,
+    "ro\u00f1a": 0.05,
+    "mildiu": 0.05
   },
   "target_client_tier": "cpu-low",
   "selection_mode": "manual",
@@ -162,5 +156,6 @@
       "global_sha256": "d1a278dc24b53eb2bff5d18ad14332af1d2904b87d8e90961c276d047ae9828d"
     }
   ],
-  "latest_aggregated_sha256": "d1a278dc24b53eb2bff5d18ad14332af1d2904b87d8e90961c276d047ae9828d"
+  "latest_aggregated_sha256": "d1a278dc24b53eb2bff5d18ad14332af1d2904b87d8e90961c276d047ae9828d",
+  "temperature": 3.0
 }

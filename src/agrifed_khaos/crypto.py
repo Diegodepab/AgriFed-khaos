@@ -10,14 +10,42 @@ import hashlib
 import hmac
 from pathlib import Path
 
+_SHA256_CACHE: dict[str, tuple[int, int, str]] = {}
+_SHA256_CACHE_MAX_SIZE = 512
+
 
 def compute_sha256(file_path: Path) -> str:
-    """Compute SHA-256 hash of a file for cryptographic provenance verification."""
-    sha = hashlib.sha256()
-    with file_path.open("rb") as handle:
-        while chunk := handle.read(65536):
-            sha.update(chunk)
-    return sha.hexdigest()
+    """Compute SHA-256 hash of a file for cryptographic provenance verification.
+
+    Uses an in-memory (path, mtime_ns, size) cache and C-accelerated hashlib.file_digest
+    to eliminate redundant disk reads of large checkpoints while guaranteeing freshness
+    whenever a file is modified.
+    """
+    p = Path(file_path)
+    try:
+        st = p.stat()
+        key = str(p.resolve())
+        cached = _SHA256_CACHE.get(key)
+        if cached is not None and cached[0] == st.st_mtime_ns and cached[1] == st.st_size:
+            return cached[2]
+    except OSError:
+        st = None
+        key = str(p)
+
+    with p.open("rb") as handle:
+        if hasattr(hashlib, "file_digest"):
+            digest = str(hashlib.file_digest(handle, "sha256").hexdigest())
+        else:
+            sha = hashlib.sha256()
+            while chunk := handle.read(65536):
+                sha.update(chunk)
+            digest = sha.hexdigest()
+
+    if st is not None:
+        if len(_SHA256_CACHE) >= _SHA256_CACHE_MAX_SIZE:
+            _SHA256_CACHE.clear()
+        _SHA256_CACHE[key] = (st.st_mtime_ns, st.st_size, digest)
+    return digest
 
 
 def compute_manifest_hmac(

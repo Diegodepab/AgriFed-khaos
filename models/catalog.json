@@ -1,0 +1,100 @@
+{
+  "models": [
+    {
+      "slug": "enfermedadeshoja-v1-0",
+      "title": "Enfermedadeshoja v1.0",
+      "domain": "Agricultura",
+      "crop": "",
+      "target_element": "",
+      "purpose": "",
+      "description": "Modelo predictivo de alta precisión orientado a la detección de Repilo, Aculus Olearius y 6 patologías adicionales. Permite clasificar de forma supervisada frente a ejemplares Sano sobre un corpus verificado de 9809 imágenes.",
+      "input_guide": "Fotografía clara de la muestra con iluminación adecuada.",
+      "active_checkpoint": "enfermedadeshoja-v1-0_base.pt",
+      "versions": [
+        "enfermedadeshoja-v1-0_base.pt"
+      ],
+      "version_history": [],
+      "architecture": "resnet18",
+      "num_classes": 9,
+      "classes": [],
+      "thumbnail_url": null,
+      "example_images": [],
+      "calibrated_thresholds": null,
+      "temperature": 1.0,
+      "updated_at": "2026-10-28 08:20:24",
+      "is_deleted": false,
+      "deleted_at": null,
+      "purge_after": null
+    },
+    {
+      "slug": "mangofruit-v1-0",
+      "title": "Mangofruit v1.0",
+      "domain": "Industrial",
+      "crop": "",
+      "target_element": "",
+      "purpose": "",
+      "description": "Módulo de inspección visual enfocado en la segregación y alerta rápida ante Variedad Ashshina, Variedad Bari y 14 patologías adicionales, evaluado frente a estados normales (Sano). Minimiza el margen de error subjetivo en inspecciones periódicas.",
+      "input_guide": "Fotografía clara de la muestra con iluminación adecuada.",
+      "active_checkpoint": "mangofruit-v1-0_base.pt",
+      "versions": [
+        "mangofruit-v1-0_base.pt"
+      ],
+      "version_history": [],
+      "architecture": "resnet18",
+      "num_classes": 9,
+      "classes": [],
+      "thumbnail_url": null,
+      "example_images": [],
+      "calibrated_thresholds": null,
+      "temperature": 1.0,
+      "updated_at": "2026-10-28 08:20:49",
+      "is_deleted": false,
+      "deleted_at": null,
+      "purge_after": null
+    },
+    {
+      "slug": "custard-apple-dataset",
+      "title": "Custard Apple Dataset",
+      "domain": "Agroalimentario & Agricultura",
+      "crop": "",
+      "target_element": "",
+      "purpose": "",
+      "description": "Modelo predictivo orientado a la diferenciación visual de Athracnose, Blank Canker y 4 clases más, optimizado para inferencia en tiempo real sobre 8226 imágenes.",
+      "input_guide": "Fotografía clara de la muestra con iluminación adecuada.",
+      "active_checkpoint": "custard-apple-dataset_base.pt",
+      "versions": [
+        "custard-apple-dataset_base.pt"
+      ],
+      "version_history": [
+        {
+          "version_id": "v1",
+          "checkpoint": "custard-apple-dataset_base.pt",
+          "created_at": "2026-10-28 08:27:28",
+          "parent_version": null,
+          "origin": "train_base",
+          "evaluation_report": null,
+          "status": "active",
+          "metrics_summary": {}
+        }
+      ],
+      "architecture": "resnet18",
+      "num_classes": 6,
+      "classes": [
+        "Athracnose",
+        "Blank Canker",
+        "Diplodia Rot",
+        "Leaf spot on Leaves",
+        "Leaf spot on fruit",
+        "Mealy Bug"
+      ],
+      "thumbnail_url": "data:image/webp;base64,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",
+      "example_images": [],
+      "calibrated_thresholds": null,
+      "temperature": 1.0,
+      "updated_at": "2026-10-28 08:27:28",
+      "is_deleted": false,
+      "deleted_at": null,
+      "purge_after": null
+    }
+  ]
+}
