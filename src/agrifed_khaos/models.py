@@ -117,6 +117,82 @@ def get_cam_target_layer(model: Any, architecture: str = "resnet18") -> Any:
     return model
 
 
+class GradCAM:
+    """Gradient-weighted Class Activation Mapping (Grad-CAM) for visual explanations."""
+
+    def __init__(
+        self, model: Any, target_layer: Any, temperature: float = 1.0
+    ) -> None:
+        try:
+            import torch  # noqa: F401
+            import torch.nn as nn  # noqa: F401
+        except ImportError as exc:
+            raise RuntimeError("PyTorch is required for GradCAM.") from exc
+
+        self.model = model
+        self.target_layer = target_layer
+        self.temperature = max(float(temperature), 1e-3)
+        self.activations: Any | None = None
+        self.gradients: Any | None = None
+        self.fwd_handle = self.target_layer.register_forward_hook(self._fwd)
+        self.bwd_handle = self.target_layer.register_full_backward_hook(self._bwd)
+
+    def _fwd(self, module: Any, inp: Any, out: Any) -> None:
+        self.activations = out
+
+    def _bwd(self, module: Any, gin: Any, gout: tuple[Any, ...]) -> None:
+        self.gradients = gout[0]
+
+    def remove(self) -> None:
+        """Remove forward and backward hooks to prevent memory leaks."""
+        if hasattr(self, "fwd_handle") and self.fwd_handle is not None:
+            self.fwd_handle.remove()
+        if hasattr(self, "bwd_handle") and self.bwd_handle is not None:
+            self.bwd_handle.remove()
+
+    def generate(
+        self, x: Any, class_idx: int | None = None
+    ) -> tuple[Any, int, float]:
+        import torch
+        import torch.nn.functional as F
+
+        self.model.eval()
+        logits = self.model(x)
+        probs = F.softmax(logits / self.temperature, dim=1)
+        if class_idx is None:
+            class_idx = int(logits.argmax(dim=1).item())
+
+        self.model.zero_grad()
+        logits[0, class_idx].backward(retain_graph=True)
+        assert self.gradients is not None, "GradCAM failed: gradients were not captured."
+        assert self.activations is not None, "GradCAM failed: activations were not captured."
+
+        act = self.activations
+        grad = self.gradients
+
+        if act.dim() == 4:
+            weights = torch.mean(grad, dim=(2, 3), keepdim=True)
+            cam = torch.relu(torch.sum(weights * act, dim=1, keepdim=True))
+            cam = F.interpolate(cam, size=x.shape[2:], mode="bilinear", align_corners=False)
+        elif act.dim() == 3:
+            tokens = act[:, 1:, :] if act.shape[1] > 1 else act
+            t_grad = grad[:, 1:, :] if grad.shape[1] > 1 else grad
+            weights = torch.mean(t_grad, dim=1, keepdim=True)
+            cam_tokens = torch.relu(torch.sum(weights * tokens, dim=-1))
+            grid_size = int(round(cam_tokens.shape[1] ** 0.5))
+            if grid_size * grid_size == cam_tokens.shape[1]:
+                cam_2d = cam_tokens.reshape(cam_tokens.shape[0], 1, grid_size, grid_size)
+                cam = F.interpolate(cam_2d, size=x.shape[2:], mode="bilinear", align_corners=False)
+            else:
+                cam = torch.ones((1, 1, x.shape[2], x.shape[3]), device=x.device)
+        else:
+            cam = torch.ones((1, 1, x.shape[2], x.shape[3]), device=x.device)
+
+        cam = cam - cam.min()
+        cam = cam / (cam.max() + 1e-8)
+        return cam[0, 0].detach().cpu().numpy(), class_idx, float(probs[0, class_idx].item())
+
+
 def save_checkpoint_bundle(
     path: Path | str,
     state_dict: dict[str, Any],

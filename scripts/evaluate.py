@@ -27,6 +27,7 @@ from sklearn.metrics import (  # type: ignore[import-untyped]
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
+from agrifed_khaos.models import GradCAM
 from agrifed_khaos.quality import (
     CanaryAlarmLevel,
     CanaryAlarmReport,
@@ -129,65 +130,6 @@ def get_transforms(img_size: tuple[int, int] | int = (224, 224)) -> transforms.C
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
     )
-
-
-class GradCAM:
-    def __init__(
-        self, model: nn.Module, target_layer: nn.Module, temperature: float = 1.0
-    ) -> None:
-        self.model = model
-        self.target_layer = target_layer
-        self.temperature = max(float(temperature), 1e-3)
-        self.activations: torch.Tensor | None = None
-        self.gradients: torch.Tensor | None = None
-        self.target_layer.register_forward_hook(self._fwd)
-        self.target_layer.register_full_backward_hook(self._bwd)
-
-    def _fwd(self, module: nn.Module, inp: Any, out: torch.Tensor) -> None:
-        self.activations = out
-
-    def _bwd(self, module: nn.Module, gin: Any, gout: tuple[torch.Tensor, ...]) -> None:
-        self.gradients = gout[0]
-
-    def generate(
-        self, x: torch.Tensor, class_idx: int | None = None
-    ) -> tuple[np.ndarray, int, float]:
-        self.model.eval()
-        logits = self.model(x)
-        probs = F.softmax(logits / self.temperature, dim=1)
-        if class_idx is None:
-            class_idx = int(logits.argmax(dim=1).item())
-
-        self.model.zero_grad()
-        logits[0, class_idx].backward()
-        assert self.gradients is not None
-        assert self.activations is not None
-
-        act = self.activations
-        grad = self.gradients
-
-        if act.dim() == 4:
-            weights = torch.mean(grad, dim=(2, 3), keepdim=True)
-            cam = torch.relu(torch.sum(weights * act, dim=1, keepdim=True))
-            cam = F.interpolate(cam, size=x.shape[2:], mode="bilinear", align_corners=False)
-        elif act.dim() == 3:
-            # Transformer tokens: [B, N, D] (e.g. 197 = 1 CLS token + 14x14 patches)
-            tokens = act[:, 1:, :] if act.shape[1] > 1 else act
-            t_grad = grad[:, 1:, :] if grad.shape[1] > 1 else grad
-            weights = torch.mean(t_grad, dim=1, keepdim=True)
-            cam_tokens = torch.relu(torch.sum(weights * tokens, dim=-1))
-            grid_size = int(round(cam_tokens.shape[1] ** 0.5))
-            if grid_size * grid_size == cam_tokens.shape[1]:
-                cam_2d = cam_tokens.reshape(cam_tokens.shape[0], 1, grid_size, grid_size)
-                cam = F.interpolate(cam_2d, size=x.shape[2:], mode="bilinear", align_corners=False)
-            else:
-                cam = torch.ones((1, 1, x.shape[2], x.shape[3]), device=x.device)
-        else:
-            cam = torch.ones((1, 1, x.shape[2], x.shape[3]), device=x.device)
-
-        cam = cam - cam.min()
-        cam = cam / (cam.max() + 1e-8)
-        return cam[0, 0].detach().cpu().numpy(), class_idx, float(probs[0, class_idx].item())
 
 
 def calibrate_binary_thresholds(
@@ -461,7 +403,7 @@ def main() -> None:
         temperature = float(bundle_meta.get("temperature") or 1.0)
         criterion = nn.CrossEntropyLoss()
 
-        with torch.no_grad():
+        with torch.inference_mode():
             for x, y in loader:
                 x, y = x.to(device), y.to(device)
                 out = model(x)
