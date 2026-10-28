@@ -51,6 +51,9 @@ models/*.json
 models/*.meta.json
 *.meta.json
 !models/.gitkeep
+!models/catalog.json
+models/hitl_queue/
+referencia/
 
 # Logs, Reports and Artifacts
 runs/
