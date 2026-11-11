@@ -51,16 +51,27 @@ AGRO_KEYWORDS = frozenset({
     "hoja", "hojas", "leaf", "leaves",
     "fruto", "frutos", "fruit", "fruits",
     "olivo", "oliva", "olive", "olives", "aceituna", "aceitunas",
-    "mango", "mora", "nuez", "nueces", "almendra", "almendras",
+    "mango", "mangofruit", "mora", "avocado", "aguacate", "papaya", "custard", "apple",
     "crop", "crops", "planta", "plantas", "plant", "plants",
     "trigo", "wheat", "maiz", "corn", "arroz", "rice",
-    "pest", "pests", "plaga", "plagas",
-    "rust", "roya", "repilo", "antracnosis", "fumagina", "virosis",
-    "tuberculosis", "olearius", "aculus", "tizne", "mildiu", "oidio",
+    "pest", "pests", "plaga", "plagas", "mealy", "bug",
+    "rust", "roya", "repilo", "antracnosis", "athracnose", "anthracnose", "canker", "rot", "diplodia",
+    "fumagina", "virosis", "tuberculosis", "olearius", "aculus", "tizne", "mildiu", "oidio",
     "uva", "grape", "vid", "vineyard", "weed", "malezas",
     "citrus", "citrico", "naranja", "orange", "limon", "lemon",
     "patata", "potato", "tomate", "tomato", "cafe", "coffee",
-    "sano", "sana", "agricola", "agronomia", "cultivo",
+    "sano", "sana", "agricola", "agronomia", "cultivo", "fitopatologia",
+})
+
+FOOD_KEYWORDS = frozenset({
+    "almond", "almendras", "almendra",
+    "peanut", "peanuts", "cacahuete",
+    "pistachio", "pistacho", "pistachos",
+    "walnut", "walnuts", "nuez", "nueces",
+    "cashew", "anacardo",
+    "hazelnut", "hazelnuts", "avellana", "avellanas",
+    "brazil_nuts", "nuts", "frutossecos", "frutos_secos",
+    "alimento", "alimentacion", "food", "postcosecha",
 })
 
 INDUSTRY_KEYWORDS = frozenset({
@@ -378,28 +389,32 @@ def infer_domain(
     classes: list[str],
     source_name: str | None = None,
 ) -> str:
-    """Infer the primary domain or sector based on class names and source keywords."""
+    """Infer a concise, general primary domain based on class names and source keywords."""
     combined = " ".join(classes + ([source_name] if source_name else [])).lower()
     clean_tokens = set(re.sub(r"[^a-zA-Z0-9]+", " ", combined).split())
 
-    # 1. Agriculture / Agroalimentario
+    # 1. Food & Post-harvest (Nuts, grains, processed food sorting)
+    if clean_tokens & FOOD_KEYWORDS:
+        return "Alimentación"
+
+    # 2. Agriculture & Plant Health
     if clean_tokens & AGRO_KEYWORDS:
-        return "Agroalimentario & Agricultura"
+        return "Agricultura"
 
-    # 2. Industry & Manufacturing
+    # 3. Industry & Manufacturing
     if clean_tokens & INDUSTRY_KEYWORDS:
-        return "Industria & Manufactura"
+        return "Industria"
 
-    # 3. Healthcare & Biomedicine
+    # 4. Healthcare & Biomedicine
     if clean_tokens & HEALTH_KEYWORDS:
-        return "Biomedicina & Sanidad"
+        return "Biomedicina"
 
-    # 4. Environment & Forestry
+    # 5. Environment & Forestry
     if clean_tokens & ENVIRONMENT_KEYWORDS:
-        return "Medio Ambiente & Recursos"
+        return "Medio Ambiente"
 
-    # Default versatile
-    return "Visión Artificial"
+    # Default concise domain
+    return "General"
 
 
 # ==============================================================================
@@ -438,21 +453,136 @@ def extract_dataset_thumbnail_b64(
     classes: list[str],
     is_yolo: bool = False,
 ) -> str | None:
-    """Extract a representative sample image from the dataset and return an inline WebP Base64 URI."""
+    """Extract a representative sample image from the dataset and return an inline WebP Base64 URI.
+
+    For detection datasets, it prioritizes drawing crisp bounding boxes and labels on an annotated sample image.
+    """
     try:
-        from PIL import Image
+        from PIL import Image, ImageDraw
     except ImportError:
         return None
 
     if not target_dir.is_dir():
         return None
 
-    candidate_paths: list[Path] = []
     valid_exts = frozenset({".jpg", ".jpeg", ".png", ".webp", ".bmp"})
+    resample_filter = getattr(
+        getattr(Image, "Resampling", None), "LANCZOS", getattr(Image, "LANCZOS", Image.BICUBIC)
+    )
 
     if is_yolo:
-        # Check YOLO image folders
-        for sub in [target_dir / "images" / "train", target_dir / "images", target_dir]:
+        # 1. Check COCO JSON annotations first
+        try:
+            coco_jsons = list(target_dir.rglob("*.json"))
+            train_coco = [
+                j for j in coco_jsons
+                if "train" in str(j).lower() or "_annotations" in j.name
+            ]
+            chosen_json = train_coco[0] if train_coco else (coco_jsons[0] if coco_jsons else None)
+            if chosen_json and chosen_json.is_file():
+                import json
+
+                with open(chosen_json, "r", encoding="utf-8") as f:
+                    cdata = json.load(f)
+                cats = {c["id"]: c.get("name", "obj") for c in cdata.get("categories", [])}
+                img_map = {im["id"]: im for im in cdata.get("images", [])}
+                anns_by_img: dict[Any, list[dict[str, Any]]] = {}
+                for a in cdata.get("annotations", []):
+                    anns_by_img.setdefault(a.get("image_id"), []).append(a)
+
+                # Prioritize an image with 1 to 6 bounding boxes for aesthetic clarity
+                chosen_id = None
+                for i_id, anns in anns_by_img.items():
+                    if 1 <= len(anns) <= 6:
+                        chosen_id = i_id
+                        break
+                if chosen_id is None and anns_by_img:
+                    chosen_id = next(iter(anns_by_img.keys()))
+
+                if chosen_id is not None and chosen_id in img_map:
+                    img_rec = img_map[chosen_id]
+                    img_p = chosen_json.parent / img_rec.get("file_name", "")
+                    if not img_p.is_file():
+                        img_p = target_dir / img_rec.get("file_name", "")
+                    if img_p.is_file():
+                        with Image.open(img_p) as img:
+                            thumb = img.convert("RGB")
+                            draw = ImageDraw.Draw(thumb)
+                            for a in anns_by_img.get(chosen_id, []):
+                                bbox = a.get("bbox", [])
+                                if len(bbox) == 4 and bbox[2] > 0 and bbox[3] > 0:
+                                    x, y, w, h = [float(v) for v in bbox]
+                                    cname = str(cats.get(a.get("category_id"), "obj"))
+                                    draw.rectangle([x, y, x + w, y + h], outline="#10b981", width=3)
+                                    pill_w = min(int(w), max(40, len(cname) * 8 + 8))
+                                    pill_y1 = max(0, y - 18)
+                                    pill_y2 = max(0, y)
+                                    draw.rectangle([x, pill_y1, x + pill_w, pill_y2], fill="#047857")
+                                    draw.text((x + 4, max(0, pill_y1 + 2)), cname[:16], fill="white")
+                            thumb.thumbnail((480, 360), resample_filter)
+                            buf = io.BytesIO()
+                            thumb.save(buf, format="WEBP", quality=80)
+                            b64_str = base64.b64encode(buf.getvalue()).decode("ascii")
+                            return f"data:image/webp;base64,{b64_str}"
+        except Exception:
+            pass
+
+        # 2. Check YOLO format (images/*.jpg alongside labels/*.txt)
+        yolo_img_dirs = [
+            target_dir / "images" / "train",
+            target_dir / "images" / "val",
+            target_dir / "images",
+            target_dir / "train" / "images",
+            target_dir / "train",
+        ]
+        for img_d in yolo_img_dirs:
+            if img_d.is_dir():
+                for img_p in img_d.iterdir():
+                    if img_p.is_file() and img_p.suffix.lower() in valid_exts:
+                        lbl_cand1 = img_d.parent / "labels" / f"{img_p.stem}.txt"
+                        lbl_cand2 = img_d / f"{img_p.stem}.txt"
+                        lbl_p = lbl_cand1 if lbl_cand1.is_file() else (lbl_cand2 if lbl_cand2.is_file() else None)
+                        if lbl_p and lbl_p.is_file():
+                            try:
+                                lines = [ln.strip() for ln in lbl_p.read_text(encoding="utf-8").splitlines() if ln.strip()]
+                                if 1 <= len(lines) <= 8:
+                                    with Image.open(img_p) as img:
+                                        thumb = img.convert("RGB")
+                                        iw, ih = thumb.size
+                                        draw = ImageDraw.Draw(thumb)
+                                        for line in lines:
+                                            parts = line.split()
+                                            if len(parts) >= 5:
+                                                cid = int(float(parts[0]))
+                                                xc, yc, bw, bh = [float(v) for v in parts[1:5]]
+                                                x1 = (xc - bw / 2.0) * iw
+                                                y1 = (yc - bh / 2.0) * ih
+                                                x2 = (xc + bw / 2.0) * iw
+                                                y2 = (yc + bh / 2.0) * ih
+                                                cname = classes[cid] if 0 <= cid < len(classes) else f"class_{cid}"
+                                                draw.rectangle([x1, y1, x2, y2], outline="#10b981", width=3)
+                                                pill_w = min(int(x2 - x1), max(40, len(cname) * 8 + 8))
+                                                draw.rectangle([x1, max(0, y1 - 18), x1 + pill_w, max(0, y1)], fill="#047857")
+                                                draw.text((x1 + 4, max(0, y1 - 16)), cname[:16], fill="white")
+                                        thumb.thumbnail((480, 360), resample_filter)
+                                        buf = io.BytesIO()
+                                        thumb.save(buf, format="WEBP", quality=80)
+                                        b64_str = base64.b64encode(buf.getvalue()).decode("ascii")
+                                        return f"data:image/webp;base64,{b64_str}"
+                            except Exception:
+                                pass
+
+        # 3. Fallback scan for detection candidate images
+        candidate_paths: list[Path] = []
+        for sub in [
+            target_dir / "images" / "train",
+            target_dir / "train",
+            target_dir / "images",
+            target_dir / "valid",
+            target_dir / "val",
+            target_dir / "test",
+            target_dir,
+        ]:
             if sub.is_dir():
                 for p in sub.iterdir():
                     if p.is_file() and p.suffix.lower() in valid_exts:
@@ -468,6 +598,7 @@ def extract_dataset_thumbnail_b64(
         if not ordered_classes:
             ordered_classes = classes
 
+        candidate_paths = []
         for cls_name in ordered_classes:
             cls_dir = target_dir / cls_name
             if cls_dir.is_dir():
@@ -479,16 +610,16 @@ def extract_dataset_thumbnail_b64(
             if candidate_paths:
                 break
 
-        # Fallback: search recursively if top-level scan found nothing
-        if not candidate_paths:
-            try:
-                for p in target_dir.rglob("*"):
-                    if p.is_file() and p.suffix.lower() in valid_exts:
-                        candidate_paths.append(p)
-                        if len(candidate_paths) >= 1:
-                            break
-            except OSError:
-                pass
+    # Fallback: search recursively if top-level scan found nothing
+    if not candidate_paths:
+        try:
+            for p in target_dir.rglob("*"):
+                if p.is_file() and p.suffix.lower() in valid_exts:
+                    candidate_paths.append(p)
+                    if len(candidate_paths) >= 1:
+                        break
+        except OSError:
+            pass
 
     if not candidate_paths:
         return None
@@ -506,8 +637,7 @@ def extract_dataset_thumbnail_b64(
             elif thumb.mode != "RGB":
                 thumb = thumb.convert("RGB")
 
-            resample_filter = getattr(getattr(Image, "Resampling", None), "LANCZOS", getattr(Image, "LANCZOS", Image.BICUBIC))
-            thumb.thumbnail((400, 300), resample_filter)
+            thumb.thumbnail((480, 360), resample_filter)
             buf = io.BytesIO()
             thumb.save(buf, format="WEBP", quality=75, method=4)
             b64_str = base64.b64encode(buf.getvalue()).decode("ascii")

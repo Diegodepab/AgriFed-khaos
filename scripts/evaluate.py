@@ -391,7 +391,16 @@ def main() -> None:
             class_names = list(classes)
         else:
             class_names = list(dataset.classes)
-        loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False)
+        import os
+
+        eval_workers = 0 if device.type == "cpu" else min(2, os.cpu_count() or 1)
+        loader = DataLoader(
+            dataset,
+            batch_size=args.batch_size,
+            shuffle=False,
+            num_workers=eval_workers,
+            pin_memory=(device.type == "cuda"),
+        )
 
         total_loss = 0.0
         correct = 0
@@ -403,8 +412,10 @@ def main() -> None:
         temperature = float(bundle_meta.get("temperature") or 1.0)
         criterion = nn.CrossEntropyLoss()
 
+        total_batches = len(loader)
+        print_interval = max(1, min(5, total_batches // 5))
         with torch.inference_mode():
-            for x, y in loader:
+            for batch_idx, (x, y) in enumerate(loader):
                 x, y = x.to(device), y.to(device)
                 out = model(x)
                 loss = criterion(out, y)
@@ -420,6 +431,13 @@ def main() -> None:
                 y_pred.extend(preds.cpu().tolist())
                 y_probs.extend(probs.cpu().tolist())
                 y_logits.extend(out.cpu().tolist())
+
+                if (batch_idx + 1) % print_interval == 0 or (batch_idx + 1) == total_batches:
+                    print(
+                        f"[*] Progress: {batch_idx + 1}/{total_batches} batches "
+                        f"({total}/{len(dataset)} samples | acc: {correct / total * 100:.2f}%)",
+                        flush=True,
+                    )
 
         avg_loss = total_loss / max(total, 1)
 

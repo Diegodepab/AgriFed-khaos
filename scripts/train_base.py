@@ -64,17 +64,25 @@ def evaluate_model(
     device: torch.device,
     num_classes: int,
     use_amp: bool,
-) -> dict[str, float]:
-    """Compute validation loss (unweighted CE), accuracy and macro-F1."""
+    class_names: list[str] | None = None,
+    return_logits: bool = False,
+) -> dict[str, Any]:
+    """Compute validation loss (unweighted CE), accuracy, macro metrics, and confusion matrix."""
     model.eval()
     loss_sum = 0.0
     total = 0
     confusion = torch.zeros(num_classes, num_classes, dtype=torch.long)
+    all_logits: list[torch.Tensor] = []
+    all_targets: list[torch.Tensor] = []
     for x, y in loader:
         x, y = x.to(device), y.to(device)
         with torch.amp.autocast(device_type=device.type, enabled=use_amp):
             out = model(x)
-        loss_sum += F.cross_entropy(out.float(), y, reduction="sum").item()
+        out_fp32 = out.float()
+        loss_sum += F.cross_entropy(out_fp32, y, reduction="sum").item()
+        if return_logits:
+            all_logits.append(out_fp32.cpu())
+            all_targets.append(y.cpu())
         preds = out.argmax(dim=1)
         idx = (y * num_classes + preds).cpu()
         confusion += torch.bincount(idx, minlength=num_classes * num_classes).view(
@@ -87,13 +95,39 @@ def evaluate_model(
     predicted = confusion.sum(dim=0).float()
     denom = support + predicted
     f1 = torch.where(denom > 0, 2 * tp / denom.clamp(min=1), torch.zeros_like(tp))
+    prec = torch.where(predicted > 0, tp / predicted.clamp(min=1), torch.zeros_like(tp))
+    rec = torch.where(support > 0, tp / support.clamp(min=1), torch.zeros_like(tp))
     present = denom > 0
     macro_f1 = f1[present].mean().item() if present.any() else 0.0
-    return {
+    supp_present = support > 0
+    macro_prec = prec[supp_present].mean().item() if supp_present.any() else 0.0
+    macro_rec = rec[supp_present].mean().item() if supp_present.any() else 0.0
+
+    per_class: dict[str, Any] = {}
+    if class_names:
+        for i, cname in enumerate(class_names):
+            if i < num_classes:
+                per_class[cname] = {
+                    "precision": round(prec[i].item(), 4),
+                    "recall": round(rec[i].item(), 4),
+                    "f1_score": round(f1[i].item(), 4),
+                    "support": int(support[i].item()),
+                }
+
+    res_dict: dict[str, Any] = {
         "loss": loss_sum / max(total, 1),
         "accuracy": tp.sum().item() / max(total, 1),
         "macro_f1": macro_f1,
+        "macro_precision": macro_prec,
+        "macro_recall": macro_rec,
+        "total_samples": total,
+        "confusion_matrix": confusion.tolist(),
+        "per_class": per_class,
     }
+    if return_logits and all_logits:
+        res_dict["logits"] = torch.cat(all_logits, dim=0)
+        res_dict["targets"] = torch.cat(all_targets, dim=0)
+    return res_dict
 
 
 class FocalLoss(nn.Module):
@@ -178,6 +212,12 @@ def parse_args() -> argparse.Namespace:
         "--threads", type=int, default=8, help="PyTorch CPU intra-op threads (default: 8)"
     )
     parser.add_argument(
+        "--workers",
+        type=int,
+        default=0,
+        help="DataLoader worker processes (default: 0; use 4+ on GPU to avoid input starvation)",
+    )
+    parser.add_argument(
         "--unfreeze-last-block",
         action="store_true",
         help="Train only the final feature stage + head (last_block_lr = lr * 0.2), frozen BN",
@@ -223,9 +263,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--aug",
         type=str,
-        choices=["basic", "randaugment", "none"],
+        choices=["basic", "randaugment", "in_the_wild", "none"],
         default="basic",
-        help="Data augmentation policy: basic (default), randaugment, none",
+        help="Data augmentation policy: basic (default), randaugment, in_the_wild, none",
     )
     parser.add_argument(
         "--train-split",
@@ -253,10 +293,15 @@ def main() -> None:
     torch.set_num_threads(args.threads)
     if args.device == "cuda" or (args.device == "auto" and torch.cuda.is_available()):
         device = torch.device("cuda")
+        from agrifed_khaos.hardware import apply_gpu_memory_cap
+
+        cap = apply_gpu_memory_cap()
+        if cap is not None:
+            print(f"[*] GPU memory cap active: {cap:.0%} of device VRAM (shared GPU host)")
     else:
         device = torch.device("cpu")
 
-    from agrifed_khaos.data import resolve_dataset_dir
+    from agrifed_khaos.data import build_augmentation_transform, resolve_dataset_dir
 
     try:
         data_path = resolve_dataset_dir(args.data_dir, split="train")
@@ -265,37 +310,17 @@ def main() -> None:
         sys.exit(1)
 
     # 1. Inspect classes dynamically from subfolders (Domain-Agnostic)
+    transform = build_augmentation_transform(args.aug, img_size=args.img_size)
     if args.aug == "none":
-        transform = transforms.Compose(
-            [
-                transforms.Resize((args.img_size, args.img_size)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ]
-        )
         print("[*] Augmentation: None (Deterministic Resize + ImageNet Normalize)")
     elif args.aug == "randaugment":
-        transform = transforms.Compose(
-            [
-                transforms.RandomResizedCrop((args.img_size, args.img_size), scale=(0.7, 1.0)),
-                transforms.RandomHorizontalFlip(),
-                transforms.RandAugment(num_ops=2, magnitude=9),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ]
-        )
         print("[*] Augmentation: RandAugment Active (2 ops, mag=9, multi-scale crop)")
-    else:  # "basic"
-        transform = transforms.Compose(
-            [
-                transforms.RandomResizedCrop((args.img_size, args.img_size), scale=(0.75, 1.0)),
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomVerticalFlip(),
-                transforms.ColorJitter(brightness=0.15, contrast=0.15),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ]
+    elif args.aug == "in_the_wild":
+        print(
+            "[*] Augmentation: In-The-Wild Active "
+            "(RandomBackgroundSwap + Multi-Scale Crop + Sensor Jitter + RandomErasing)"
         )
+    else:
         print("[*] Augmentation: Basic (Flips, gentle Jitter & RandomResizedCrop)")
 
     dataset = datasets.ImageFolder(str(data_path), transform=transform)
@@ -309,6 +334,13 @@ def main() -> None:
     print(f"[*] Dataset: {data_path}")
     print(f"[*] Discovered classes ({num_classes}): {classes}")
     print(f"[*] Total samples in dataset: {total_samples}")
+
+    if num_classes < 2:
+        raise ValueError(
+            f"El dataset en '{data_path}' solo contiene {num_classes} clase(s) ({classes}). "
+            "El entrenamiento de clasificación supervisada requiere al menos 2 clases. "
+            "Si es un dataset de detección de objetos, extraiga los recortes primero."
+        )
 
     # Estimate average image resolution from sample files
     from PIL import Image
@@ -412,7 +444,13 @@ def main() -> None:
             f"Test={test_split_len} ({test_split_len / total_samples * 100:.1f}%)"
         )
 
-    if args.max_samples and args.max_samples < len(train_ds):
+    explicit_max_samples = any(a.startswith("--max-samples") for a in sys.argv[1:])
+    if (
+        args.max_samples
+        and args.max_samples > 0
+        and args.max_samples < len(train_ds)
+        and (device.type == "cpu" or explicit_max_samples)
+    ):
         from agrifed_khaos.data import create_stratified_subset
 
         train_ds = create_stratified_subset(train_ds, args.max_samples, seed=42)
@@ -421,12 +459,25 @@ def main() -> None:
             f"across {num_classes} classes"
         )
 
-    loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=0)
+    loader_workers = max(0, args.workers)
+    loader_kwargs: dict[str, Any] = {
+        "num_workers": loader_workers,
+        "pin_memory": device.type == "cuda",
+    }
+    if loader_workers > 0:
+        loader_kwargs["persistent_workers"] = True
+        loader_kwargs["prefetch_factor"] = 4
+    loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, **loader_kwargs)
 
-    # Validation set: deterministic (non-augmented) view, never the augmented train transform.
+    # Validation set: deterministic (non-augmented) view matching serving Resize(256)+CenterCrop(224)
+    eval_resize_dim = (
+        int(round(args.img_size * 256 / 224)),
+        int(round(args.img_size * 256 / 224)),
+    )
     eval_transform = transforms.Compose(
         [
-            transforms.Resize((args.img_size, args.img_size)),
+            transforms.Resize(eval_resize_dim),
+            transforms.CenterCrop((args.img_size, args.img_size)),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
@@ -436,7 +487,7 @@ def main() -> None:
     if val_indices:
         eval_ds = datasets.ImageFolder(str(data_path), transform=eval_transform)
         val_loader = DataLoader(
-            Subset(eval_ds, val_indices), batch_size=args.batch_size, shuffle=False, num_workers=0
+            Subset(eval_ds, val_indices), batch_size=args.batch_size, shuffle=False, **loader_kwargs
         )
         val_source = f"held-out split ({len(val_indices)} samples)"
     elif args.train_split is None:
@@ -449,7 +500,7 @@ def main() -> None:
                     continue
                 if sibling_ds.classes == classes and len(sibling_ds) > 0:
                     val_loader = DataLoader(
-                        sibling_ds, batch_size=args.batch_size, shuffle=False, num_workers=0
+                        sibling_ds, batch_size=args.batch_size, shuffle=False, **loader_kwargs
                     )
                     val_source = f"pre-split directory '{sibling}' ({len(sibling_ds)} samples)"
                     break
@@ -667,7 +718,7 @@ def main() -> None:
             )
         else:
             monitored = -avg_loss
-        print(log_line)
+        print(log_line, flush=True)
 
         # Plateau scheduler only takes over after warmup; step it after every validation phase
         lrs_before = [g["lr"] for g in optimizer.param_groups]
@@ -702,6 +753,49 @@ def main() -> None:
         f"({elapsed / max(epochs_run, 1):.2f}s per epoch, {epochs_run}/{args.epochs} epochs)"
     )
 
+    # Compute final metrics and automatic calibration on the restored best weights
+    final_eval_metrics = None
+    calibrated_temp = 1.0
+    calibrated_thresholds: dict[str, float] | None = None
+    calibrated_ood_thresh: float | None = None
+    if val_loader is not None:
+        final_eval_metrics = evaluate_model(
+            model,
+            val_loader,
+            device,
+            num_classes,
+            use_amp,
+            class_names=classes,
+            return_logits=True,
+        )
+        last_val_metrics = {
+            "loss": final_eval_metrics["loss"],
+            "accuracy": final_eval_metrics["accuracy"],
+            "macro_f1": final_eval_metrics["macro_f1"],
+            "macro_precision": final_eval_metrics["macro_precision"],
+            "macro_recall": final_eval_metrics["macro_recall"],
+        }
+        val_logits_t = final_eval_metrics.get("logits")
+        val_targets_t = final_eval_metrics.get("targets")
+        if val_logits_t is not None and val_targets_t is not None and len(val_logits_t) >= 5:
+            try:
+                from agrifed_khaos.quality import calibrate_temperature_and_thresholds
+
+                calibrated_temp, calibrated_thresholds = calibrate_temperature_and_thresholds(
+                    val_logits_t.numpy(), val_targets_t.numpy(), classes
+                )
+                t_val = max(float(calibrated_temp), 1e-3)
+                energies = (t_val * torch.logsumexp(val_logits_t / t_val, dim=-1)).numpy()
+                import numpy as np
+
+                calibrated_ood_thresh = round(float(np.percentile(energies, 2.0) * 0.88), 4)
+                print(
+                    f"[*] Auto-calibrated on validation split: T={calibrated_temp:.4f}, "
+                    f"ood_threshold={calibrated_ood_thresh:.4f}"
+                )
+            except Exception as exc:
+                print(f"[!] Warning: Auto-calibration skipped ({exc})")
+
     # 5. Save Model Checkpoint Bundle & Auditable Metadata Mirror
     out_file = Path(args.output)
     meta_file = Path(args.metadata)
@@ -715,12 +809,35 @@ def main() -> None:
         "num_classes": num_classes,
         "classes": classes,
         "img_size": args.img_size,
-        "calibrated_thresholds": None,
-        "temperature": None,
+        "calibrated_thresholds": calibrated_thresholds,
+        "temperature": calibrated_temp,
+        "ood_threshold": calibrated_ood_thresh,
         "target_client_tier": args.target_client_tier,
         "selection_mode": "auto" if is_auto else "manual",
         "selection_rationale": selection_rationale,
         "weights_file": str(out_file),
+        "metrics": {
+            "overall_accuracy": round(final_eval_metrics["accuracy"] * 100.0, 2)
+            if final_eval_metrics
+            else None,
+            "cross_entropy_loss": round(final_eval_metrics["loss"], 4)
+            if final_eval_metrics
+            else None,
+            "macro_f1": round(final_eval_metrics["macro_f1"], 4)
+            if final_eval_metrics
+            else None,
+            "macro_precision": round(final_eval_metrics["macro_precision"], 4)
+            if final_eval_metrics
+            else None,
+            "macro_recall": round(final_eval_metrics["macro_recall"], 4)
+            if final_eval_metrics
+            else None,
+        }
+        if final_eval_metrics
+        else None,
+        "confusion_matrix": final_eval_metrics["confusion_matrix"]
+        if final_eval_metrics
+        else None,
         "hyperparameters": {
             "epochs": args.epochs,
             "batch_size": args.batch_size,
@@ -771,6 +888,28 @@ def main() -> None:
     sha256_digest = compute_sha256(out_file)
     metadata["sha256"] = sha256_digest
     meta_file.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+
+    # Export a verified evaluation report immediately upon training completion
+    if final_eval_metrics:
+        slug = out_file.stem.replace("_base", "")
+        models_root = out_file.parent
+        eval_report_file = models_root / f"{slug}_evaluation_report.json"
+        report_data = {
+            "dataset_evaluated": str(val_source or data_path),
+            "total_samples": final_eval_metrics["total_samples"],
+            "overall_accuracy": round(final_eval_metrics["accuracy"] * 100.0, 4),
+            "cross_entropy_loss": round(final_eval_metrics["loss"], 4),
+            "macro_avg": {
+                "precision": round(final_eval_metrics["macro_precision"], 4),
+                "recall": round(final_eval_metrics["macro_recall"], 4),
+                "f1_score": round(final_eval_metrics["macro_f1"], 4),
+            },
+            "per_class": final_eval_metrics["per_class"],
+            "confusion_matrix_raw": final_eval_metrics["confusion_matrix"],
+            "temperature": 1.0,
+        }
+        eval_report_file.write_text(json.dumps(report_data, indent=2), encoding="utf-8")
+        print(f"[*] Verified evaluation report saved: {eval_report_file}")
 
     print(f"[*] Checkpoint saved: {out_file} ({out_file.stat().st_size / (1024 * 1024):.2f} MB)")
     print(f"[*] SHA-256 Digest:   {sha256_digest}")

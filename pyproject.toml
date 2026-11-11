@@ -26,6 +26,7 @@ vision = [
   "matplotlib>=3.8",
   "seaborn>=0.13",
   "scikit-learn>=1.4",
+  "onnx>=1.16.0",
 ]
 fl = [
   "flwr>=1.13",

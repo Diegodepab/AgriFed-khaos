@@ -51,6 +51,7 @@ class LogicalModelEntry(BaseModel):
     versions: list[str] = Field(default_factory=list)
     version_history: list[ModelVersionRecord] = Field(default_factory=list)
     architecture: str = "resnet18"
+    task: str = "classification"
     num_classes: int = 0
     classes: list[str] = Field(default_factory=list)
     thumbnail_url: str | None = None

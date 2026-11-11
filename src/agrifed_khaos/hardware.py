@@ -395,3 +395,30 @@ class ModelSelector:
             avg_resolution=avg_resolution,
         )
         return profile, candidates[0]
+
+
+def apply_gpu_memory_cap(default_fraction: float = 0.0) -> float | None:
+    """Cap this process' share of GPU memory so it can coexist with other GPU services.
+
+    Reads ``AGRIFED_GPU_MEM_FRACTION`` (0 < f <= 1). When set, the CUDA caching
+    allocator raises OOM inside *this* process instead of starving neighbouring
+    containers that share the same physical GPU. Returns the applied fraction.
+    """
+    import os
+
+    raw = os.environ.get("AGRIFED_GPU_MEM_FRACTION", "").strip()
+    try:
+        fraction = float(raw) if raw else float(default_fraction)
+    except ValueError:
+        fraction = float(default_fraction)
+    if not (0.0 < fraction <= 1.0):
+        return None
+    try:
+        import torch
+
+        if not torch.cuda.is_available():
+            return None
+        torch.cuda.set_per_process_memory_fraction(fraction, 0)
+        return fraction
+    except Exception:  # pragma: no cover - best effort on exotic drivers
+        return None

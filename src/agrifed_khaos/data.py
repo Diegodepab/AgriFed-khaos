@@ -612,3 +612,170 @@ def resolve_dataset_dir(
         "  3. Verify with: ls -la dataset/"
     )
 
+
+class RandomBackgroundSwapTransform:
+    """Domain-invariant PIL transform that replaces uniform studio backgrounds with synthetic scenes.
+
+    Detects if an image has a low-variance perimeter border (e.g., black studio backdrop,
+    white lightbox, or uniform tabletop) and softly blends background pixels with
+    synthetic gradients, natural low-frequency bokeh, or textured ambient surfaces.
+    """
+
+    def __init__(
+        self,
+        p: float = 0.55,
+        max_border_std: float = 32.0,
+        color_threshold: float = 30.0,
+        seed: int | None = None,
+    ) -> None:
+        import numpy as np
+
+        self.p = float(p)
+        self.max_border_std = float(max_border_std)
+        self.color_threshold = float(color_threshold)
+        self.rng = np.random.default_rng(seed)
+
+    def __call__(self, img: Any) -> Any:
+        import numpy as np
+        from PIL import Image
+
+        if self.rng.random() > self.p:
+            return img
+
+        rgb = img.convert("RGB") if getattr(img, "mode", None) != "RGB" else img
+        w, h = rgb.size
+        if w < 16 or h < 16:
+            return rgb
+
+        arr = np.asarray(rgb, dtype=np.float32)
+        b = max(2, min(h, w) // 12)
+        top = arr[:b, :, :].reshape(-1, 3)
+        bottom = arr[-b:, :, :].reshape(-1, 3)
+        left = arr[b:-b, :b, :].reshape(-1, 3)
+        right = arr[b:-b, -b:, :].reshape(-1, 3)
+        border = np.concatenate([top, bottom, left, right], axis=0)
+
+        bg_color = np.median(border, axis=0)
+        border_dists = np.linalg.norm(border - bg_color[None, :], axis=1)
+        inlier_mask = border_dists < 34.0
+        inlier_ratio = float(np.mean(inlier_mask))
+        border_std = float(np.mean(np.std(border, axis=0)))
+        if border_std > self.max_border_std and inlier_ratio < 0.55:
+            return rgb
+
+        dist = np.linalg.norm(arr - bg_color[None, None, :], axis=2)
+
+        # Restrict background mask to regions connected to the image perimeter so
+        # dark/light cavities inside the specimen are never overwritten
+        candidate_bg = dist < self.color_threshold
+        try:
+            import cv2
+
+            num_labels, labels = cv2.connectedComponents(candidate_bg.astype(np.uint8), connectivity=8)
+            if num_labels > 1:
+                edge_labels = set(
+                    np.unique(
+                        np.concatenate([labels[0, :], labels[-1, :], labels[:, 0], labels[:, -1]])
+                    )
+                ) - {0}
+                connected_bg = np.isin(labels, list(edge_labels))
+                ramp = np.where(
+                    connected_bg,
+                    np.clip((self.color_threshold - dist) / 10.0, 0.0, 1.0),
+                    0.0,
+                )
+            else:
+                ramp = np.clip((self.color_threshold - dist) / 10.0, 0.0, 1.0)
+        except Exception:
+            ramp = np.clip((self.color_threshold - dist) / 10.0, 0.0, 1.0)
+
+        bg_mask = ramp[:, :, None]
+
+        style = int(self.rng.integers(0, 3))
+        if style == 0:
+            # Linear illumination gradient + subtle sensor grain
+            c1 = self.rng.uniform(20.0, 235.0, size=(1, 1, 3)).astype(np.float32)
+            c2 = self.rng.uniform(20.0, 235.0, size=(1, 1, 3)).astype(np.float32)
+            if self.rng.random() < 0.5:
+                t = np.linspace(0.0, 1.0, h, dtype=np.float32)[:, None, None]
+            else:
+                t = np.linspace(0.0, 1.0, w, dtype=np.float32)[None, :, None]
+            syn_bg = c1 * (1.0 - t) + c2 * t
+            noise = self.rng.normal(0.0, 6.0, size=(h, w, 3)).astype(np.float32)
+            syn_bg = syn_bg + noise
+        elif style == 1:
+            # Low-frequency natural bokeh texture via upsampled color grid
+            grid_small = self.rng.uniform(30.0, 225.0, size=(6, 6, 3)).astype(np.uint8)
+            bokeh_img = Image.fromarray(grid_small).resize((w, h), Image.Resampling.BILINEAR)
+            syn_bg = np.asarray(bokeh_img, dtype=np.float32)
+        else:
+            # Ambient surface with radial illumination falloff
+            base_c = self.rng.uniform(40.0, 220.0, size=(1, 1, 3)).astype(np.float32)
+            yy = np.linspace(-1.0, 1.0, h, dtype=np.float32)[:, None]
+            xx = np.linspace(-1.0, 1.0, w, dtype=np.float32)[None, :]
+            rad = np.clip(1.0 - 0.35 * (xx * xx + yy * yy), 0.5, 1.0)[:, :, None]
+            noise = self.rng.normal(0.0, 8.0, size=(h, w, 3)).astype(np.float32)
+            syn_bg = base_c * rad + noise
+
+        blended = np.clip(arr * (1.0 - bg_mask) + syn_bg * bg_mask, 0.0, 255.0).astype(np.uint8)
+        return Image.fromarray(blended)
+
+
+def build_augmentation_transform(
+    policy: str = "basic",
+    img_size: int | tuple[int, int] = 224,
+) -> Any:
+    """Build a torchvision training augmentation pipeline for the specified policy.
+
+    Supported policies:
+    - 'none': Deterministic Resize + ImageNet normalization
+    - 'basic': RandomResizedCrop(0.75-1.0) + flips + gentle ColorJitter
+    - 'randaugment': RandomResizedCrop(0.70-1.0) + flip + RandAugment(2, 9)
+    - 'in_the_wild': RandomBackgroundSwapTransform + multi-scale crop (0.45-1.0)
+      + strong ColorJitter + RandomAutocontrast + RandomErasing
+    """
+    from torchvision import transforms
+
+    size_tuple = (img_size, img_size) if isinstance(img_size, int) else (int(img_size[0]), int(img_size[1]))
+    norm = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+
+    pol = (policy or "basic").strip().lower()
+    if pol == "none":
+        return transforms.Compose([
+            transforms.Resize(size_tuple),
+            transforms.ToTensor(),
+            norm,
+        ])
+    if pol == "randaugment":
+        return transforms.Compose([
+            transforms.RandomResizedCrop(size_tuple, scale=(0.7, 1.0)),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandAugment(num_ops=2, magnitude=9),
+            transforms.ToTensor(),
+            norm,
+        ])
+    if pol == "in_the_wild":
+        return transforms.Compose([
+            RandomBackgroundSwapTransform(p=0.55),
+            transforms.RandomResizedCrop(size_tuple, scale=(0.45, 1.0), ratio=(0.75, 1.33)),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(p=0.25),
+            transforms.RandomApply(
+                [transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.08)],
+                p=0.8,
+            ),
+            transforms.RandomAutocontrast(p=0.3),
+            transforms.ToTensor(),
+            norm,
+            transforms.RandomErasing(p=0.2, scale=(0.02, 0.15), value="random"),
+        ])
+    return transforms.Compose([
+        transforms.RandomResizedCrop(size_tuple, scale=(0.75, 1.0)),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
+        transforms.ColorJitter(brightness=0.15, contrast=0.15),
+        transforms.ToTensor(),
+        norm,
+    ])
+
+

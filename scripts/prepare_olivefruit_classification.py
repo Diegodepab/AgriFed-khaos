@@ -23,7 +23,7 @@ def find_default_raw_dir() -> str:
         Path("/data/olivefruit_v1.1/OliveFruit_v1.1/dataset"),
         Path("/data/OliveFruit_v1.1/dataset"),
         Path("data/OliveFruit_v1.1/dataset"),
-        Path("/home/diego/agriKhaos/olivefruit_v1.1/OliveFruit_v1.1/dataset"),
+        Path.home() / "agriKhaos/olivefruit_v1.1/OliveFruit_v1.1/dataset",
     ]
     for c in candidates:
         if c.is_dir():

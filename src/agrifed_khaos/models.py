@@ -68,7 +68,7 @@ def build_model(
         m_mob.classifier[3] = nn.Linear(in_feat, num_classes)
         return cast(nn.Module, m_mob)
 
-    # 3. Native EfficientNet-B0
+    # 3. Native EfficientNet (B0, V2-S, V2-M, V2-L)
     elif arch in {"efficientnet_b0", "efficientnet"}:
         m_eff = models.efficientnet_b0(
             weights=models.EfficientNet_B0_Weights.DEFAULT if pretrained else None
@@ -76,19 +76,85 @@ def build_model(
         in_feat = m_eff.classifier[1].in_features
         m_eff.classifier[1] = nn.Linear(in_feat, num_classes)
         return cast(nn.Module, m_eff)
+    elif arch in {"efficientnet_v2_s", "efficientnetv2_s"}:
+        m_eff_v2s = models.efficientnet_v2_s(
+            weights=models.EfficientNet_V2_S_Weights.DEFAULT if pretrained else None
+        )
+        in_feat = m_eff_v2s.classifier[1].in_features
+        m_eff_v2s.classifier[1] = nn.Linear(in_feat, num_classes)
+        return cast(nn.Module, m_eff_v2s)
+    elif arch in {"efficientnet_v2_m", "efficientnetv2_m"}:
+        m_eff_v2m = models.efficientnet_v2_m(
+            weights=models.EfficientNet_V2_M_Weights.DEFAULT if pretrained else None
+        )
+        in_feat = m_eff_v2m.classifier[1].in_features
+        m_eff_v2m.classifier[1] = nn.Linear(in_feat, num_classes)
+        return cast(nn.Module, m_eff_v2m)
+    elif arch in {"efficientnet_v2_l", "efficientnetv2_l"}:
+        m_eff_v2l = models.efficientnet_v2_l(
+            weights=models.EfficientNet_V2_L_Weights.DEFAULT if pretrained else None
+        )
+        in_feat = m_eff_v2l.classifier[1].in_features
+        m_eff_v2l.classifier[1] = nn.Linear(in_feat, num_classes)
+        return cast(nn.Module, m_eff_v2l)
 
-    # 4. Timm Library Models (ConvNeXt, ViT, Swin, MobileNetV4, etc.)
+    # 3b. Native Swin Transformer & ViT (Torchvision fallbacks & aliases)
+    elif arch in {"swin_t", "swin_tiny"}:
+        m_swin = models.swin_t(
+            weights=models.Swin_T_Weights.DEFAULT if pretrained else None
+        )
+        in_feat = m_swin.head.in_features
+        m_swin.head = nn.Linear(in_feat, num_classes)
+        return cast(nn.Module, m_swin)
+    elif arch in {"vit_b_16", "vit_base"}:
+        m_vit = models.vit_b_16(
+            weights=models.ViT_B_16_Weights.DEFAULT if pretrained else None
+        )
+        in_feat = m_vit.heads.head.in_features
+        m_vit.heads.head = nn.Linear(in_feat, num_classes)
+        return cast(nn.Module, m_vit)
+
+    # 4. Timm Library Models (ConvNeXt-IN12k/22k, ViT, EVA-02, DINOv2, Swin, MobileNetV4, etc.)
+    timm_aliases = {
+        "dinov2_vits14": "vit_small_patch14_dinov2.lvd142m",
+        "eva02_tiny": "eva02_tiny_patch14_224",
+        "convnext_tiny_in12k": "convnext_tiny.in12k_ft_in1k",
+    }
+    resolved_timm_name = timm_aliases.get(arch, architecture)
+
     try:
         import timm
 
-        m_timm = timm.create_model(architecture, pretrained=pretrained, num_classes=num_classes)
+        extra_kwargs: dict[str, Any] = {}
+        if any(k in resolved_timm_name.lower() for k in ("dinov2", "eva02", "vit_", "swin")):
+            extra_kwargs["dynamic_img_size"] = True
+
+        try:
+            m_timm = timm.create_model(
+                resolved_timm_name,
+                pretrained=pretrained,
+                num_classes=num_classes,
+                **extra_kwargs,
+            )
+        except TypeError:
+            m_timm = timm.create_model(
+                resolved_timm_name, pretrained=pretrained, num_classes=num_classes
+            )
+        except Exception:
+            # Try normalizing underscore variations (e.g. efficientnet_v2_s -> efficientnetv2_s)
+            alt_name = (
+                resolved_timm_name.replace("_v2_", "v2_")
+                .replace("_v3_", "v3_")
+                .replace("_v4_", "v4_")
+            )
+            m_timm = timm.create_model(alt_name, pretrained=pretrained, num_classes=num_classes)
         return cast(nn.Module, m_timm)
     except Exception as exc:
         raise ValueError(
             f"Unsupported vision architecture '{architecture}'. "
-            f"Supported native: resnet18, resnet34, resnet50, mobilenet_v3_small, "
-            f"mobilenet_v3_large, efficientnet_b0, or any valid timm model name "
-            f"(e.g. convnext_tiny, vit_tiny_patch16_224)."
+            "Supported native: resnet18, resnet34, resnet50, mobilenet_v3_small, "
+            "mobilenet_v3_large, efficientnet_b0, efficientnet_v2_s, efficientnet_v2_m, "
+            "efficientnet_v2_l, or any valid timm model name (e.g. convnext_tiny)."
         ) from exc
 
 
