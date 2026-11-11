@@ -5,72 +5,66 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>KHAOS &bull; Administración & Model Registry</title>
   <meta name="description" content="Centro de Control MLOps & Orquestación Federada">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="/static/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <script>
     (function() {
       const origWarn = console.warn;
       console.warn = function(...args) {
-        if (args.length > 0 && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
+        if (args.length > 0 && typeof args[0] === 'string' && (args[0].includes('cdn.tailwindcss.com') || args[0].includes('tailwindcss.js'))) {
           return;
         }
         origWarn.apply(console, args);
       };
     })();
   </script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
-          },
-        },
-      },
-    };
-  </script>
+  <link rel="preload" href="/static/khaos-bundle.min.css" as="style">
+  <link rel="stylesheet" href="/static/khaos-bundle.min.css">
   <link rel="stylesheet" href="/static/khaos-ui.css">
-  <script src="/static/khaos-ui.js"></script>
+  <script src="/static/khaos-ui.js" defer></script>
 </head>
 <body class="min-h-full flex flex-col font-sans text-slate-900 antialiased selection:bg-slate-200 selection:text-slate-900">
 
   <!-- Top Navigation Bar -->
   <header class="sticky top-0 z-40 w-full border-b border-slate-200/60 bg-white/80 backdrop-blur-md">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex h-16 items-center justify-between">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <div class="flex h-16 items-center justify-between gap-2">
         
         <!-- Brand Identity -->
-        <a href="/" class="flex items-center gap-3 group">
-          <div class="h-8 w-8 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-2xs group-hover:bg-slate-800 transition-colors">
-            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-              <line x1="12" y1="22.08" x2="12" y2="12"/>
-            </svg>
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-semibold tracking-tight text-slate-900">KHAOS <span class="text-slate-400 font-normal">Hub</span></span>
-            <span class="hidden sm:inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-50 text-slate-500 ring-1 ring-inset ring-slate-500/10 uppercase tracking-wider">Data Space</span>
+        <a href="/" class="flex items-center gap-2 sm:gap-3 group shrink-0">
+          <picture>
+            <source srcset="/static/logo.webp" type="image/webp">
+            <img src="/static/logo.png" alt="KHAOS Logo" width="32" height="32" class="h-7 w-7 sm:h-8 sm:w-8 rounded-lg object-contain group-hover:scale-105 transition-transform shrink-0" fetchpriority="high" />
+          </picture>
+          <div class="flex items-center gap-1.5 sm:gap-2">
+            <span class="text-xs sm:text-sm font-semibold tracking-tight text-slate-900">KHAOS <span class="text-slate-600 font-normal">Hub</span></span>
+            <span class="hidden md:inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10 uppercase tracking-wider">Data Space</span>
           </div>
         </a>
 
         <!-- Right Actions: Nav + Help -->
-        <div class="flex items-center gap-2 sm:gap-3">
+        <div class="flex items-center gap-1.5 sm:gap-3">
           <!-- Navigation Links -->
-          <nav class="flex items-center gap-1 bg-slate-100/80 p-1 rounded-lg">
-            <a href="/" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+          <nav class="flex items-center gap-0.5 sm:gap-1 bg-slate-100/80 p-0.5 sm:p-1 rounded-lg" aria-label="Navegación principal">
+            <a href="/" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[11px] sm:text-xs font-medium text-slate-700 hover:text-slate-900 transition-colors">
               Modelos
               <span class="sr-only">Catálogo de Modelos</span>
             </a>
-            <a href="/expert" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+            <a href="/expert" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[11px] sm:text-xs font-medium text-slate-700 hover:text-slate-900 transition-colors">
               Evaluación
             </a>
-            <a href="/master" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-900 bg-white shadow-2xs">
+            <a href="/master" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[11px] sm:text-xs font-semibold text-slate-900 bg-white shadow-2xs">
               Administración
               <span class="sr-only">Centro de Control MLOps</span>
               <span class="sr-only">Job Runner</span>
+            </a>
+            <a href="/accounts" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[11px] sm:text-xs font-medium text-slate-700 hover:text-slate-900 transition-colors">
+              Cuentas
             </a>
           </nav>
 
@@ -78,21 +72,24 @@
           <button
             type="button"
             onclick="openContextualHelp()"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            class="inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors shrink-0"
             title="Guía y Ayuda del Módulo"
           >
             <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
-            <span class="hidden sm:inline">Ayuda</span>
+            <span class="hidden md:inline">Ayuda</span>
           </button>
+
+          <!-- Profile / Login Slot -->
+          <div id="khHeaderProfileMount" class="flex items-center shrink-0"></div>
         </div>
       </div>
     </div>
   </header>
 
   <!-- Main Container -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+  <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-6 sm:space-y-10">
 
     <!-- Minimalist Page Header -->
     <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
@@ -117,7 +114,7 @@
     </div>
 
     <!-- Section 1: Active Model Registry (Logical Models) -->
-    <section id="secMasterCatalog" class="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6 sm:p-8 space-y-6 transition-all duration-300 hover:shadow-md">
+    <section id="secMasterCatalog" class="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 transition-all duration-300 hover:shadow-md">
       <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <div class="flex items-center gap-2.5">
@@ -130,7 +127,7 @@
         </div>
 
         <!-- Search & Segmented Filter Controls -->
-        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3">
           <div class="relative w-full sm:w-72">
             <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
             <input
@@ -142,7 +139,7 @@
             >
           </div>
 
-          <div class="bg-slate-100 p-1 rounded-lg inline-flex items-center gap-0.5 self-start sm:self-auto shrink-0">
+          <div class="bg-slate-100 p-1 rounded-lg inline-flex items-center gap-0.5 self-start sm:self-auto shrink-0" role="group" aria-label="Filtrar por estado del modelo">
             <button
               type="button"
               id="filterAll"
@@ -155,7 +152,7 @@
               type="button"
               id="filterActive"
               onclick="setModelStatusFilter('active')"
-              class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-all duration-200"
+              class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 transition-all duration-200"
             >
               En Servicio
             </button>
@@ -163,28 +160,58 @@
               type="button"
               id="filterInactive"
               onclick="setModelStatusFilter('inactive')"
-              class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-all duration-200"
+              class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 transition-all duration-200"
             >
               Inactivos
+            </button>
+          </div>
+
+          <!-- Modality Filter (Detection vs Classification) -->
+          <div class="bg-slate-100 p-1 rounded-lg inline-flex items-center gap-0.5 self-start sm:self-auto shrink-0" role="group" aria-label="Filtrar por modalidad de visión">
+            <button
+              type="button"
+              id="taskFilterAll"
+              onclick="setModelTaskFilter('all')"
+              class="px-2.5 py-1.5 rounded-md text-xs font-medium bg-white text-slate-900 shadow-2xs transition-all duration-200"
+            >
+              Todas
+            </button>
+            <button
+              type="button"
+              id="taskFilterDetection"
+              onclick="setModelTaskFilter('detection')"
+              class="px-2.5 py-1.5 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 transition-all duration-200 inline-flex items-center gap-1.5"
+            >
+              <svg class="w-3.5 h-3.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg>
+              <span>Detección</span>
+            </button>
+            <button
+              type="button"
+              id="taskFilterClassification"
+              onclick="setModelTaskFilter('classification')"
+              class="px-2.5 py-1.5 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 transition-all duration-200 inline-flex items-center gap-1.5"
+            >
+              <svg class="w-3.5 h-3.5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+              <span>Clasificación</span>
             </button>
           </div>
         </div>
       </div>
 
       <!-- Borderless Models Table -->
-      <div class="overflow-x-auto -mx-6 sm:-mx-8 px-6 sm:px-8">
-        <table class="w-full text-left text-xs text-slate-600">
-          <thead class="text-[11px] uppercase tracking-wider font-medium text-slate-400 border-b border-slate-100">
+      <div class="overflow-x-auto -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 min-h-[360px]">
+        <table class="w-full text-left text-xs text-slate-600 min-w-[580px]">
+          <thead class="text-[11px] uppercase tracking-wider font-semibold text-slate-600 border-b border-slate-100">
             <tr>
-              <th class="pb-3 pr-4 font-medium">Modelo</th>
-              <th class="pb-3 px-4 font-medium">Dominio</th>
-              <th class="pb-3 px-4 font-medium">Checkpoint Activo</th>
-              <th class="pb-3 px-4 font-medium">Clases</th>
-              <th class="pb-3 pl-4 text-right font-medium">Acciones</th>
+              <th class="pb-3 pr-4 font-semibold">Modelo</th>
+              <th class="pb-3 px-4 font-semibold">Dominio</th>
+              <th class="pb-3 px-4 font-semibold">Checkpoint Activo</th>
+              <th class="pb-3 px-4 font-semibold">Clases</th>
+              <th class="pb-3 pl-4 text-right font-semibold">Acciones</th>
             </tr>
           </thead>
           <tbody id="logicalModelsTbody" class="divide-y divide-slate-100">
-            <tr><td colspan="5" class="py-8 text-center text-slate-400">Cargando catálogo...</td></tr>
+            <tr><td colspan="5" class="py-16 text-center text-slate-500">Cargando catálogo...</td></tr>
           </tbody>
         </table>
       </div>
@@ -194,7 +221,7 @@
     <div id="secMasterLowerGrid">
 
       <!-- Physical Checkpoints in models/ (5 cols) -->
-      <section id="secMasterCheckpoints" class="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6 sm:p-8 space-y-5 transition-all duration-300 hover:shadow-md">
+      <section id="secMasterCheckpoints" class="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-5 transition-all duration-300 hover:shadow-md">
         <div class="flex items-center justify-between">
           <div>
             <h2 class="text-base font-semibold text-slate-900 tracking-tight">Checkpoints en Disco</h2>
@@ -203,14 +230,14 @@
           <button onclick="loadPhysicalModels()" class="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all">Actualizar</button>
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs text-slate-600">
-            <thead class="text-[11px] uppercase tracking-wider font-medium text-slate-400 border-b border-slate-100">
+        <div class="overflow-x-auto -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8 min-h-[220px]">
+          <table class="w-full text-left text-xs text-slate-600 min-w-[460px]">
+            <thead class="text-[11px] uppercase tracking-wider font-semibold text-slate-600 border-b border-slate-100">
               <tr>
-                <th class="pb-2.5 pr-2 font-medium">Archivo</th>
-                <th class="pb-2.5 px-2 font-medium">Red</th>
-                <th class="pb-2.5 px-2 font-medium">Tamaño</th>
-                <th class="pb-2.5 pl-2 text-right font-medium">Estado</th>
+                <th class="pb-2.5 pr-2 font-semibold">Archivo</th>
+                <th class="pb-2.5 px-2 font-semibold">Red</th>
+                <th class="pb-2.5 px-2 font-semibold">Tamaño</th>
+                <th class="pb-2.5 pl-2 text-right font-semibold">Estado</th>
               </tr>
             </thead>
             <tbody id="physicalModelsTbody" class="divide-y divide-slate-100">
@@ -223,7 +250,7 @@
     </div>
 
     <!-- Real-Time Job Runner Terminal Monitor -->
-    <section id="secMasterTerminal" class="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6 sm:p-8 space-y-4 transition-all duration-300 hover:shadow-md">
+    <section id="secMasterTerminal" class="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-4 sm:p-6 md:p-8 space-y-4 transition-all duration-300 hover:shadow-md">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <div class="flex items-center gap-2.5">
@@ -238,7 +265,17 @@
           </div>
         </div>
 
-        <div class="flex items-center gap-1.5 self-start sm:self-auto">
+        <div class="flex flex-wrap items-center gap-1.5 self-start sm:self-auto">
+          <button
+            type="button"
+            id="btnCancelActiveJob"
+            onclick="cancelCurrentJob()"
+            class="hidden text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200/80 rounded-md px-3 py-1.5 text-xs font-semibold transition-all shadow-2xs"
+            title="Detener el trabajo en ejecución inmediatamente"
+          >
+            Cancelar Tarea
+          </button>
+
           <button
             type="button"
             onclick="clearMasterTerminal()"
@@ -264,6 +301,24 @@
             Sincronizar
           </button>
         </div>
+      </div>
+
+      <!-- Cola de Tareas en Espera (FIFO) -->
+      <div id="masterJobQueueContainer" class="hidden rounded-xl border border-slate-200/90 bg-slate-50/70 p-3.5 text-xs space-y-2.5 transition-all">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-slate-600"></span>
+            </span>
+            <span class="font-semibold text-slate-800 tracking-tight">Cola de Tareas en Espera</span>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white text-slate-700 border border-slate-200 shadow-2xs">
+              <span id="queueCountSpan">0</span> pendientes
+            </span>
+          </div>
+          <span class="text-[11px] text-slate-500 font-medium hidden sm:inline">Planificación FIFO secuencial sin riesgo de sobrecarga</span>
+        </div>
+        <div id="masterJobQueueList" class="space-y-1.5 pt-0.5"></div>
       </div>
 
       <div
@@ -295,15 +350,15 @@
       </div>
 
       <!-- Borderless Trash Table -->
-      <div class="overflow-x-auto -mx-6 sm:-mx-8 px-6 sm:px-8">
+      <div class="overflow-x-auto -mx-6 sm:-mx-8 px-6 sm:px-8 min-h-[160px]">
         <table class="w-full text-left text-xs text-slate-600">
-          <thead class="text-[11px] uppercase tracking-wider font-medium text-slate-400 border-b border-slate-100">
+          <thead class="text-[11px] uppercase tracking-wider font-semibold text-slate-600 border-b border-slate-100">
             <tr>
-              <th class="pb-3 pr-4 font-medium">Modelo Oculto</th>
-              <th class="pb-3 px-4 font-medium">Eliminado</th>
-              <th class="pb-3 px-4 font-medium">Retención Restante</th>
-              <th class="pb-3 px-4 font-medium">Tamaño</th>
-              <th class="pb-3 pl-4 text-right font-medium">Acciones</th>
+              <th class="pb-3 pr-4 font-semibold">Modelo Oculto</th>
+              <th class="pb-3 px-4 font-semibold">Eliminado</th>
+              <th class="pb-3 px-4 font-semibold">Retención Restante</th>
+              <th class="pb-3 px-4 font-semibold">Tamaño</th>
+              <th class="pb-3 pl-4 text-right font-semibold">Acciones</th>
             </tr>
           </thead>
           <tbody id="trashModelsTbody" class="divide-y divide-slate-100">
@@ -726,8 +781,8 @@
               <div>
                 <div class="flex items-center gap-2">
                   <h4 class="text-sm font-semibold text-slate-900 tracking-tight">Telemetría y Rendimiento</h4>
-                  <span id="telemetryDeltaBadge" class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/15">
-                    +25.0% vs R1
+                  <span id="telemetryDeltaBadge" class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200">
+                    -
                   </span>
                 </div>
                 <p class="text-xs text-slate-500 mt-0.5">
@@ -749,11 +804,11 @@
               <div class="rounded-xl bg-slate-50/70 ring-1 ring-inset ring-slate-200/70 p-4 space-y-3">
                 <div class="flex items-center justify-between gap-2">
                   <div>
-                    <div class="text-[11px] font-semibold text-slate-700">Evolución de Precisión (Accuracy / Macro-F1)</div>
+                    <div id="sparklineCardTitle" class="text-[11px] font-semibold text-slate-700">Evolución de Precisión (Accuracy / Macro-F1)</div>
                     <div class="text-[10px] text-slate-400 font-mono mt-0.5">Historial de rondas (history.json)</div>
                   </div>
                   <div class="text-right">
-                    <span id="sparklineLatestValue" class="text-base font-bold text-slate-900 font-mono tabular-nums">85.0%</span>
+                    <span id="sparklineLatestValue" class="text-base font-bold text-slate-900 font-mono tabular-nums">-</span>
                   </div>
                 </div>
                 <div id="inspectorSparklineContainer" class="w-full h-36"></div>
@@ -763,10 +818,10 @@
               <div class="rounded-xl bg-slate-50/70 ring-1 ring-inset ring-slate-200/70 p-4 space-y-3">
                 <div class="flex items-center justify-between gap-2">
                   <div>
-                    <div class="text-[11px] font-semibold text-slate-700">Matriz de Confusión Reciente</div>
-                    <div class="text-[10px] text-slate-400 font-mono mt-0.5">Pasa el cursor para ver el desglose exacto</div>
+                    <div id="inspectorMatrixTitle" class="text-[11px] font-semibold text-slate-700">Matriz de Confusión Reciente</div>
+                    <div id="inspectorMatrixSubtitle" class="text-[10px] text-slate-400 font-mono mt-0.5">Pasa el cursor para ver el desglose exacto</div>
                   </div>
-                  <span class="text-[10px] font-mono text-slate-400">Real vs Pred</span>
+                  <span id="inspectorMatrixBadge" class="text-[10px] font-mono text-slate-400">Real vs Pred</span>
                 </div>
                 <div id="inspectorMatrixHeatmapContainer" class="w-full overflow-x-auto"></div>
               </div>
@@ -967,27 +1022,27 @@
           <!-- Key Metrics Grid: Standard Data Science Suite (6 Metrics) -->
           <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
             <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-              <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Precisión Global</div>
+              <div id="metricCardLabel1" class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Precisión Global</div>
               <div id="metricAccuracy" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1">-</div>
             </div>
             <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-              <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Macro Precision</div>
+              <div id="metricCardLabel2" class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Macro Precision</div>
               <div id="metricPrecision" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1">-</div>
             </div>
             <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-              <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Macro Recall</div>
+              <div id="metricCardLabel3" class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Macro Recall</div>
               <div id="metricRecall" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1">-</div>
             </div>
             <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-              <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Macro F1-Score</div>
+              <div id="metricCardLabel4" class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Macro F1-Score</div>
               <div id="metricF1" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1">-</div>
             </div>
             <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-              <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Pérdida (Loss)</div>
+              <div id="metricCardLabel5" class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Pérdida (Loss)</div>
               <div id="metricLoss" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1">-</div>
             </div>
             <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-              <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Temperatura (T*)</div>
+              <div id="metricCardLabel6" class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Temperatura (T*)</div>
               <div id="metricTemp" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1">1.00</div>
             </div>
           </div>
@@ -1375,6 +1430,30 @@
       }
     }
 
+    let currentModelTaskFilter = 'all';
+
+    function isModelDetection(m) {
+      if (m.task === 'detection') return true;
+      const arch = (m.architecture || '').toLowerCase();
+      return arch.startsWith('yolo');
+    }
+
+    function setModelTaskFilter(filter) {
+      currentModelTaskFilter = filter;
+      const btnAll = document.getElementById('taskFilterAll');
+      const btnDet = document.getElementById('taskFilterDetection');
+      const btnClf = document.getElementById('taskFilterClassification');
+
+      const activeClass = 'px-2.5 py-1.5 rounded-md text-xs font-medium bg-white text-slate-900 shadow-2xs transition-all duration-200';
+      const inactiveClass = 'px-2.5 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-all duration-200';
+
+      if (btnAll) btnAll.className = filter === 'all' ? activeClass : inactiveClass;
+      if (btnDet) btnDet.className = (filter === 'detection' ? activeClass : inactiveClass) + ' inline-flex items-center gap-1.5';
+      if (btnClf) btnClf.className = (filter === 'classification' ? activeClass : inactiveClass) + ' inline-flex items-center gap-1.5';
+
+      filterModelsTable();
+    }
+
     function setModelStatusFilter(filter) {
       currentModelFilter = filter;
       const btnAll = document.getElementById('filterAll');
@@ -1405,8 +1484,13 @@
         );
         if (!matchTerm) return false;
 
-        if (currentModelFilter === 'active') return Boolean(m.active_checkpoint);
-        if (currentModelFilter === 'inactive') return !m.active_checkpoint;
+        if (currentModelFilter === 'active' && !m.active_checkpoint) return false;
+        if (currentModelFilter === 'inactive' && m.active_checkpoint) return false;
+
+        const isDet = isModelDetection(m);
+        if (currentModelTaskFilter === 'detection' && !isDet) return false;
+        if (currentModelTaskFilter === 'classification' && isDet) return false;
+
         return true;
       });
 
@@ -1452,26 +1536,40 @@
       modelsList.forEach(m => {
         const slug = m.slug || m.name?.replace('.pt', '');
         const isActive = Boolean(m.is_active);
+        const isDet = isModelDetection(m);
+        const taskBadge = isDet
+          ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-600/20 shrink-0" title="Detección de Objetos: genera cajas delimitadoras (Bounding Boxes)">
+              <svg class="w-2.5 h-2.5 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg>
+              DETECCIÓN
+            </span>`
+          : `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-400/20 shrink-0" title="Clasificación de Imagen: predicción global de la imagen completa">
+              <svg class="w-2.5 h-2.5 text-slate-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+              CLASIFICACIÓN
+            </span>`;
+
         const row = document.createElement('tr');
         row.className = 'hover:bg-slate-50 transition-colors duration-150';
         row.innerHTML = `
           <td class="py-4 pr-4">
             <div class="flex items-center">
               ${m.thumbnail_url ? `
-                <img src="${escapeHtml(m.thumbnail_url)}" alt="" class="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0 bg-slate-100 mr-3 shadow-2xs">
+                <img src="${escapeHtml(m.thumbnail_url)}" alt="Miniatura de ${escapeHtml(m.title || slug)}" width="40" height="40" loading="lazy" decoding="async" class="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0 bg-slate-100 mr-3 shadow-2xs">
               ` : `
-                <div class="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 text-slate-400 flex items-center justify-center shrink-0 mr-3 shadow-2xs">
-                  <svg class="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                <div class="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 flex items-center justify-center shrink-0 mr-3 shadow-2xs">
+                  <svg class="w-5 h-5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                 </div>
               `}
               <div class="min-w-0">
-                <div class="font-semibold text-slate-900 truncate">${m.title || slug}</div>
-                <div class="font-mono text-[11px] text-slate-500 mt-0.5">/models/${slug}</div>
+                <div class="flex items-center gap-2">
+                  <span class="font-semibold text-slate-900 truncate">${escapeHtml(m.title || slug)}</span>
+                  ${taskBadge}
+                </div>
+                <div class="font-mono text-[11px] text-slate-600 mt-0.5">/models/${slug}</div>
               </div>
             </div>
           </td>
           <td class="py-4 px-4">
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10">${m.domain || 'General'}</span>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10">${escapeHtml(m.domain || 'General')}</span>
           </td>
           <td class="py-4 px-4 font-mono text-[11px] text-slate-600">
             <div class="flex items-center gap-2">
@@ -1479,19 +1577,19 @@
               ${isActive ? '<span class="inline-flex items-center px-2 py-0.5 rounded-md font-sans text-[10px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10">EN PRODUCCIÓN</span>' : ''}
             </div>
           </td>
-          <td class="py-4 px-4 text-slate-500">${(m.classes || []).length} clases</td>
+          <td class="py-4 px-4 text-slate-600 font-medium">${(m.classes || []).length} clases</td>
           <td class="py-4 pl-4 text-right whitespace-nowrap">
             <div class="inline-flex items-center justify-end gap-1">
-              <button onclick="openModelInspector('${slug}')" aria-label="Inspeccionar ${slug}" class="bg-slate-900 text-white hover:bg-slate-800 rounded-lg px-4 py-2 text-xs font-medium transition-all mr-1">
+              <button onclick="openModelInspector('${slug}')" aria-label="Inspeccionar ${escapeHtml(m.title || slug)}" class="bg-slate-900 text-white hover:bg-slate-800 rounded-lg px-4 py-2 text-xs font-medium transition-all mr-1">
                 Inspeccionar
               </button>
-              <a href="/models/${encodeURIComponent(slug)}" class="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all">Ver</a>
-              <a href="/models/${encodeURIComponent(slug)}/expert" class="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all">Curación</a>
-              <button onclick="editModel('${slug}')" class="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all">Editar</button>
+              <a href="/models/${encodeURIComponent(slug)}" aria-label="Ver ficha pública de ${escapeHtml(m.title || slug)}" class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all">Ver</a>
+              <a href="/models/${encodeURIComponent(slug)}/expert" aria-label="Curación de modelo ${escapeHtml(m.title || slug)}" class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all">Curación</a>
+              <button onclick="editModel('${slug}')" aria-label="Editar metadatos de ${escapeHtml(m.title || slug)}" class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all">Editar</button>
               ${m.active_checkpoint ? `
-                <button onclick="archiveModel('${slug}')" class="text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all" title="Desactivar y archivar pesos activos">Archivar</button>
+                <button onclick="archiveModel('${slug}')" aria-label="Archivar checkpoint de ${escapeHtml(m.title || slug)}" class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all" title="Desactivar y archivar pesos activos">Archivar</button>
               ` : ''}
-              <button onclick="openSoftDeleteModal('${slug}', '${(m.title || slug).replace(/'/g, "\\'")}', ${isActive})" class="text-red-500 hover:bg-red-50 rounded-md px-3 py-1.5 text-xs font-medium transition-all">Eliminar</button>
+              <button onclick="openSoftDeleteModal('${slug}', '${(m.title || slug).replace(/'/g, "\\'")}', ${isActive})" aria-label="Eliminar modelo ${(m.title || slug).replace(/'/g, "\\'")}" class="text-red-600 hover:bg-red-50 rounded-md px-3 py-1.5 text-xs font-medium transition-all">Eliminar</button>
             </div>
           </td>
         `;
@@ -1551,13 +1649,14 @@
               <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20">
                 ${daysLeft}
               </span>
-              <div class="text-[11px] text-slate-400 mt-1 font-mono">${t.purge_after || ''}</div>
+              <div class="text-[11px] text-slate-600 mt-1 font-mono">${t.purge_after || ''}</div>
             </td>
             <td class="py-4 px-4 font-mono text-[11px] text-slate-500">${sizeMb}</td>
             <td class="py-4 pl-4 text-right whitespace-nowrap">
               <div class="inline-flex items-center justify-end gap-1">
                 <button
                   onclick="restoreModel('${slug}')"
+                  aria-label="Restaurar modelo ${(t.title || slug).replace(/'/g, "\\'")}"
                   class="text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
                   title="Restaurar de inmediato al catálogo activo"
                 >
@@ -1565,7 +1664,8 @@
                 </button>
                 <button
                   onclick="openHardPurgeModal('${slug}', '${(t.title || slug).replace(/'/g, "\\'")}')"
-                  class="text-red-500 hover:bg-red-50 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
+                  aria-label="Purgar Ahora: eliminar definitivamente ${(t.title || slug).replace(/'/g, "\\'")}"
+                  class="text-red-600 hover:bg-red-50 rounded-md px-3 py-1.5 text-xs font-medium transition-all"
                   title="Purgar y eliminar permanentemente del disco"
                 >
                   Purgar Ahora
@@ -1975,6 +2075,41 @@
         if (!res.ok) return;
         const d = await res.json();
 
+        const btnCancel = document.getElementById('btnCancelActiveJob');
+        if (btnCancel) {
+          if (d.is_running) btnCancel.classList.remove('hidden');
+          else btnCancel.classList.add('hidden');
+        }
+
+        const qContainer = document.getElementById('masterJobQueueContainer');
+        const qList = document.getElementById('masterJobQueueList');
+        const qCount = document.getElementById('queueCountSpan');
+        if (d.queue && d.queue.length > 0) {
+          if (qContainer) qContainer.classList.remove('hidden');
+          if (qCount) qCount.textContent = d.queue.length;
+          if (qList) {
+            qList.innerHTML = d.queue.map(item => `
+              <div class="flex items-center justify-between bg-white border border-slate-200/90 rounded-lg px-3 py-2 shadow-2xs transition-all hover:border-slate-300">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <span class="inline-flex items-center justify-center min-w-[24px] h-5 px-1.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-mono text-[10px] font-semibold shrink-0">#${item.position}</span>
+                  <span class="font-mono text-slate-900 text-xs font-semibold truncate">${escapeHtml(item.action)}</span>
+                  <span class="text-slate-400 text-[11px] font-mono shrink-0">(${item.created_at})</span>
+                </div>
+                <button
+                  type="button"
+                  onclick="cancelQueuedJob('${item.job_id}')"
+                  class="text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 rounded-md px-2.5 py-1 text-[11px] font-medium transition-all shrink-0 cursor-pointer"
+                  title="Descartar de la cola"
+                >
+                  Descartar
+                </button>
+              </div>
+            `).join('');
+          }
+        } else {
+          if (qContainer) qContainer.classList.add('hidden');
+        }
+
         if (d.is_running) {
           wasJobRunning = true;
           toggleTerminalVisibility(true);
@@ -2014,6 +2149,38 @@
       } catch (e) {}
     }
 
+    async function cancelCurrentJob() {
+      if (!confirm('¿Seguro que desea cancelar la tarea actualmente en ejecución?')) return;
+      try {
+        const res = await fetch('/api/master/jobs/cancel', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          if (window.KhaosUI && KhaosUI.toast) KhaosUI.toast('Cancelación solicitada con éxito.', 'info');
+          pollStatus();
+        } else {
+          alert('Error al cancelar: ' + (data.detail || res.statusText));
+        }
+      } catch (e) {
+        alert('Error de conexión: ' + e.message);
+      }
+    }
+
+    async function cancelQueuedJob(jobId) {
+      if (!confirm('¿Desea eliminar esta tarea de la cola de espera?')) return;
+      try {
+        const res = await fetch(`/api/master/jobs/cancel?job_id=${encodeURIComponent(jobId)}`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          if (window.KhaosUI && KhaosUI.toast) KhaosUI.toast('Tarea eliminada de la cola.', 'info');
+          pollStatus();
+        } else {
+          alert('Error al descartar de la cola: ' + (data.detail || res.statusText));
+        }
+      } catch (e) {
+        alert('Error de conexión: ' + e.message);
+      }
+    }
+
     let currentInspectorSlug = null;
     let currentInspectorData = null;
     let isObservabilityExpanded = true;
@@ -2037,10 +2204,28 @@
       const container = document.getElementById(containerId);
       if (!container) return;
 
-      const pts = Array.isArray(dataPoints) && dataPoints.length > 0
-        ? dataPoints.map(Number)
-        : [60, 68, 74, 81, 85];
+      const latestEl = document.getElementById('sparklineLatestValue');
+      const deltaBadge = document.getElementById('telemetryDeltaBadge');
 
+      if (!Array.isArray(dataPoints) || dataPoints.length === 0) {
+        if (latestEl) latestEl.textContent = 'N/A';
+        if (deltaBadge) {
+          deltaBadge.textContent = 'Sin historial';
+          deltaBadge.className = 'inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200';
+        }
+        container.innerHTML = `
+          <div class="h-full flex flex-col items-center justify-center text-xs text-slate-400 p-4 text-center">
+            <svg class="w-6 h-6 text-slate-300 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M3 3v18h18" />
+              <path d="m19 9-5 5-4-4-3 3" />
+            </svg>
+            <span>Sin rondas federadas acumuladas</span>
+          </div>
+        `;
+        return;
+      }
+
+      const pts = dataPoints.map(Number);
       const width = 320;
       const height = 128;
       const padLeft = 28;
@@ -2054,36 +2239,47 @@
       const maxVal = Math.min(100, Math.ceil((Math.max(...pts) + 5) / 5) * 5);
       const range = Math.max(1, maxVal - minVal);
 
+      // Update header badges
+      if (latestEl) latestEl.textContent = `${pts[pts.length - 1].toFixed(1)}%`;
+      if (deltaBadge) {
+        if (pts.length > 1) {
+          const delta = pts[pts.length - 1] - pts[0];
+          const sign = delta >= 0 ? '+' : '';
+          deltaBadge.textContent = `${sign}${delta.toFixed(1)}% vs R1`;
+          deltaBadge.className = delta >= 0
+            ? 'inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/15'
+            : 'inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/15';
+        } else {
+          deltaBadge.textContent = 'Ronda 1 (Base)';
+          deltaBadge.className = 'inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200';
+        }
+      }
+
       const coords = pts.map((v, i) => {
         const x = padLeft + (pts.length === 1 ? plotW / 2 : (i / (pts.length - 1)) * plotW);
         const y = padTop + plotH - ((v - minVal) / range) * plotH;
         return { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)), val: v, round: i + 1 };
       });
 
-      // Build smooth cubic bezier path
       let linePath = `M ${coords[0].x} ${coords[0].y}`;
-      for (let i = 0; i < coords.length - 1; i++) {
-        const p0 = coords[i];
-        const p1 = coords[i + 1];
-        const cpx1 = (p0.x + p1.x) / 2;
-        const cpy1 = p0.y;
-        const cpx2 = (p0.x + p1.x) / 2;
-        const cpy2 = p1.y;
-        linePath += ` C ${cpx1.toFixed(1)} ${cpy1.toFixed(1)}, ${cpx2.toFixed(1)} ${cpy2.toFixed(1)}, ${p1.x} ${p1.y}`;
+      if (coords.length === 1) {
+        linePath = `M ${padLeft} ${coords[0].y} L ${width - padRight} ${coords[0].y}`;
+      } else {
+        for (let i = 0; i < coords.length - 1; i++) {
+          const p0 = coords[i];
+          const p1 = coords[i + 1];
+          const cpx1 = (p0.x + p1.x) / 2;
+          const cpy1 = p0.y;
+          const cpx2 = (p0.x + p1.x) / 2;
+          const cpy2 = p1.y;
+          linePath += ` C ${cpx1.toFixed(1)} ${cpy1.toFixed(1)}, ${cpx2.toFixed(1)} ${cpy2.toFixed(1)}, ${p1.x} ${p1.y}`;
+        }
       }
 
-      const areaPath = `${linePath} L ${coords[coords.length - 1].x} ${padTop + plotH} L ${coords[0].x} ${padTop + plotH} Z`;
+      const areaPath = coords.length === 1
+        ? `M ${padLeft} ${coords[0].y} L ${width - padRight} ${coords[0].y} L ${width - padRight} ${padTop + plotH} L ${padLeft} ${padTop + plotH} Z`
+        : `${linePath} L ${coords[coords.length - 1].x} ${padTop + plotH} L ${coords[0].x} ${padTop + plotH} Z`;
       const gradId = `sparkGrad_${containerId}`;
-
-      // Update header badges if present
-      const latestEl = document.getElementById('sparklineLatestValue');
-      if (latestEl) latestEl.textContent = `${pts[pts.length - 1].toFixed(1)}%`;
-      const deltaBadge = document.getElementById('telemetryDeltaBadge');
-      if (deltaBadge && pts.length > 1) {
-        const delta = pts[pts.length - 1] - pts[0];
-        const sign = delta >= 0 ? '+' : '';
-        deltaBadge.textContent = `${sign}${delta.toFixed(1)}% vs R1`;
-      }
 
       const gridYValues = [minVal, Math.round((minVal + maxVal) / 2), maxVal];
       const gridLinesSvg = gridYValues.map(gv => {
@@ -2097,7 +2293,7 @@
       const pointsSvg = coords.map(c => `
         <g class="group cursor-pointer">
           <circle cx="${c.x}" cy="${c.y}" r="8" fill="transparent">
-            <title>Ronda ${c.round}: ${c.val.toFixed(1)}% Accuracy</title>
+            <title>Ronda ${c.round}: ${c.val.toFixed(1)}%</title>
           </circle>
           <circle cx="${c.x}" cy="${c.y}" r="3" fill="#ffffff" stroke="#2563eb" stroke-width="2" class="transition-transform duration-150 group-hover:scale-125" />
           <text x="${c.x}" y="${padTop + plotH + 15}" text-anchor="middle" fill="#64748b" font-size="9" font-family="ui-monospace, monospace">R${c.round}</text>
@@ -2125,16 +2321,25 @@
       const container = document.getElementById(containerId);
       if (!container) return;
 
-      const clsList = Array.isArray(classes) && classes.length > 0
-        ? classes
-        : ['Sano', 'Repilo', 'Aculus'];
-      const matrix = Array.isArray(matrixData) && matrixData.length > 0
-        ? matrixData
-        : [
-            [42, 3, 1],
-            [4, 38, 2],
-            [1, 2, 45]
-          ];
+      if (!Array.isArray(matrixData) || matrixData.length === 0 || !Array.isArray(classes) || classes.length === 0) {
+        container.innerHTML = `
+          <div class="p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200 my-2">
+            <svg class="w-8 h-8 mx-auto text-slate-300 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <line x1="3" y1="9" x2="21" y2="9"/>
+              <line x1="9" y1="21" x2="9" y2="9"/>
+            </svg>
+            <div class="font-medium text-slate-600 text-xs">Matriz de confusión pendiente de generación</div>
+            <div class="text-[11px] text-slate-400 mt-1 max-w-sm mx-auto">
+              Pulse &ldquo;Lanzar Evaluación de Rendimiento&rdquo; para generar la matriz completa y calibrar los umbrales de decisión.
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const clsList = classes;
+      const matrix = matrixData;
 
       const n = clsList.length;
       const flatVals = matrix.flat().map(Number);
@@ -2195,24 +2400,6 @@
       `;
     }
 
-    // 4. Mock Data Hook (Simulates history.json on Drawer Open)
-    function getMockHistoryPayload(modelClasses) {
-      const defaultClasses = Array.isArray(modelClasses) && modelClasses.length >= 3
-        ? modelClasses.slice(0, 3).map(formatDisplayLabel)
-        : ['Sano', 'Repilo', 'Aculus'];
-      return {
-        source: 'history.json',
-        rounds: [1, 2, 3, 4, 5],
-        accuracy_history: [60.0, 68.5, 74.2, 80.8, 85.0],
-        classes: defaultClasses,
-        confusion_matrix: [
-          [42, 3, 1],
-          [4, 38, 2],
-          [1, 2, 45]
-        ]
-      };
-    }
-
     // --- Model Inspector & Telemetry ---
     async function openModelInspector(slug, title, initialTab) {
       currentInspectorSlug = slug;
@@ -2233,6 +2420,9 @@
       document.getElementById('inspectorSubtitle').textContent = `slug: ${slug}`;
       document.getElementById('inspectorActiveChkName').textContent = '...';
       document.getElementById('inspectorActiveSizeBadge').textContent = '- MB';
+      document.getElementById('sparklineLatestValue').textContent = '-';
+      document.getElementById('telemetryDeltaBadge').textContent = '-';
+      document.getElementById('inspectorSparklineContainer').innerHTML = '<div class="h-full flex items-center justify-center text-xs text-slate-400">Cargando telemetría...</div>';
       document.getElementById('metricAccuracy').textContent = '-';
       document.getElementById('metricPrecision').textContent = '-';
       document.getElementById('metricRecall').textContent = '-';
@@ -2252,11 +2442,8 @@
       switchInspectorTab(initialTab || 'orchestration');
       loadOrchestrationContext(slug);
 
-      // 0. Mock Data Hook (history.json payload) — Immediate visual rendering on Drawer open
-      const initialMockHistory = getMockHistoryPayload(known && known.classes);
-      renderSparkline('inspectorSparklineContainer', initialMockHistory.accuracy_history);
-      renderConfusionMatrix('inspectorMatrixHeatmapContainer', initialMockHistory.classes, initialMockHistory.confusion_matrix);
-      renderConfusionMatrix('inspectorConfusionMatrixContainer', initialMockHistory.classes, initialMockHistory.confusion_matrix);
+      document.getElementById('inspectorConfusionMatrixContainer').innerHTML = '<div class="text-slate-400 text-xs py-4 text-center">Cargando matriz de confusión...</div>';
+      document.getElementById('inspectorMatrixHeatmapContainer').innerHTML = '<div class="text-slate-400 text-xs py-4 text-center">Cargando matriz...</div>';
 
       try {
         const res = await fetch(`/api/master/models/${encodeURIComponent(slug)}/telemetry`);
@@ -2269,8 +2456,8 @@
         document.getElementById('inspectorArchBadge').textContent = d.architecture || 'resnet18';
         const sizeMb = (d.size_bytes / (1024 * 1024)).toFixed(1);
         document.getElementById('inspectorSubtitle').textContent = `slug: ${d.slug} | ${d.num_classes} clases`;
-        document.getElementById('inspectorActiveChkName').textContent = d.checkpoint;
-        document.getElementById('inspectorActiveSizeBadge').textContent = `${sizeMb} MB`;
+        document.getElementById('inspectorActiveChkName').textContent = d.checkpoint || 'Sin checkpoint';
+        document.getElementById('inspectorActiveSizeBadge').textContent = (d.size_bytes && d.size_bytes > 0) ? `${sizeMb} MB` : 'N/A';
 
         // 1. Version History Table & A/B Selectors
         const vTbody = document.getElementById('inspectorVersionsTbody');
@@ -2352,7 +2539,25 @@
         const evalChkBadge = document.getElementById('inspectorEvalChkBadge');
         const btnLaunchEval = document.getElementById('btnLaunchEvaluation');
 
-        if (d.has_eval_report) {
+        if (d.evaluation_status === 'in_progress') {
+          evalNotice.className = 'p-3.5 rounded-xl bg-indigo-50/80 border border-indigo-200/80 flex flex-wrap items-center justify-between gap-3 text-xs text-indigo-900';
+          evalSourceText.textContent = 'Evaluación de rendimiento en curso sobre conjunto de test...';
+          evalChkBadge.classList.add('hidden');
+          if (btnLaunchEval) {
+            btnLaunchEval.classList.remove('hidden');
+            btnLaunchEval.disabled = true;
+            btnLaunchEval.innerHTML = `${SPINNER_SVG}<span>Evaluando modelo...</span>`;
+          }
+        } else if (d.evaluation_status === 'queued') {
+          evalNotice.className = 'p-3.5 rounded-xl bg-slate-100 border border-slate-300 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-800';
+          evalSourceText.textContent = `Evaluación en cola FIFO (Posición #${d.queue_position || 1}). Se ejecutará automáticamente.`;
+          evalChkBadge.classList.add('hidden');
+          if (btnLaunchEval) {
+            btnLaunchEval.classList.remove('hidden');
+            btnLaunchEval.disabled = true;
+            btnLaunchEval.innerHTML = `<span>En Cola (#${d.queue_position || 1})</span>`;
+          }
+        } else if (d.has_eval_report || d.eval_source) {
           evalNotice.className = 'p-3.5 rounded-xl bg-indigo-50/80 border border-indigo-200/80 flex flex-wrap items-center justify-between gap-3 text-xs text-indigo-900';
           evalSourceText.textContent = d.eval_source || 'docs/images/evaluation_report.json';
           evalChkBadge.textContent = d.evaluated_checkpoint || d.checkpoint;
@@ -2377,90 +2582,222 @@
         // Key metrics: standard Data Science suite (Accuracy, Precision, Recall, F1, Loss, Temp)
         const m = d.metrics || {};
         const macro = m.macro_avg || {};
+        const isDet = (d.task === 'detection') || (d.architecture && d.architecture.toLowerCase().startsWith('yolo')) || (m.mAP50 !== undefined);
 
-        // 1. Precisión Global
-        if (m.overall_accuracy !== null && m.overall_accuracy !== undefined) {
-          document.getElementById('metricAccuracy').textContent = `${m.overall_accuracy.toFixed(1)}%`;
+        const lbl1 = document.getElementById('metricCardLabel1');
+        const lbl2 = document.getElementById('metricCardLabel2');
+        const lbl3 = document.getElementById('metricCardLabel3');
+        const lbl4 = document.getElementById('metricCardLabel4');
+        const lbl5 = document.getElementById('metricCardLabel5');
+        const lbl6 = document.getElementById('metricCardLabel6');
+
+        if (isDet) {
+          if (lbl1) lbl1.textContent = 'mAP @ 0.50';
+          if (lbl2) lbl2.textContent = 'Precisión (Box-P)';
+          if (lbl3) lbl3.textContent = 'Recall (Box-R)';
+          if (lbl4) lbl4.textContent = 'Mean IoU';
+          if (lbl5) lbl5.textContent = 'mAP @ 0.50:0.95';
+          if (lbl6) lbl6.textContent = 'Umbral Conf.';
+
+          document.getElementById('metricAccuracy').textContent = m.mAP50 !== undefined ? `${Number(m.mAP50).toFixed(1)}%` : 'N/A';
+          document.getElementById('metricPrecision').textContent = m.precision !== undefined ? `${Number(m.precision).toFixed(1)}%` : 'N/A';
+          document.getElementById('metricRecall').textContent = m.recall !== undefined ? `${Number(m.recall).toFixed(1)}%` : 'N/A';
+          document.getElementById('metricF1').textContent = m.mean_iou !== undefined ? `${Number(m.mean_iou).toFixed(3)}` : (m.mAP50_95 !== undefined ? `${Number(m.mAP50_95).toFixed(1)}%` : 'N/A');
+          document.getElementById('metricLoss').textContent = m.mAP50_95 !== undefined ? `${Number(m.mAP50_95).toFixed(1)}%` : 'N/A';
+          document.getElementById('metricTemp').textContent = '≥ 0.25';
         } else {
-          document.getElementById('metricAccuracy').textContent = 'N/A';
-        }
+          if (lbl1) lbl1.textContent = 'Precisión Global';
+          if (lbl2) lbl2.textContent = 'Macro Precision';
+          if (lbl3) lbl3.textContent = 'Macro Recall';
+          if (lbl4) lbl4.textContent = 'Macro F1-Score';
+          if (lbl5) lbl5.textContent = 'Pérdida (Loss)';
+          if (lbl6) lbl6.textContent = 'Temperatura (T*)';
 
-        // 2. Macro Precision
-        const precVal = m.macro_precision ?? macro.precision;
-        if (precVal !== null && precVal !== undefined) {
-          document.getElementById('metricPrecision').textContent = `${(precVal * 100).toFixed(1)}%`;
-        } else {
-          document.getElementById('metricPrecision').textContent = 'N/A';
-        }
+          // 1. Precisión Global
+          if (m.overall_accuracy !== null && m.overall_accuracy !== undefined) {
+            document.getElementById('metricAccuracy').textContent = `${m.overall_accuracy.toFixed(1)}%`;
+          } else {
+            document.getElementById('metricAccuracy').textContent = 'N/A';
+          }
 
-        // 3. Macro Recall
-        const recVal = m.macro_recall ?? macro.recall;
-        if (recVal !== null && recVal !== undefined) {
-          document.getElementById('metricRecall').textContent = `${(recVal * 100).toFixed(1)}%`;
-        } else {
-          document.getElementById('metricRecall').textContent = 'N/A';
-        }
+          // 2. Macro Precision
+          const precVal = m.macro_precision ?? macro.precision;
+          if (precVal !== null && precVal !== undefined) {
+            document.getElementById('metricPrecision').textContent = `${(precVal * 100).toFixed(1)}%`;
+          } else {
+            document.getElementById('metricPrecision').textContent = 'N/A';
+          }
 
-        // 4. Macro F1
-        const f1Val = m.macro_f1 ?? macro.f1_score;
-        if (f1Val !== null && f1Val !== undefined) {
-          document.getElementById('metricF1').textContent = `${(f1Val * 100).toFixed(1)}%`;
-        } else {
-          document.getElementById('metricF1').textContent = 'N/A';
-        }
+          // 3. Macro Recall
+          const recVal = m.macro_recall ?? macro.recall;
+          if (recVal !== null && recVal !== undefined) {
+            document.getElementById('metricRecall').textContent = `${(recVal * 100).toFixed(1)}%`;
+          } else {
+            document.getElementById('metricRecall').textContent = 'N/A';
+          }
 
-        // 5. Cross-Entropy Loss
-        if (m.cross_entropy_loss !== null && m.cross_entropy_loss !== undefined) {
-          document.getElementById('metricLoss').textContent = m.cross_entropy_loss.toFixed(3);
-        } else {
-          document.getElementById('metricLoss').textContent = 'N/A';
-        }
+          // 4. Macro F1
+          const f1Val = m.macro_f1 ?? macro.f1_score;
+          if (f1Val !== null && f1Val !== undefined) {
+            document.getElementById('metricF1').textContent = `${(f1Val * 100).toFixed(1)}%`;
+          } else {
+            document.getElementById('metricF1').textContent = 'N/A';
+          }
 
-        // 6. Temperatura T*
-        document.getElementById('metricTemp').textContent = (d.temperature || 1.0).toFixed(2);
+          // 5. Cross-Entropy Loss
+          if (m.cross_entropy_loss !== null && m.cross_entropy_loss !== undefined) {
+            document.getElementById('metricLoss').textContent = m.cross_entropy_loss.toFixed(3);
+          } else {
+            document.getElementById('metricLoss').textContent = 'N/A';
+          }
+
+          // 6. Temperatura T*
+          document.getElementById('metricTemp').textContent = (d.temperature || 1.0).toFixed(2);
+        }
 
         // Calibrated Thresholds
         const threshList = document.getElementById('inspectorThresholdsList');
         threshList.innerHTML = '';
-        const taus = d.calibrated_thresholds || {};
-        const classes = d.classes || Object.keys(taus);
-        if (classes.length === 0) {
-          threshList.innerHTML = '<div class="text-slate-400 text-xs col-span-3">No hay umbrales calibrados registrados.</div>';
+        if (isDet) {
+          threshList.className = 'grid grid-cols-1 sm:grid-cols-3 gap-2';
+          threshList.innerHTML = `
+            <div class="p-2.5 rounded-lg bg-white border border-slate-200 flex items-center justify-between shadow-2xs">
+              <span class="font-medium text-slate-700 text-xs">Umbral Confianza</span>
+              <span class="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[11px] border border-emerald-200">conf &ge; 0.25</span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-white border border-slate-200 flex items-center justify-between shadow-2xs">
+              <span class="font-medium text-slate-700 text-xs">Supresión NMS (IoU)</span>
+              <span class="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[11px] border border-slate-200">iou &ge; 0.70</span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-white border border-slate-200 flex items-center justify-between shadow-2xs">
+              <span class="font-medium text-slate-700 text-xs">Resolución Inferencia</span>
+              <span class="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[11px] border border-slate-200">640 &times; 640 px</span>
+            </div>
+          `;
         } else {
-          classes.forEach(c => {
-            const tauVal = taus[c] !== undefined ? taus[c].toFixed(2) : '0.50 (def)';
-            const card = document.createElement('div');
-            card.className = 'p-2.5 rounded-lg bg-white border border-slate-200 flex items-center justify-between shadow-2xs';
-            card.innerHTML = `
-              <span class="font-medium text-slate-700 capitalize truncate mr-2">${c.replace(/_/g, ' ')}</span>
-              <span class="font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded text-[11px] border border-indigo-200/60 shrink-0">&tau; = ${tauVal}</span>
-            `;
-            threshList.appendChild(card);
-          });
+          threshList.className = 'grid grid-cols-2 sm:grid-cols-3 gap-2';
+          const taus = d.calibrated_thresholds || {};
+          const classes = d.classes || Object.keys(taus);
+          if (classes.length === 0) {
+            threshList.innerHTML = '<div class="text-slate-400 text-xs col-span-3">No hay umbrales calibrados registrados.</div>';
+          } else {
+            classes.forEach(c => {
+              const tauVal = taus[c] !== undefined ? taus[c].toFixed(2) : '0.50 (def)';
+              const card = document.createElement('div');
+              card.className = 'p-2.5 rounded-lg bg-white border border-slate-200 flex items-center justify-between shadow-2xs';
+              card.innerHTML = `
+                <span class="font-medium text-slate-700 capitalize truncate mr-2">${c.replace(/_/g, ' ')}</span>
+                <span class="font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded text-[11px] border border-indigo-200/60 shrink-0">&tau; = ${tauVal}</span>
+              `;
+              threshList.appendChild(card);
+            });
+          }
         }
 
-        // Confusion Matrix & Observability refresh with model classes
+        // Sparkline & Federated History
+        const spTitle = document.getElementById('sparklineCardTitle');
+        if (spTitle) {
+          spTitle.textContent = isDet
+            ? 'Evolución de Precisión (mAP50 / Detección YOLO)'
+            : 'Evolución de Precisión (Accuracy / Macro-F1)';
+        }
+
+        let sparkPoints = [];
+        if (Array.isArray(d.aggregation_history) && d.aggregation_history.length > 0) {
+          sparkPoints = d.aggregation_history.map(h => {
+            if (h.accuracy !== null && h.accuracy !== undefined) return Number(h.accuracy);
+            if (h.metrics) {
+              if (h.metrics.mAP50 !== undefined) return Number(h.metrics.mAP50);
+              if (h.metrics.overall_accuracy !== undefined) return Number(h.metrics.overall_accuracy);
+              if (h.metrics.accuracy !== undefined) return Number(h.metrics.accuracy);
+            }
+            if (h.macro_f1 !== null && h.macro_f1 !== undefined) {
+              const v = Number(h.macro_f1);
+              return v <= 1 ? v * 100 : v;
+            }
+            return null;
+          }).filter(v => v !== null && !isNaN(v));
+        }
+
+        if (sparkPoints.length === 0) {
+          const currentAcc = (m.overall_accuracy !== null && m.overall_accuracy !== undefined)
+            ? Number(m.overall_accuracy)
+            : (m.mAP50 !== null && m.mAP50 !== undefined ? Number(m.mAP50) : null);
+          if (currentAcc !== null && !isNaN(currentAcc)) {
+            sparkPoints = [currentAcc];
+          }
+        }
+
+        renderSparkline('inspectorSparklineContainer', sparkPoints);
+
+        // Confusion Matrix & Observability refresh with real model classes
         const matrixData = d.confusion_matrix?.matrix;
         const matrixClasses = d.confusion_matrix?.classes || classes;
         const sourceLabel = document.getElementById('matrixSourceLabel');
-        const resolvedMock = getMockHistoryPayload(classes);
+
+        const matrixTitle = document.getElementById('inspectorMatrixTitle');
+        const matrixSubtitle = document.getElementById('inspectorMatrixSubtitle');
+        const matrixBadge = document.getElementById('inspectorMatrixBadge');
 
         if (d.eval_source) {
           sourceLabel.textContent = `Evaluado sobre: ${d.evaluated_checkpoint || d.checkpoint}`;
         } else {
-          sourceLabel.textContent = 'Simulación history.json (5 rondas FL)';
+          sourceLabel.textContent = 'Pendiente de evaluación detallada sobre test';
         }
 
-        if (matrixData && Array.isArray(matrixData) && matrixData.length > 0) {
-          renderConfusionMatrix('inspectorMatrixHeatmapContainer', matrixClasses.slice(0, 5), matrixData.slice(0, 5).map(r => r.slice(0, 5)));
-          renderConfusionMatrix('inspectorConfusionMatrixContainer', matrixClasses, matrixData);
+        if (isDet) {
+          if (matrixTitle) matrixTitle.textContent = 'Mosaico de Validación y Detección';
+          if (matrixSubtitle) matrixSubtitle.textContent = 'Predicciones espaciales con cajas delimitadoras';
+          if (matrixBadge) matrixBadge.textContent = 'YOLO Val';
+
+          const evalPreviewHtml = `
+            <div class="space-y-2 p-2 bg-slate-950/5 rounded-xl border border-slate-200">
+              <div class="flex items-center justify-between text-xs text-slate-600 px-1">
+                <span class="font-semibold uppercase tracking-wider text-[10px] text-slate-500">Mosaico de Evaluación (Predicciones vs GT)</span>
+                <span class="font-mono text-[11px] font-medium text-slate-700">${d.eval_split === 'test' ? 'Conjunto Test' : 'Conjunto Validación'}</span>
+              </div>
+              <img src="/api/models/${encodeURIComponent(slug)}/eval-preview" alt="Mosaico de evaluación" class="w-full max-h-[360px] object-contain rounded-lg" onerror="this.parentElement.innerHTML='<div class=\\'p-4 text-center text-xs text-slate-400\\'>Mosaico de predicciones no disponible para este checkpoint.</div>';">
+            </div>
+          `;
+          document.getElementById('inspectorMatrixHeatmapContainer').innerHTML = evalPreviewHtml;
+          document.getElementById('inspectorConfusionMatrixContainer').innerHTML = evalPreviewHtml;
         } else {
-          renderConfusionMatrix('inspectorMatrixHeatmapContainer', resolvedMock.classes, resolvedMock.confusion_matrix);
-          renderConfusionMatrix('inspectorConfusionMatrixContainer', resolvedMock.classes, resolvedMock.confusion_matrix);
+          if (matrixTitle) matrixTitle.textContent = 'Matriz de Confusión Reciente';
+          if (matrixSubtitle) matrixSubtitle.textContent = 'Pasa el cursor para ver el desglose exacto';
+          if (matrixBadge) matrixBadge.textContent = 'Real vs Pred';
+
+          if (matrixData && Array.isArray(matrixData) && matrixData.length > 0) {
+            renderConfusionMatrix('inspectorMatrixHeatmapContainer', matrixClasses.slice(0, 5), matrixData.slice(0, 5).map(r => r.slice(0, 5)));
+            renderConfusionMatrix('inspectorConfusionMatrixContainer', matrixClasses, matrixData);
+          } else {
+            const emptyMatrixHtml = `
+              <div class="p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200 my-2">
+                <svg class="w-8 h-8 mx-auto text-slate-300 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="3" y1="9" x2="21" y2="9"/>
+                  <line x1="9" y1="21" x2="9" y2="9"/>
+                </svg>
+                <div class="font-medium text-slate-600 text-xs">Matriz de confusión pendiente de generación</div>
+                <div class="text-[11px] text-slate-400 mt-1 max-w-sm mx-auto">
+                  Pulse &ldquo;Lanzar Evaluación de Rendimiento&rdquo; para generar la matriz completa y calibrar los umbrales de decisión.
+                </div>
+              </div>
+            `;
+            document.getElementById('inspectorMatrixHeatmapContainer').innerHTML = emptyMatrixHtml;
+            document.getElementById('inspectorConfusionMatrixContainer').innerHTML = emptyMatrixHtml;
+          }
         }
 
       } catch (err) {
         document.getElementById('inspectorSubtitle').textContent = `slug: ${slug} | telemetría no disponible (${err.message})`;
+        document.getElementById('inspectorActiveSizeBadge').textContent = 'N/A';
+        document.getElementById('sparklineLatestValue').textContent = 'N/A';
+        document.getElementById('telemetryDeltaBadge').textContent = 'Error';
+        document.getElementById('inspectorVersionsTbody').innerHTML = '<tr><td colspan="6" class="p-3 text-center text-slate-400">No se pudieron recuperar las versiones.</td></tr>';
+        document.getElementById('inspectorThresholdsList').innerHTML = '<div class="text-slate-400 text-xs col-span-3">No disponible.</div>';
+        document.getElementById('inspectorMatrixHeatmapContainer').innerHTML = '<div class="p-4 text-center text-xs text-slate-400">Datos de telemetría no disponibles.</div>';
+        document.getElementById('inspectorConfusionMatrixContainer').innerHTML = '<div class="p-4 text-center text-xs text-slate-400">Datos no disponibles.</div>';
+        document.getElementById('inspectorSparklineContainer').innerHTML = '<div class="h-full flex items-center justify-center text-xs text-slate-400">Telemetría no disponible</div>';
       }
     }
 
@@ -2514,11 +2851,16 @@
 
         wasJobRunning = true;
         pollStatus();
+        if (currentInspectorSlug === slug) openModelInspector(slug, null, 'telemetry');
         toggleTerminalVisibility(true);
         const terminal = document.getElementById('masterLogTerminal');
         if (terminal) terminal.scrollIntoView({ behavior: 'smooth', block: 'center' });
         if (window.KhaosUI && KhaosUI.toast) {
-          KhaosUI.toast(`Evaluación de rendimiento en curso para '${slug}'.`, 'info', 5000);
+          if (data.queue_position && data.queue_position > 0) {
+            KhaosUI.toast(`Evaluación para '${slug}' añadida a la cola de espera (Posición #${data.queue_position}).`, 'info', 5000);
+          } else {
+            KhaosUI.toast(`Evaluación de rendimiento en curso para '${slug}'.`, 'info', 5000);
+          }
         }
       } catch (err) {
         alert('Error al lanzar la evaluación: ' + err.message);

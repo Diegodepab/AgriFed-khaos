@@ -1,5 +1,5 @@
 {
-  "dataset_evaluated": "/home/diego/agriKhaos/olivefruit_v1.1/classification/test",
+  "dataset_evaluated": "dataset/olivefruit_v1.1/classification/test",
   "total_samples": 800,
   "overall_accuracy": 63.0,
   "cross_entropy_loss": 0.6185,

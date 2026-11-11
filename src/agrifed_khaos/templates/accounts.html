@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-50/50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Cuentas y Políticas &bull; KHAOS Hub</title>
+  <meta name="description" content="Panel de administración de cuentas, aprobaciones y políticas de seguridad en KHAOS Hub">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="/static/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/static/khaos-bundle.min.css">
+  <link rel="stylesheet" href="/static/khaos-ui.css">
+  <script src="/static/khaos-ui.js" defer></script>
+</head>
+<body class="min-h-full flex flex-col font-sans text-slate-900 antialiased selection:bg-slate-200 selection:text-slate-900 bg-slate-50/60">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 w-full border-b border-slate-200/60 bg-white/80 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex h-16 items-center justify-between gap-2">
+        <a href="/" class="flex items-center gap-2.5 group shrink-0">
+          <picture>
+            <source srcset="/static/logo.webp" type="image/webp">
+            <img src="/static/logo.png" alt="KHAOS Logo" width="32" height="32" class="h-8 w-8 rounded-lg object-contain group-hover:scale-105 transition-transform" />
+          </picture>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold tracking-tight text-slate-900">KHAOS <span class="text-slate-600 font-normal">Hub</span></span>
+            <span class="text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-500/10 uppercase tracking-wider">Data Space</span>
+          </div>
+        </a>
+
+        <!-- Navigation Links -->
+        <div class="flex items-center gap-3">
+          <nav class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl" aria-label="Navegación principal">
+            <a href="/" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors">
+              Modelos
+            </a>
+            <a href="/expert" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors">
+              Evaluación
+            </a>
+            <a href="/master" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors">
+              Administración
+            </a>
+            <a href="/accounts" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-900 bg-white shadow-xs">
+              Cuentas
+            </a>
+          </nav>
+
+          <!-- Help Trigger -->
+          <button
+            type="button"
+            onclick="KhaosUI.toast('Consola de administración de cuentas y políticas de acceso.', 'info', 3000)"
+            class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            title="Ayuda"
+          >
+            <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span class="hidden sm:inline">Ayuda</span>
+          </button>
+
+          <!-- Profile Slot -->
+          <div id="khHeaderProfileMount"></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- Title and Subtitle -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">
+          Gestión de Cuentas y Políticas de Acceso
+        </h1>
+        <p class="text-xs text-slate-500 mt-1">
+          Aprobación de nuevas solicitudes, asignación de roles, políticas de registro y lista de bloqueo.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          onclick="openCreateUserModal()"
+          class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors cursor-pointer shadow-xs"
+        >
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          <span>Crear Usuario</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Metric Cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-1">
+        <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Total Cuentas</span>
+        <div class="text-2xl font-bold text-slate-900 font-mono" id="statTotalUsers">-</div>
+      </div>
+      <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-1">
+        <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Aprobaciones Pendientes</span>
+        <div class="text-2xl font-bold text-amber-600 font-mono" id="statPendingApprovals">-</div>
+      </div>
+      <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-1">
+        <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Cuentas Suspendidas</span>
+        <div class="text-2xl font-bold text-rose-600 font-mono" id="statBannedUsers">-</div>
+      </div>
+      <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-1">
+        <span class="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Política de Registro</span>
+        <div class="text-xs font-bold text-slate-800 mt-2" id="statPolicyLabel">Cargando...</div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="flex border-b border-slate-200 gap-2">
+      <button
+        type="button"
+        id="btnTabPending"
+        onclick="switchAccountsTab('pending')"
+        class="pb-3 px-3 text-xs font-semibold text-slate-900 border-b-2 border-slate-900 cursor-pointer flex items-center gap-1.5"
+      >
+        <span>Solicitudes Pendientes</span>
+        <span id="badgePendingCount" class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">0</span>
+      </button>
+
+      <button
+        type="button"
+        id="btnTabUsers"
+        onclick="switchAccountsTab('users')"
+        class="pb-3 px-3 text-xs font-medium text-slate-500 hover:text-slate-900 border-b-2 border-transparent cursor-pointer flex items-center gap-1.5"
+      >
+        <span>Directorio de Cuentas</span>
+      </button>
+
+      <button
+        type="button"
+        id="btnTabPolicies"
+        onclick="switchAccountsTab('policies')"
+        class="pb-3 px-3 text-xs font-medium text-slate-500 hover:text-slate-900 border-b-2 border-transparent cursor-pointer flex items-center gap-1.5"
+      >
+        <span>Políticas &amp; Bloqueos</span>
+      </button>
+    </div>
+
+    <!-- TAB 1: SOLICITUDES PENDIENTES -->
+    <section id="sectionPending" class="space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700">
+            Nuevas solicitudes de acceso registradas
+          </h2>
+          <button
+            type="button"
+            onclick="loadPendingAccounts()"
+            class="text-xs text-slate-500 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
+          >
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            <span>Actualizar</span>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 border-b border-slate-100 text-slate-600 font-semibold">
+              <tr>
+                <th class="py-3 px-4">Usuario</th>
+                <th class="py-3 px-4">Nombre Completo</th>
+                <th class="py-3 px-4">Dominio de Correo</th>
+                <th class="py-3 px-4">Fecha Solicitud</th>
+                <th class="py-3 px-4">Rol a Asignar</th>
+                <th class="py-3 px-4 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyPending" class="divide-y divide-slate-100 text-slate-700">
+              <tr>
+                <td colspan="6" class="py-8 text-center text-slate-400">Cargando solicitudes...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: DIRECTORIO DE USUARIOS -->
+    <section id="sectionUsers" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700">
+            Todas las cuentas registradas
+          </h2>
+          <div class="w-full sm:w-64">
+            <input
+              type="text"
+              id="inputSearchUsers"
+              oninput="filterUsersTable(this.value)"
+              placeholder="Buscar por usuario o nombre..."
+              class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+            >
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 border-b border-slate-100 text-slate-600 font-semibold">
+              <tr>
+                <th class="py-3 px-4">Usuario</th>
+                <th class="py-3 px-4">Nombre Completo</th>
+                <th class="py-3 px-4">Rol en Plataforma</th>
+                <th class="py-3 px-4">Estado</th>
+                <th class="py-3 px-4">Fecha Registro</th>
+                <th class="py-3 px-4 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyUsers" class="divide-y divide-slate-100 text-slate-700">
+              <tr>
+                <td colspan="6" class="py-8 text-center text-slate-400">Cargando usuarios...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: POLÍTICAS Y BLOQUEOS -->
+    <section id="sectionPolicies" class="hidden space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Card: Políticas del Sistema -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-5">
+          <div class="border-b border-slate-100 pb-3">
+            <h2 class="text-sm font-bold text-slate-900">Políticas de Registro y Acceso</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Controla cómo se admiten nuevas cuentas en KHAOS Hub.</p>
+          </div>
+
+          <form id="formPolicies" onsubmit="handlePoliciesSubmit(event)" class="space-y-4">
+            <div class="flex items-start justify-between gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200/60">
+              <div>
+                <label for="policyRequireApproval" class="text-xs font-semibold text-slate-900 block cursor-pointer">
+                  Requerir validación de administrador
+                </label>
+                <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                  Las nuevas cuentas quedan en estado pendiente hasta ser aprobadas manualmente en este panel.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                id="policyRequireApproval"
+                class="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+              >
+            </div>
+
+            <div class="flex items-start justify-between gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200/60">
+              <div>
+                <label for="policyAllowPublic" class="text-xs font-semibold text-slate-900 block cursor-pointer">
+                  Permitir registros públicos
+                </label>
+                <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                  Si se desactiva, solo los administradores podrán dar de alta nuevos usuarios desde este panel.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                id="policyAllowPublic"
+                class="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+              >
+            </div>
+
+            <button
+              type="submit"
+              id="btnSavePolicies"
+              class="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              Guardar Políticas
+            </button>
+          </form>
+        </div>
+
+        <!-- Card: Bloqueo de Correos y Dominios -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-5">
+          <div class="border-b border-slate-100 pb-3">
+            <h2 class="text-sm font-bold text-slate-900">Lista Negra de Correos y Dominios</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Bloquea correos concretos o dominios temporales.</p>
+          </div>
+
+          <form id="formAddBanned" onsubmit="handleAddBannedSubmit(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">
+                Patrón a bloquear (ej. @tempmail.com o spammer@malicioso.es)
+              </label>
+              <input
+                type="text"
+                id="inputBannedPattern"
+                required
+                placeholder="@tempmail.com"
+                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+              >
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">
+                Motivo (opcional)
+              </label>
+              <input
+                type="text"
+                id="inputBannedReason"
+                placeholder="Dominio temporal o usuario fraudulento"
+                class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+              >
+            </div>
+            <button
+              type="submit"
+              class="w-full py-2 px-4 rounded-xl text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors cursor-pointer"
+            >
+              Añadir a Lista de Bloqueo
+            </button>
+          </form>
+
+          <div class="pt-2">
+            <div class="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-2">
+              Patrones Bloqueados Activos
+            </div>
+            <div id="bannedPatternsList" class="space-y-2 max-h-48 overflow-y-auto">
+              <div class="text-xs text-slate-400 text-center py-2">Cargando...</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: Crear Usuario Manualmente -->
+  <div id="modalCreateUser" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-sm font-bold text-slate-900">Crear Usuario Directamente</h3>
+        <button type="button" onclick="closeCreateUserModal()" class="text-slate-400 hover:text-slate-600 text-lg cursor-pointer">&times;</button>
+      </div>
+
+      <form id="formManualCreateUser" onsubmit="handleManualCreateUser(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Nombre Completo</label>
+          <input type="text" id="mCreateName" required placeholder="ej. Dra. Lucía Ramos" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 focus:ring-2 focus:ring-slate-900">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Nombre de Usuario</label>
+          <input type="text" id="mCreateUser" required minlength="3" placeholder="ej. luciaramos" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 font-mono focus:ring-2 focus:ring-slate-900">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Correo Electrónico (Validado pero Privado)</label>
+          <input type="email" id="mCreateEmail" required placeholder="ej. lucia@olivar.es" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 focus:ring-2 focus:ring-slate-900">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Rol Asignado</label>
+          <select id="mCreateRole" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900 focus:ring-2 focus:ring-slate-900">
+            <option value="user">Usuario Agnóstico (Modelos e Inferencia)</option>
+            <option value="expert" selected>Experto Agrónomo (Evaluación &amp; Curación)</option>
+            <option value="admin">Administrador (Plataforma Completa)</option>
+          </select>
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+          <button type="button" onclick="closeCreateUserModal()" class="px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-100 cursor-pointer">Cancelar</button>
+          <button type="submit" id="btnManualSubmit" class="px-4 py-2 rounded-xl text-white bg-slate-900 hover:bg-slate-800 font-semibold cursor-pointer">Crear Cuenta</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Contraseña Temporal Generada -->
+  <div id="modalTempPassword" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-sm font-bold text-slate-900">Contraseña Generada</h3>
+        <button type="button" onclick="closeTempPasswordModal()" class="text-slate-400 hover:text-slate-600 text-lg cursor-pointer">&times;</button>
+      </div>
+
+      <p class="text-xs text-slate-600">
+        Por privacidad, el correo no se expone. Copia esta contraseña temporal y entrégasela de forma segura al usuario:
+      </p>
+
+      <div class="p-3 bg-slate-100 rounded-xl flex items-center justify-between">
+        <code id="txtTempPassword" class="font-mono text-sm font-bold text-slate-900 select-all"></code>
+        <button
+          type="button"
+          onclick="copyTempPassword()"
+          class="px-2 py-1 text-[11px] font-semibold bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+        >
+          Copiar
+        </button>
+      </div>
+
+      <div class="pt-2 flex justify-end">
+        <button type="button" onclick="closeTempPasswordModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 cursor-pointer">
+          Entendido
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let cachedUsers = [];
+    let currentActiveTab = 'pending';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadAccountsSummary();
+      loadPendingAccounts();
+      loadUsersList();
+      loadPolicies();
+      loadBannedPatterns();
+    });
+
+    function switchAccountsTab(tab) {
+      currentActiveTab = tab;
+      const sPending = document.getElementById('sectionPending');
+      const sUsers = document.getElementById('sectionUsers');
+      const sPolicies = document.getElementById('sectionPolicies');
+
+      const bPending = document.getElementById('btnTabPending');
+      const bUsers = document.getElementById('btnTabUsers');
+      const bPolicies = document.getElementById('btnTabPolicies');
+
+      [sPending, sUsers, sPolicies].forEach(s => s.classList.add('hidden'));
+      [bPending, bUsers, bPolicies].forEach(b => {
+        b.className = 'pb-3 px-3 text-xs font-medium text-slate-500 hover:text-slate-900 border-b-2 border-transparent cursor-pointer flex items-center gap-1.5';
+      });
+
+      if (tab === 'pending') {
+        sPending.classList.remove('hidden');
+        bPending.className = 'pb-3 px-3 text-xs font-semibold text-slate-900 border-b-2 border-slate-900 cursor-pointer flex items-center gap-1.5';
+        loadPendingAccounts();
+      } else if (tab === 'users') {
+        sUsers.classList.remove('hidden');
+        bUsers.className = 'pb-3 px-3 text-xs font-semibold text-slate-900 border-b-2 border-slate-900 cursor-pointer flex items-center gap-1.5';
+        loadUsersList();
+      } else if (tab === 'policies') {
+        sPolicies.classList.remove('hidden');
+        bPolicies.className = 'pb-3 px-3 text-xs font-semibold text-slate-900 border-b-2 border-slate-900 cursor-pointer flex items-center gap-1.5';
+        loadPolicies();
+        loadBannedPatterns();
+      }
+    }
+
+    async function loadAccountsSummary() {
+      try {
+        const res = await fetch('/api/admin/accounts/summary');
+        if (!res.ok) return;
+        const d = await res.json();
+        document.getElementById('statTotalUsers').textContent = d.total_users;
+        document.getElementById('statPendingApprovals').textContent = d.pending_approvals;
+        document.getElementById('statBannedUsers').textContent = d.banned_users;
+        document.getElementById('badgePendingCount').textContent = d.pending_approvals;
+
+        const reqApproval = d.policies && d.policies.require_admin_approval;
+        document.getElementById('statPolicyLabel').textContent = reqApproval ? 'Validación Requerida' : 'Auto-aprobación';
+        document.getElementById('statPolicyLabel').className = reqApproval
+          ? 'text-xs font-bold text-amber-700 mt-2'
+          : 'text-xs font-bold text-emerald-700 mt-2';
+      } catch (err) {}
+    }
+
+    async function loadPendingAccounts() {
+      const tbody = document.getElementById('tbodyPending');
+      try {
+        const res = await fetch('/api/admin/accounts/pending');
+        if (!res.ok) throw new Error('Error al cargar solicitudes');
+        const data = await res.json();
+        const pending = data.pending_users || [];
+        document.getElementById('badgePendingCount').textContent = pending.length;
+        document.getElementById('statPendingApprovals').textContent = pending.length;
+
+        if (pending.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-400">No hay solicitudes pendientes de aprobación.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = pending.map(u => `
+          <tr class="hover:bg-slate-50/80 transition-colors">
+            <td class="py-3 px-4 font-mono font-bold text-slate-900">@${KhaosUI.escapeHtml(u.username)}</td>
+            <td class="py-3 px-4 font-medium">${KhaosUI.escapeHtml(u.full_name)}</td>
+            <td class="py-3 px-4 font-mono text-slate-500">${u.email_domain ? '@' + KhaosUI.escapeHtml(u.email_domain) : '—'}</td>
+            <td class="py-3 px-4 text-slate-500 font-mono text-[11px]">${KhaosUI.escapeHtml(u.created_at)}</td>
+            <td class="py-3 px-4">
+              <select id="roleSelect_${u.id}" class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs">
+                <option value="user" ${u.role === 'user' ? 'selected' : ''}>Usuario</option>
+                <option value="expert" ${u.role === 'expert' ? 'selected' : ''}>Experto</option>
+                <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Administrador</option>
+              </select>
+            </td>
+            <td class="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
+              <button
+                type="button"
+                onclick="approveAccount(${u.id})"
+                class="px-2.5 py-1 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 cursor-pointer"
+              >
+                Aprobar
+              </button>
+              <button
+                type="button"
+                onclick="rejectAccount(${u.id})"
+                class="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 border border-slate-200 cursor-pointer"
+              >
+                Rechazar
+              </button>
+              <button
+                type="button"
+                onclick="banAccount(${u.id})"
+                class="px-2.5 py-1 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 cursor-pointer"
+              >
+                Banear
+              </button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-rose-500">${KhaosUI.escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    async function approveAccount(userId) {
+      const roleSel = document.getElementById(`roleSelect_${userId}`);
+      const role = roleSel ? roleSel.value : 'user';
+      try {
+        const res = await fetch(`/api/admin/accounts/pending/${userId}/approve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role: role })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Error al aprobar');
+        KhaosUI.toast(d.message || 'Cuenta aprobada', 'success', 3000);
+        loadAccountsSummary();
+        loadPendingAccounts();
+      } catch (err) {
+        KhaosUI.toast(err.message, 'error', 4000);
+      }
+    }
+
+    async function rejectAccount(userId) {
+      if (!confirm('¿Rechazar esta solicitud de cuenta?')) return;
+      try {
+        const res = await fetch(`/api/admin/accounts/pending/${userId}/reject`, { method: 'POST' });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Error al rechazar');
+        KhaosUI.toast(d.message || 'Solicitud rechazada', 'info', 3000);
+        loadAccountsSummary();
+        loadPendingAccounts();
+      } catch (err) {
+        KhaosUI.toast(err.message, 'error', 4000);
+      }
+    }
+
+    async function banAccount(userId) {
+      if (!confirm('¿Estás seguro de suspender y banear esta cuenta?')) return;
+      try {
+        const res = await fetch(`/api/admin/accounts/${userId}/ban`, { method: 'POST' });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Error al banear');
+        KhaosUI.toast(d.message || 'Cuenta baneada', 'success', 3000);
+        loadAccountsSummary();
+        loadPendingAccounts();
+        loadUsersList();
+      } catch (err) {
+        KhaosUI.toast(err.message, 'error', 4000);
+      }
+    }
+
+    async function unbanAccount(userId) {
+      try {
+        const res = await fetch(`/api/admin/accounts/${userId}/unban`, { method: 'POST' });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Error al reactivar');
+        KhaosUI.toast(d.message || 'Cuenta reactivada', 'success', 3000);
+        loadAccountsSummary();
+        loadUsersList();
+      } catch (err) {
+        KhaosUI.toast(err.message, 'error', 4000);
+      }
+    }
+
+    async function loadUsersList() {
+      const tbody = document.getElementById('tbodyUsers');
+      try {
+        const res = await fetch('/api/admin/users');
+        if (!res.ok) throw new Error('Error al cargar lista de usuarios');
+        const data = await res.json();
+        cachedUsers = data.users || [];
+        renderUsersTable(cachedUsers);
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-rose-500">${KhaosUI.escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function renderUsersTable(users) {
+      const tbody = document.getElementById('tbodyUsers');
+      if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-400">No se encontraron usuarios.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = users.map(u => {
+        const isBanned = u.status === 'banned' || !u.is_active;
+        const statusBadge = isBanned
+          ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-100 text-rose-800">Suspendido</span>'
+          : (u.status === 'pending'
+              ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 text-amber-800">Pendiente</span>'
+              : '<span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800">Activo</span>');
+
+        return `
+          <tr class="hover:bg-slate-50/80 transition-colors">
+            <td class="py-3 px-4 font-mono font-bold text-slate-900">@${KhaosUI.escapeHtml(u.username)}</td>
+            <td class="py-3 px-4 font-medium">${KhaosUI.escapeHtml(u.full_name)}</td>
+            <td class="py-3 px-4">
+              <select onchange="changeUserRole(${u.id}, this.value)" class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs">
+                <option value="user" ${u.role === 'user' ? 'selected' : ''}>Usuario</option>
+                <option value="expert" ${u.role === 'expert' ? 'selected' : ''}>Experto</option>
+                <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Administrador</option>
+              </select>
+            </td>
+            <td class="py-3 px-4">${statusBadge}</td>
+            <td class="py-3 px-4 text-slate-500 font-mono text-[11px]">${KhaosUI.escapeHtml(u.created_at)}</td>
+            <td class="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
+              <button
+                type="button"
+                onclick="resetUserPassword(${u.id})"
+                class="px-2 py-1 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 cursor-pointer"
+                title="Generar nueva contraseña"
+              >
+                Reset Pwd
+              </button>
+              ${isBanned
+                ? `<button type="button" onclick="unbanAccount(${u.id})" class="px-2 py-1 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 cursor-pointer">Reactivar</button>`
+                : `<button type="button" onclick="banAccount(${u.id})" class="px-2 py-1 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer">Suspender</button>`
+              }
+              <button
+                type="button"
+                onclick="deleteUser(${u.id}, '${KhaosUI.escapeHtml(u.username)}')"
+                class="px-2 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-rose-600 hover:bg-slate-100 cursor-pointer"
+              >
+                &times;
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterUsersTable(q) {
+      const term = (q || '').trim().toLowerCase();
+      if (!term) return renderUsersTable(cachedUsers);
+      const filtered = cachedUsers.filter(u =>
+        u.username.toLowerCase().includes(term) || u.full_name.toLowerCase().includes(term)
+      );
+      renderUsersTable(filtered);
+    }
+
+    async function changeUserRole(userId, newRole) {
+      try {
+        const res = await fetch(`/api/admin/users/${userId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role: newRole })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Error al actualizar rol');
+        KhaosUI.toast(`Rol actualizado a '${newRole}'`, 'success', 2500);
+        loadUsersList();
+      } catch (err) {
+        KhaosUI.toast(err.message, 'error', 4000);
+        loadUsersList();
+      }
+    }
+
+    async function resetUserPassword(userId) {
+      if (!confirm('¿Generar una nueva contraseña para este usuario?')) return;
+      try {
+        const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Error al generar contraseña');
+        document.getElementById('txtTempPassword').textContent = d.generated_password;
+        document.getElementById('modalTempPassword').classList.remove('hidden');
+      } catch (err) {
+        KhaosUI.toast(err.message, 'error', 4000);
+      }
+    }
+
+    async function deleteUser(userId, username) {
+      if (!confirm(`¿Eliminar definitivamente la cuenta de @${username}? Esta acción no se puede deshacer.`)) return;
+      try {
+        const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Error al eliminar');
+        KhaosUI.toast(`Usuario @${username} eliminado`, 'info', 3000);
+        loadAccountsSummary();
+        loadUsersList();
+      } catch (err) {
+        KhaosUI.toast(err.message, 'error', 4000);
+      }
+    }
+
+    async function loadPolicies() {
+      try {
+        const res = await fetch('/api/admin/policies');
+        if (!res.ok) return;
+        const d = await res.json();
+        document.getElementById('policyRequireApproval').checked = !!d.require_admin_approval;
+        document.getElementById('policyAllowPublic').checked = !!d.allow_public_registration;
+      } catch (err) {}
+    }
+
+    async function handlePoliciesSubmit(ev) {
+      ev.preventDefault();
+      const reqApp = document.getElementById('policyRequireApproval').checked;
+      const allowPub = document.getElementById('policyAllowPublic').checked;
+      const btn = document.getElementById('btnSavePolicies');
+      if (btn) btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/admin/policies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            require_admin_approval: reqApp,
+            allow_public_registration: allowPub,
+          })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Error al guardar políticas');
+        KhaosUI.toast('Políticas actualizadas correctamente', 'success', 2500);
+        loadAccountsSummary();
+      } catch (err) {
+        KhaosUI.toast(err.message, 'error', 4000);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function loadBannedPatterns() {
+      const container = document.getElementById('bannedPatternsList');
+      try {
+        const res = await fetch('/api/admin/banned-entries');
+        if (!res.ok) return;
+        const d = await res.json();
+        const entries = d.banned_entries || [];
+        if (entries.length === 0) {
+          container.innerHTML = '<div class="text-xs text-slate-400 text-center py-2">No hay patrones bloqueados.</div>';
+          return;
+        }
+        container.innerHTML = entries.map(e => `
+          <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200/60 text-xs">
+            <div>
+              <span class="font-mono font-bold text-rose-700">${KhaosUI.escapeHtml(e.pattern)}</span>
+              ${e.reason ? `<span class="text-[11px] text-slate-500 ml-2">(${KhaosUI.escapeHtml(e.reason)})</span>` : ''}
+            </div>
+            <button
+              type="button"
+              onclick="removeBannedEntry(${e.id})"
+              class="text-xs text-slate-400 hover:text-rose-600 font-semibold cursor-pointer"
+            >
+              Desbloquear
+            </button>
+          </div>
+        `).join('');
+      } catch (err) {
+        container.innerHTML = '<div class="text-xs text-rose-500 text-center py-2">Error al cargar lista negra</div>';
+      }
+    }
+
+    async function handleAddBannedSubmit(ev) {
+      ev.preventDefault();
+      const pat = document.getElementById('inputBannedPattern').value.trim();
+      const reason = document.getElementById('inputBannedReason').value.trim();
+      if (!pat) return;
+
+      try {
+        const res = await fetch('/api/admin/banned-entries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pattern: pat, reason: reason })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Error al añadir patrón');
+        KhaosUI.toast(`Patrón '${pat}' añadido a lista negra`, 'success', 3000);
+        document.getElementById('formAddBanned').reset();
+        loadBannedPatterns();
+        loadAccountsSummary();
+      } catch (err) {
+        KhaosUI.toast(err.message, 'error', 4000);
+      }
+    }
+
+    async function removeBannedEntry(entryId) {
+      try {
+        const res = await fetch(`/api/admin/banned-entries/${entryId}`, { method: 'DELETE' });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Error al eliminar');
+        KhaosUI.toast('Patrón desbloqueado', 'info', 2500);
+        loadBannedPatterns();
+        loadAccountsSummary();
+      } catch (err) {
+        KhaosUI.toast(err.message, 'error', 4000);
+      }
+    }
+
+    function openCreateUserModal() {
+      document.getElementById('modalCreateUser').classList.remove('hidden');
+    }
+
+    function closeCreateUserModal() {
+      document.getElementById('modalCreateUser').classList.add('hidden');
+      document.getElementById('formManualCreateUser').reset();
+    }
+
+    async function handleManualCreateUser(ev) {
+      ev.preventDefault();
+      const n = document.getElementById('mCreateName').value.trim();
+      const u = document.getElementById('mCreateUser').value.trim();
+      const e = document.getElementById('mCreateEmail').value.trim();
+      const r = document.getElementById('mCreateRole').value;
+      const btn = document.getElementById('btnManualSubmit');
+      if (btn) btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/admin/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name: n, username: u, email: e, role: r })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || 'Error al crear usuario');
+        closeCreateUserModal();
+        KhaosUI.toast(`Usuario @${u} creado correctamente`, 'success', 3000);
+        loadAccountsSummary();
+        loadUsersList();
+        if (d.generated_password) {
+          document.getElementById('txtTempPassword').textContent = d.generated_password;
+          document.getElementById('modalTempPassword').classList.remove('hidden');
+        }
+      } catch (err) {
+        KhaosUI.toast(err.message, 'error', 4000);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    function closeTempPasswordModal() {
+      document.getElementById('modalTempPassword').classList.add('hidden');
+    }
+
+    function copyTempPassword() {
+      const txt = document.getElementById('txtTempPassword').textContent;
+      navigator.clipboard.writeText(txt).then(() => {
+        KhaosUI.toast('Contraseña copiada al portapapeles', 'info', 2000);
+      });
+    }
+  </script>
+</body>
+</html>
+

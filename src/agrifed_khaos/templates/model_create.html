@@ -5,67 +5,58 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>KHAOS &bull; Estudio de Creación de Modelos</title>
   <meta name="description" content="Estudio integral para configurar, entrenar y publicar modelos en el catálogo KHAOS Data Space">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="/static/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <script>
     (function() {
       const origWarn = console.warn;
       console.warn = function(...args) {
-        if (args.length > 0 && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
+        if (args.length > 0 && typeof args[0] === 'string' && (args[0].includes('cdn.tailwindcss.com') || args[0].includes('tailwindcss.js'))) {
           return;
         }
         origWarn.apply(console, args);
       };
     })();
   </script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
-          },
-        },
-      },
-    };
-  </script>
+  <link rel="preload" href="/static/khaos-bundle.min.css" as="style">
+  <link rel="stylesheet" href="/static/khaos-bundle.min.css">
   <link rel="stylesheet" href="/static/khaos-ui.css">
-  <script src="/static/khaos-ui.js"></script>
+  <script src="/static/khaos-ui.js" defer></script>
 </head>
 <body class="min-h-full flex flex-col font-sans text-slate-900 antialiased selection:bg-slate-200 selection:text-slate-900">
 
   <!-- Top Navigation Bar -->
   <header class="sticky top-0 z-40 w-full border-b border-slate-200/60 bg-white/80 backdrop-blur-md">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex h-16 items-center justify-between">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <div class="flex h-16 items-center justify-between gap-2">
         
         <!-- Brand Identity -->
-        <a href="/" class="flex items-center gap-3 group">
-          <div class="h-8 w-8 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-2xs group-hover:bg-slate-800 transition-colors">
-            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-              <line x1="12" y1="22.08" x2="12" y2="12"/>
-            </svg>
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-semibold tracking-tight text-slate-900">KHAOS <span class="text-slate-400 font-normal">Hub</span></span>
-            <span class="hidden sm:inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-50 text-slate-500 ring-1 ring-inset ring-slate-500/10 uppercase tracking-wider">Data Space</span>
+        <a href="/" class="flex items-center gap-2 sm:gap-3 group shrink-0">
+          <picture>
+            <source srcset="/static/logo.webp" type="image/webp">
+            <img src="/static/logo.png" alt="KHAOS Logo" width="32" height="32" class="h-7 w-7 sm:h-8 sm:w-8 rounded-lg object-contain group-hover:scale-105 transition-transform shrink-0" fetchpriority="high" />
+          </picture>
+          <div class="flex items-center gap-1.5 sm:gap-2">
+            <span class="text-xs sm:text-sm font-semibold tracking-tight text-slate-900">KHAOS <span class="text-slate-600 font-normal">Hub</span></span>
+            <span class="hidden md:inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-md bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10 uppercase tracking-wider">Data Space</span>
           </div>
         </a>
 
         <!-- Right Actions: Nav + Help -->
-        <div class="flex items-center gap-2 sm:gap-3">
-          <nav class="flex items-center gap-1 bg-slate-100/80 p-1 rounded-lg">
-            <a href="/" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+        <div class="flex items-center gap-1.5 sm:gap-3">
+          <nav class="flex items-center gap-0.5 sm:gap-1 bg-slate-100/80 p-0.5 sm:p-1 rounded-lg" aria-label="Navegación principal">
+            <a href="/" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-xs font-medium text-slate-700 hover:text-slate-900 transition-colors">
               Modelos
             </a>
-            <a href="/expert" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+            <a href="/expert" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-xs font-medium text-slate-700 hover:text-slate-900 transition-colors">
               Evaluación
             </a>
-            <a href="/master" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-900 bg-white shadow-2xs">
+            <a href="/master" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-xs font-semibold text-slate-900 bg-white shadow-2xs">
               Administración
             </a>
           </nav>
@@ -74,53 +65,56 @@
           <button
             type="button"
             onclick="openContextualHelp()"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            class="inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors shrink-0"
             title="Guía y Ayuda del Módulo"
           >
             <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
-            <span class="hidden sm:inline">Ayuda</span>
+            <span class="hidden md:inline">Ayuda</span>
           </button>
+
+          <!-- Profile / Login Slot -->
+          <div id="khHeaderProfileMount" class="flex items-center shrink-0"></div>
         </div>
       </div>
     </div>
   </header>
 
   <!-- Main Container -->
-  <main class="flex-1 w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 py-8">
+  <main class="flex-1 w-full max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-10 py-6 sm:py-8">
 
     <!-- Minimal top navigation -->
-    <a href="/master" class="inline-flex items-center gap-1.5 -ml-2 px-2 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+    <a href="/master" class="inline-flex items-center gap-1.5 -ml-1 sm:-ml-2 px-2 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors">
       <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
       Volver a Gobernanza
     </a>
 
-    <div class="mt-4 mb-8">
-      <h1 class="text-2xl font-semibold text-slate-900 tracking-tight">Estudio de Creación de Modelos</h1>
+    <div class="mt-3 sm:mt-4 mb-6 sm:mb-8">
+      <h1 class="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight">Estudio de Creación de Modelos</h1>
     </div>
 
-    <div id="splitContainer" class="flex flex-col lg:flex-row gap-8 lg:gap-2 max-w-screen-2xl mx-auto items-start" style="--aside-w: 30%">
+    <div id="splitContainer" class="flex flex-col lg:flex-row gap-6 lg:gap-2 max-w-screen-2xl mx-auto items-start" style="--aside-w: 30%">
 
       <!-- LEFT: Builder form (70% by default) -->
       <div class="w-full lg:flex-1 lg:min-w-0 space-y-6">
 
         <!-- Section 1: Origen de Datos -->
-        <section id="sectionSource" class="bg-white rounded-2xl border border-slate-200/60 p-6 shadow-sm space-y-5">
+        <section id="sectionSource" class="bg-white rounded-2xl border border-slate-200/60 p-4 sm:p-6 shadow-sm space-y-4 sm:space-y-5">
           <div class="flex items-center gap-2.5">
             <span class="w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-semibold flex items-center justify-center">1</span>
             <h2 class="text-base font-semibold text-slate-900 tracking-tight">Origen de Datos <span class="text-rose-500">*</span></h2>
           </div>
 
           <!-- Unified source selector: dataset sources + existing checkpoint -->
-          <div class="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl" role="tablist">
-            <div id="btnModeAutoFl" class="flex flex-1 items-center gap-1.5">
+          <div class="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl overflow-x-auto no-scrollbar whitespace-nowrap min-w-0" role="tablist">
+            <div id="btnModeAutoFl" class="flex flex-1 items-center gap-1.5 min-w-fit">
               <button type="button" id="subtabUpload" role="tab" onclick="setDatasetIngestionMode('upload')" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-2xs text-center transition-all cursor-pointer">Subir Carpeta / ZIP</button>
-              <button type="button" id="subtabServer" role="tab" onclick="setDatasetIngestionMode('server')" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900 text-center transition-all cursor-pointer">Ruta en Servidor</button>
-              <button type="button" id="subtabUrl" role="tab" onclick="setDatasetIngestionMode('url')" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900 text-center transition-all cursor-pointer">Enlace HTTPS</button>
+              <button type="button" id="subtabServer" role="tab" onclick="setDatasetIngestionMode('server')" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 text-center transition-all cursor-pointer">Ruta en Servidor</button>
+              <button type="button" id="subtabUrl" role="tab" onclick="setDatasetIngestionMode('url')" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 text-center transition-all cursor-pointer">Enlace HTTPS</button>
             </div>
             <span class="w-px h-5 bg-slate-300/80 shrink-0" aria-hidden="true"></span>
-            <button type="button" id="btnModeManual" role="tab" onclick="setDatasetIngestionMode('manual')" class="shrink-0 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900 text-center transition-all cursor-pointer">Archivo .pt</button>
+            <button type="button" id="btnModeManual" role="tab" onclick="setDatasetIngestionMode('manual')" class="shrink-0 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 text-center transition-all cursor-pointer">Archivo .pt</button>
           </div>
           <p id="modeDescriptionLabel" class="text-xs text-slate-500 -mt-2">Entrenamiento automático desde carpetas de imágenes clasificadas.</p>
 
@@ -192,7 +186,7 @@
             <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
               <div id="uploadProgressBar" class="bg-indigo-600 h-2 rounded-full transition-all duration-200" style="width: 0%"></div>
             </div>
-            <div id="uploadSubStatus" class="text-[11px] text-slate-500 leading-snug hidden"></div>
+            <div id="uploadSubStatus" class="text-xs text-slate-500 leading-snug hidden"></div>
           </div>
         </div>
 
@@ -220,7 +214,7 @@
                 <span>Inspeccionar</span>
               </button>
             </div>
-            <p class="text-[11px] text-slate-500 mt-1">
+            <p class="text-xs text-slate-500 mt-1">
               Directorio en disco con subcarpetas para cada clase con imágenes (.jpg, .jpeg, .png, .webp).
             </p>
           </div>
@@ -228,14 +222,14 @@
           <!-- Dataset Quick Suggestions & Discovered Datasets -->
           <div class="pt-2 border-t border-slate-200/60 space-y-2">
             <div class="flex items-center justify-between">
-              <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+              <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                 Datasets Disponibles en Servidor &amp; AgriVision:
               </span>
               <button
                 type="button"
                 onclick="loadAvailableServerDatasets()"
-                class="text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer inline-flex items-center gap-1"
+                class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer inline-flex items-center gap-1"
               >
                 <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
                 <span>Actualizar lista</span>
@@ -270,7 +264,7 @@
                 <span>Descargar e Inspeccionar</span>
               </button>
             </div>
-            <p class="text-[11px] text-slate-500 mt-1">
+            <p class="text-xs text-slate-500 mt-1">
               El servidor descargará el archivo comprimido en segundo plano y verificará las imágenes automáticamente.
             </p>
           </div>
@@ -281,123 +275,18 @@
         <!-- Inspection Result Card -->
         <div id="datasetInspectionCard" class="hidden rounded-xl border p-4 space-y-3 transition-all"></div>
 
-        <!-- Train / Val / Test Partitioning Controls -->
-        <div id="dataSplitsSection" class="pt-4 border-t border-slate-200/70 space-y-3">
-          <div class="flex items-center justify-between">
-            <div>
-              <label class="block text-xs font-bold text-slate-800">
-                Partición del Dataset (Train / Val / Test)
-              </label>
-              <p class="text-[11px] text-slate-500">
-                Distribución porcentual para entrenamiento, validación y test sobre el conjunto de datos.
-              </p>
-            </div>
-            <span id="splitTotalBadge" class="text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-              Total: 100%
+        <!-- Unlabeled Data Alert Banner -->
+        <div id="unlabeledAlertBanner" class="hidden rounded-xl bg-purple-50/80 border border-purple-200/80 p-3.5 text-xs text-purple-900 flex items-start gap-2.5">
+          <svg class="w-4 h-4 text-purple-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          <div class="leading-relaxed">
+            <span class="font-semibold text-purple-950">Muestras no clasificadas detectadas:</span>
+            <span id="unlabeledCountMsg" class="ml-1 text-purple-800">
+              Se detectaron <strong id="unlabeledCountNumber">0</strong> imágenes sin clasificar. Se omitirán del entrenamiento base y se enviarán a la bandeja de Curación Experta (HITL).
             </span>
-          </div>
-
-          <!-- Pre-Split Detected Read-Only Visualizer -->
-          <div id="preSplitBanner" class="hidden rounded-xl bg-slate-50/80 border border-slate-200/90 p-3.5 space-y-2.5">
-            <div class="flex items-center justify-between">
-              <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-800">
-                <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
-                <span id="preSplitLabel">Partición predefinida detectada en disco</span>
-              </span>
-              <span id="preSplitPercentagesBadge" class="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200/70">
-                Distribución detectada: 80% / 10% / 10%
-              </span>
-            </div>
-            <!-- Mini Stacked Progress Bar -->
-            <div class="w-full h-2 rounded-full bg-slate-200/80 overflow-hidden flex">
-              <div id="preSplitBarTrain" class="h-full bg-indigo-600 transition-all duration-300" style="width: 80%" title="Train"></div>
-              <div id="preSplitBarVal" class="h-full bg-emerald-500 transition-all duration-300" style="width: 10%" title="Val"></div>
-              <div id="preSplitBarTest" class="h-full bg-sky-400 transition-all duration-300" style="width: 10%" title="Test"></div>
-            </div>
-            <div class="flex items-center justify-between text-[10px] font-mono text-slate-500">
-              <span id="preSplitCountTrain">Train: -</span>
-              <span id="preSplitCountVal">Val: -</span>
-              <span id="preSplitCountTest">Test: -</span>
-            </div>
-          </div>
-
-          <!-- 3 Numeric Inputs for Flat Datasets -->
-          <div id="splitInputsGrid" class="grid grid-cols-3 gap-3">
-            <div>
-              <label for="splitTrainInput" class="block text-[11px] font-semibold text-slate-700 mb-1">
-                Entrenamiento (Train %)
-              </label>
-              <div class="relative">
-                <input
-                  type="number"
-                  id="splitTrainInput"
-                  min="10"
-                  max="95"
-                  step="1"
-                  value="80"
-                  oninput="onSplitInputChange()"
-                  class="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono bg-white"
-                >
-                <span class="absolute right-3 top-1.5 text-xs text-slate-400 pointer-events-none">%</span>
-              </div>
-            </div>
-
-            <div>
-              <label for="splitValInput" class="block text-[11px] font-semibold text-slate-700 mb-1">
-                Validación (Val %)
-              </label>
-              <div class="relative">
-                <input
-                  type="number"
-                  id="splitValInput"
-                  min="0"
-                  max="50"
-                  step="1"
-                  value="10"
-                  oninput="onSplitInputChange()"
-                  class="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono bg-white"
-                >
-                <span class="absolute right-3 top-1.5 text-xs text-slate-400 pointer-events-none">%</span>
-              </div>
-            </div>
-
-            <div>
-              <label for="splitTestInput" class="block text-[11px] font-semibold text-slate-700 mb-1">
-                Test / Evaluación (Test %)
-              </label>
-              <div class="relative">
-                <input
-                  type="number"
-                  id="splitTestInput"
-                  min="0"
-                  max="50"
-                  step="1"
-                  value="10"
-                  oninput="onSplitInputChange()"
-                  class="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono bg-white"
-                >
-                <span class="absolute right-3 top-1.5 text-xs text-slate-400 pointer-events-none">%</span>
-              </div>
-            </div>
-          </div>
-
-          <div id="splitValidationError" class="hidden text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
-            La suma de Train, Val y Test debe ser exactamente 100%.
-          </div>
-
-          <!-- Unlabeled Data Alert Banner -->
-          <div id="unlabeledAlertBanner" class="hidden rounded-xl bg-purple-50/80 border border-purple-200/80 p-3.5 text-xs text-purple-900 flex items-start gap-2.5">
-            <svg class="w-4 h-4 text-purple-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="16" x2="12" y2="12"/>
-              <line x1="12" y1="8" x2="12.01" y2="8"/>
-            </svg>
-            <div class="leading-relaxed">
-              <span class="font-semibold text-purple-950">Muestras no clasificadas detectadas:</span>
-              <span id="unlabeledCountMsg" class="ml-1 text-purple-800">
-                Se detectaron <strong id="unlabeledCountNumber">0</strong> imágenes sin clasificar. Se omitirán del entrenamiento base y se enviarán a la bandeja de Curación Experta (HITL).
-              </span>
-            </div>
           </div>
         </div>
         </div>
@@ -431,13 +320,13 @@
             <div class="sm:col-span-2">
               <label for="domainSelect" class="block text-xs font-medium text-slate-700 mb-1.5">Dominio</label>
               <select id="domainSelect" onchange="handleDomainChange()" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-400 transition-shadow">
-                <option value="Agroalimentario & Agricultura">Agroalimentario &amp; Agricultura</option>
-                <option value="Industria & Manufactura">Industria &amp; Manufactura</option>
-                <option value="Control de Calidad & Inspección">Control de Calidad &amp; Inspección</option>
-                <option value="Visión Artificial" selected>Visión Artificial</option>
-                <option value="Biomedicina & Sanidad">Biomedicina &amp; Sanidad</option>
-                <option value="Medio Ambiente & Recursos">Medio Ambiente &amp; Recursos</option>
-                <option value="Logística & Transporte">Logística &amp; Transporte</option>
+                <option value="Agricultura" selected>Agricultura</option>
+                <option value="Alimentación">Alimentación</option>
+                <option value="Industria">Industria</option>
+                <option value="Calidad">Calidad</option>
+                <option value="Biomedicina">Biomedicina</option>
+                <option value="Medio Ambiente">Medio Ambiente</option>
+                <option value="Logística">Logística</option>
                 <option value="General">General</option>
               </select>
             </div>
@@ -468,7 +357,7 @@
                       <img id="thumbnailPreviewImg" src="" alt="Miniatura extraída" class="w-9 h-7 rounded object-cover border border-slate-200 shrink-0 bg-slate-100">
                       <div class="min-w-0">
                         <p class="text-xs font-medium text-slate-700 truncate">Miniatura extraída del dataset</p>
-                        <p class="text-[10px] text-slate-400 truncate">Imagen WebP optimizada</p>
+                        <p class="text-xs text-slate-400 truncate">Imagen WebP optimizada</p>
                       </div>
                     </div>
                     <button type="button" id="btnRemoveThumbnail" onclick="clearBase64Thumbnail()" class="text-xs font-medium text-rose-600 hover:text-rose-700 px-2 py-1 rounded-md hover:bg-rose-50 transition-colors shrink-0 cursor-pointer">
@@ -498,7 +387,7 @@
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <label for="classesInput" class="block text-xs font-medium text-slate-700">Clases detectables</label>
-                  <span id="classesLockBadge" class="hidden inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200/80">
+                  <span id="classesLockBadge" class="hidden inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200/80">
                     <svg class="w-3 h-3 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     <span>Bloqueadas por dataset</span>
                   </span>
@@ -511,7 +400,7 @@
                   oninput="updateLivePreview()"
                   class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-400 transition-shadow font-mono text-xs"
                 >
-                <p id="classesHelperText" class="text-[11px] text-slate-400 mt-1">
+                <p id="classesHelperText" class="text-xs text-slate-400 mt-1">
                   Se configurarán automáticamente desde las carpetas del dataset inspeccionado.
                 </p>
               </div>
@@ -547,20 +436,40 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label for="archSelect" class="block text-xs font-bold text-slate-700 mb-1">Arquitectura de Red</label>
+            <div class="flex items-center justify-between mb-1">
+              <label for="archSelect" class="block text-xs font-bold text-slate-700">Arquitectura de Red</label>
+              <span id="archModalityBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-400/20">
+                <svg class="w-2.5 h-2.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                Clasificación Global
+              </span>
+            </div>
             <select
               id="archSelect"
               onchange="onArchUserChange()"
-              class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white font-mono"
+              class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white font-mono"
             >
-              <option value="auto">auto (Recomendación inteligente)</option>
-              <option value="resnet18" selected>resnet18 (Balance robusto precisión/cómputo)</option>
-              <option value="mobilenet_v3_small">mobilenet_v3_small (Ultra-ligero edge/IoT)</option>
-              <option value="convnext_tiny">convnext_tiny (Alta capacidad de detalle)</option>
-              <option value="efficientnet_b0">efficientnet_b0 (Eficiencia moderna)</option>
-              <option value="efficientnet_v2_s">efficientnet_v2_s (Eficiencia SOTA)</option>
-              <option value="swin_t">swin_t (Swin Vision Transformer - Alta capacidad espacial)</option>
+              <option value="auto">auto (Recomendación inteligente según dataset)</option>
+              <optgroup label="Detección de Objetos (Bounding Boxes)">
+                <option value="yolov8n">yolov8n (Detector de Objetos Ultralytics YOLOv8 Nano - Ultrarrápido Edge)</option>
+                <option value="yolov8s">yolov8s (Detector de Objetos Ultralytics YOLOv8 Small - Alta precisión)</option>
+                <option value="yolo11n">yolo11n (Detector de Objetos Ultralytics YOLO11 Nano - SOTA Ligero)</option>
+              </optgroup>
+              <optgroup label="Clasificación de Imagen (Diagnóstico Global)">
+                <option value="resnet18" selected>resnet18 (Balance robusto precisión/cómputo)</option>
+                <option value="mobilenet_v3_small">mobilenet_v3_small (Ultra-ligero edge/IoT)</option>
+                <option value="convnext_tiny">convnext_tiny (Alta capacidad de detalle)</option>
+                <option value="convnext_tiny.in12k_ft_in1k">convnext_tiny.in12k (Preentrenado ImageNet-12K - Invarianza de dominio)</option>
+                <option value="efficientnet_b0">efficientnet_b0 (Eficiencia moderna)</option>
+                <option value="efficientnet_v2_s">efficientnet_v2_s (Eficiencia SOTA)</option>
+                <option value="swin_t">swin_t (Swin Vision Transformer - Alta capacidad espacial)</option>
+                <option value="dinov2_vits14">dinov2_vits14 (Meta DINOv2 142M imgs - Máxima invarianza al fondo)</option>
+                <option value="eva02_tiny_patch14_224">eva02_tiny_patch14_224 (MIM/CLIP ViT - Alta generalización Out-of-Domain)</option>
+              </optgroup>
             </select>
+            <div id="archModalityHelper" class="mt-1.5 text-[11px] text-slate-500 flex items-start gap-1.5">
+              <svg class="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+              <span id="archModalityHelperText">Clasificación de Imagen: evalúa la fotografía completa y asigna probabilidades globales por clase (sin recuadros sobre la foto).</span>
+            </div>
           </div>
 
           <div>
@@ -575,6 +484,202 @@
               class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
             <p class="text-xs text-slate-500 mt-1">El entrenamiento se detendrá automáticamente si el modelo alcanza su máxima precisión (Early Stopping).</p>
+          </div>
+        </div>
+
+        <!-- Train / Val / Test Partitioning Controls (Interactive Multi-Segment Slider & Live Counts) -->
+        <div id="dataSplitsSection" class="pt-4 border-t border-slate-200/70 space-y-3">
+          <!-- Manual Partition Controls (Shown when dataset is flat / manual partition active) -->
+          <div id="manualSplitControls" class="space-y-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="block text-xs font-bold text-slate-800">
+                  Partición del Dataset (Train / Val / Test)
+                </label>
+                <p class="text-xs text-slate-500">
+                  Distribución porcentual para entrenamiento, validación y test. Arrastra los márgenes de la barra para ajustar las porciones.
+                </p>
+              </div>
+              <span id="splitTotalBadge" class="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Total: 100%
+              </span>
+            </div>
+
+            <!-- Multi-Segment Interactive Range Track with 2 Draggable Margin Handles -->
+            <div class="relative pt-2 pb-1 select-none">
+              <!-- Visual Segment Bar -->
+              <div id="splitTrackContainer" class="relative w-full h-5 bg-slate-100 rounded-lg overflow-hidden flex shadow-inner cursor-pointer">
+                <!-- Train Segment (Indigo) -->
+                <div id="splitBarSegmentTrain" class="h-full bg-indigo-600 transition-[width] duration-75 flex items-center justify-center text-xs font-bold text-white overflow-hidden min-w-0" style="width: 80%;">
+                  <span class="min-w-0 max-w-full truncate px-0.5 text-center pointer-events-none block overflow-hidden">Train <span id="barPctTrain">80%</span></span>
+                </div>
+                <!-- Val Segment (Emerald-700 high contrast) -->
+                <div id="splitBarSegmentVal" class="h-full bg-emerald-700 transition-[width] duration-75 flex items-center justify-center text-xs font-bold text-white overflow-hidden min-w-0" style="width: 10%;">
+                  <span class="min-w-0 max-w-full truncate px-0.5 text-center pointer-events-none block overflow-hidden">Val <span id="barPctVal">10%</span></span>
+                </div>
+                <!-- Test Segment (Blue-800 high contrast) -->
+                <div id="splitBarSegmentTest" class="h-full bg-blue-800 transition-[width] duration-75 flex items-center justify-center text-xs font-bold text-white overflow-hidden min-w-0" style="width: 10%;">
+                  <span class="min-w-0 max-w-full truncate px-0.5 text-center pointer-events-none block overflow-hidden">Test <span id="barPctTest">10%</span></span>
+                </div>
+              </div>
+
+              <!-- Draggable Margin Handle 1: Between Train and Val -->
+              <div id="splitHandle1"
+                role="slider"
+                aria-label="Margen Train / Val"
+                aria-valuemin="10"
+                aria-valuemax="90"
+                aria-valuenow="80"
+                tabindex="0"
+                style="left: 80%;"
+                class="absolute top-1.5 -ml-2.5 w-5 h-6 bg-white border-2 border-indigo-600 rounded-md shadow-md cursor-ew-resize flex items-center justify-center hover:scale-110 active:scale-95 transition-transform touch-none z-10"
+                title="Arrastra para ajustar el margen entre Entrenamiento y Validación">
+                <div class="w-1 h-2.5 flex flex-col justify-between pointer-events-none">
+                  <span class="block w-full h-0.5 bg-indigo-600 rounded-full"></span>
+                  <span class="block w-full h-0.5 bg-indigo-600 rounded-full"></span>
+                </div>
+              </div>
+
+              <!-- Draggable Margin Handle 2: Between Val and Test -->
+              <div id="splitHandle2"
+                role="slider"
+                aria-label="Margen Val / Test"
+                aria-valuemin="15"
+                aria-valuemax="95"
+                aria-valuenow="90"
+                tabindex="0"
+                style="left: 90%;"
+                class="absolute top-1.5 -ml-2.5 w-5 h-6 bg-white border-2 border-blue-800 rounded-md shadow-md cursor-ew-resize flex items-center justify-center hover:scale-110 active:scale-95 transition-transform touch-none z-10"
+                title="Arrastra para ajustar el margen entre Validación y Test">
+                <div class="w-1 h-2.5 flex flex-col justify-between pointer-events-none">
+                  <span class="block w-full h-0.5 bg-blue-800 rounded-full"></span>
+                  <span class="block w-full h-0.5 bg-blue-800 rounded-full"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3 Columns for Train / Val / Test with Inputs and Image Counts in Soft Gray -->
+            <div id="splitInputsGrid" class="grid grid-cols-3 gap-3 pt-1">
+              <!-- Train Card -->
+              <div class="p-2.5 rounded-xl border border-slate-200/80 bg-slate-50/50 space-y-1">
+                <div class="flex items-center justify-between">
+                  <span class="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
+                    <span class="w-2 h-2 rounded-full bg-indigo-600 shrink-0"></span>
+                    <span class="truncate">Entrenamiento</span>
+                  </span>
+                  <div class="relative w-16 shrink-0">
+                    <input
+                      type="number"
+                      id="splitTrainInput"
+                      aria-label="Porcentaje de imágenes para Entrenamiento"
+                      min="10"
+                      max="90"
+                      step="1"
+                      value="80"
+                      oninput="onSplitInputChange('train')"
+                      class="w-full px-2 py-1 text-xs font-mono font-bold text-slate-900 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white text-right pr-5"
+                    >
+                    <span class="absolute right-1.5 top-1 text-xs text-slate-500 pointer-events-none">%</span>
+                  </div>
+                </div>
+                <!-- Soft Gray Image Count -->
+                <div class="flex items-center justify-between text-xs font-mono text-slate-500 pt-0.5">
+                  <span class="text-slate-600">Muestras:</span>
+                  <span id="splitTrainCountLabel" class="font-medium text-slate-600">0 imágenes</span>
+                </div>
+              </div>
+
+              <!-- Val Card -->
+              <div class="p-2.5 rounded-xl border border-slate-200/80 bg-slate-50/50 space-y-1">
+                <div class="flex items-center justify-between">
+                  <span class="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
+                    <span class="w-2 h-2 rounded-full bg-emerald-600 shrink-0"></span>
+                    <span class="truncate">Validación</span>
+                  </span>
+                  <div class="relative w-16 shrink-0">
+                    <input
+                      type="number"
+                      id="splitValInput"
+                      aria-label="Porcentaje de imágenes para Validación"
+                      min="5"
+                      max="45"
+                      step="1"
+                      value="10"
+                      oninput="onSplitInputChange('val')"
+                      class="w-full px-2 py-1 text-xs font-mono font-bold text-slate-900 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white text-right pr-5"
+                    >
+                    <span class="absolute right-1.5 top-1 text-xs text-slate-500 pointer-events-none">%</span>
+                  </div>
+                </div>
+                <!-- Soft Gray Image Count -->
+                <div class="flex items-center justify-between text-xs font-mono text-slate-500 pt-0.5">
+                  <span class="text-slate-600">Muestras:</span>
+                  <span id="splitValCountLabel" class="font-medium text-slate-600">0 imágenes</span>
+                </div>
+              </div>
+
+              <!-- Test Card -->
+              <div class="p-2.5 rounded-xl border border-slate-200/80 bg-slate-50/50 space-y-1">
+                <div class="flex items-center justify-between">
+                  <span class="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
+                    <span class="w-2 h-2 rounded-full bg-blue-800 shrink-0"></span>
+                    <span class="truncate">Test / Eval</span>
+                  </span>
+                  <div class="relative w-16 shrink-0">
+                    <input
+                      type="number"
+                      id="splitTestInput"
+                      aria-label="Porcentaje de imágenes para Test"
+                      min="5"
+                      max="45"
+                      step="1"
+                      value="10"
+                      oninput="onSplitInputChange('test')"
+                      class="w-full px-2 py-1 text-xs font-mono font-bold text-slate-900 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-sky-500 bg-white text-right pr-5"
+                    >
+                    <span class="absolute right-1.5 top-1 text-xs text-slate-500 pointer-events-none">%</span>
+                  </div>
+                </div>
+                <!-- Soft Gray Image Count -->
+                <div class="flex items-center justify-between text-xs font-mono text-slate-500 pt-0.5">
+                  <span class="text-slate-600">Muestras:</span>
+                  <span id="splitTestCountLabel" class="font-medium text-slate-600">0 imágenes</span>
+                </div>
+              </div>
+            </div>
+
+            <div id="splitValidationError" class="hidden text-xs text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
+              La suma de Train, Val y Test debe ser exactamente 100%.
+            </div>
+          </div>
+
+          <!-- Pre-Split Detected: Subtle Gray Note (Shown ONLY when pre-splits are detected on disk) -->
+          <div id="preSplitBanner" class="hidden rounded-xl bg-slate-50 border border-slate-200/90 p-3.5 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span id="preSplitLabel">Partición predefinida detectada en disco (Train / Val / Test)</span>
+              </span>
+              <span id="preSplitPercentagesBadge" class="text-xs font-mono text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200/90">
+                Distribución: 80% / 10% / 10%
+              </span>
+            </div>
+            <p class="text-xs text-slate-500 leading-relaxed">
+              El dataset ya incluye subcarpetas de partición estructuradas. Se respetará su estructura original automáticamente sin partición manual.
+            </p>
+            <!-- Mini Gray Progress Bar -->
+            <div class="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden flex">
+              <div id="preSplitBarTrain" class="h-full bg-slate-500 transition-all duration-300" style="width: 80%" title="Train"></div>
+              <div id="preSplitBarVal" class="h-full bg-slate-400 transition-all duration-300" style="width: 10%" title="Val"></div>
+              <div id="preSplitBarTest" class="h-full bg-slate-300 transition-all duration-300" style="width: 10%" title="Test"></div>
+            </div>
+            <div class="flex items-center justify-between text-xs font-mono text-slate-400">
+              <span id="preSplitCountTrain">Train: -</span>
+              <span id="preSplitCountVal">Val: -</span>
+              <span id="preSplitCountTest">Test: -</span>
+            </div>
           </div>
         </div>
 
@@ -663,6 +768,7 @@
               >
                 <option value="basic" selected>Básico (Flips &amp; Rotaciones leves)</option>
                 <option value="randaugment">Agresivo (RandAugment - Máxima robustez)</option>
+                <option value="in_the_wild">In-The-Wild (Anti-Sesgo de Fondo + Multi-Escala)</option>
               </select>
             </div>
           </div>
@@ -682,11 +788,11 @@
 
       <!-- RIGHT: Sticky preview + CTA (30% by default) -->
       <aside class="w-full lg:w-[var(--aside-w)] lg:shrink-0 lg:sticky lg:top-24 h-fit space-y-4">
-        <div id="previewEmptyState" class="border-2 border-dashed border-slate-200 bg-slate-50 rounded-2xl flex flex-col items-center justify-center py-16 px-8 text-center text-slate-400 transition-opacity duration-300">
-          <svg class="w-10 h-10 mb-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <div id="previewEmptyState" class="border-2 border-dashed border-slate-200 bg-slate-50 rounded-2xl flex flex-col items-center justify-center py-16 px-8 text-center text-slate-500 transition-opacity duration-300">
+          <svg class="w-10 h-10 mb-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18"/><path d="M7 14h6"/><path d="M7 17h3"/>
           </svg>
-          <p class="text-sm max-w-[16rem] leading-relaxed">Configura tu modelo a la izquierda para previsualizar su ficha aquí.</p>
+          <p class="text-sm max-w-[16rem] leading-relaxed text-slate-600">Configura tu modelo a la izquierda para previsualizar su ficha aquí.</p>
         </div>
 
         <section id="secPreviewCard" class="hidden opacity-0 transition-opacity duration-300 bg-white rounded-2xl border border-slate-200/60 p-6 shadow-sm space-y-5">
@@ -695,7 +801,7 @@
               <h3 class="text-sm font-semibold text-slate-900 tracking-tight">Vista Previa en el Catálogo</h3>
               <p class="text-xs text-slate-500">Así lo verán los usuarios.</p>
             </div>
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>En vivo
             </span>
           </div>
@@ -713,9 +819,9 @@
           <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/60 space-y-2 text-xs">
             <div class="flex items-center justify-between">
               <span class="font-medium text-slate-800">Resumen</span>
-              <span id="summaryModePill" class="text-[10px] font-mono px-2 py-0.5 rounded bg-white ring-1 ring-inset ring-slate-200 text-slate-600">Auto-FL</span>
+              <span id="summaryModePill" class="text-xs font-mono px-2 py-0.5 rounded bg-white ring-1 ring-inset ring-slate-200 text-slate-600">Auto-FL</span>
             </div>
-            <div class="space-y-1.5 text-slate-500 font-mono text-[11px]">
+            <div class="space-y-1.5 text-slate-500 font-mono text-xs">
               <div class="flex justify-between gap-3"><span>Slug</span><span id="summarySlug" class="font-semibold text-slate-900 truncate">-</span></div>
               <div class="flex justify-between gap-3"><span>Origen</span><span id="summarySource" class="truncate max-w-[200px] text-right text-slate-900">-</span></div>
               <div class="flex justify-between gap-3"><span>Red</span><span id="summaryArchEpochs" class="text-slate-900">resnet18 &bull; 5 épocas</span></div>
@@ -724,9 +830,9 @@
           </div>
 
           <div class="space-y-1.5 text-xs">
-            <span class="text-[11px] font-medium text-slate-500">Términos de búsqueda</span>
+            <span class="text-xs font-medium text-slate-500">Términos de búsqueda</span>
             <div id="previewSearchTags" class="flex flex-wrap gap-1.5">
-              <span class="text-[11px] text-slate-400">Sin etiquetas</span>
+              <span class="text-xs text-slate-400">Sin etiquetas</span>
             </div>
           </div>
         </section>
@@ -734,6 +840,15 @@
         <!-- CTA + job monitor -->
       <!-- STEP 5: Final Action Dispatcher & Job Monitor -->
       <div class="p-5 bg-white rounded-2xl border border-slate-200/60 shadow-sm space-y-4">
+        <!-- GPU Worker Indicator -->
+        <div id="gpuWorkerBadge" class="hidden p-3 rounded-xl text-xs flex items-center justify-between border border-slate-200 bg-slate-50 text-slate-700">
+          <div class="flex items-center gap-2">
+            <span id="gpuWorkerDot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span id="gpuWorkerText" class="font-medium">Nodo GPU Conectado</span>
+          </div>
+          <span id="gpuWorkerTag" class="font-mono text-[10px] text-slate-500 uppercase tracking-wider">Acelerador Remoto</span>
+        </div>
+
         <p id="actionPipelineNotice" class="text-xs text-slate-500 leading-relaxed">
           Al iniciar el entrenamiento, el sistema ejecutará el aprendizaje en segundo plano (Job Runner) y publicará automáticamente el modelo en el catálogo una vez completado.
         </p>
@@ -752,7 +867,7 @@
             disabled aria-disabled="true" class="w-full sm:w-auto py-2.5 px-6 rounded-xl text-white bg-slate-900 hover:bg-slate-800 font-semibold text-xs shadow-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer opacity-50 cursor-not-allowed pointer-events-none"
           >
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-            <span id="btnLaunchText">Iniciar Entrenamiento y Publicar en Hub</span>
+            <span id="btnLaunchText">Iniciar Entrenamiento y Publicar</span>
           </button>
         </div>
 
@@ -760,14 +875,14 @@
 
         <!-- Live Inline Job Progress Console (Step 6) -->
         <div id="studioLiveJobBox" class="hidden rounded-xl border border-slate-800 bg-slate-950 p-3.5 text-slate-200 space-y-2">
-          <div class="flex items-center justify-between text-[11px]">
+          <div class="flex items-center justify-between text-xs">
             <span id="studioJobStatusTitle" class="font-bold text-indigo-400 flex items-center gap-1.5">
               <span class="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
               Entrenando en segundo plano...
             </span>
-            <a href="/master" class="text-[10px] font-semibold text-slate-400 hover:text-white underline">Abrir Consola MLOps &rarr;</a>
+            <a href="/master" class="text-xs font-semibold text-slate-400 hover:text-white underline">Abrir Consola MLOps &rarr;</a>
           </div>
-          <pre id="studioJobLogTail" class="text-[10px] font-mono text-emerald-300 max-h-36 overflow-y-auto whitespace-pre-wrap leading-relaxed bg-slate-900/90 p-2.5 rounded-lg border border-slate-800"></pre>
+          <pre id="studioJobLogTail" class="text-xs font-mono text-emerald-300 max-h-36 overflow-y-auto whitespace-pre-wrap leading-relaxed bg-slate-900/90 p-2.5 rounded-lg border border-slate-800"></pre>
         </div>
       </div>
       </aside>
@@ -785,11 +900,11 @@
       </div>
       <div class="flex flex-col sm:flex-row items-center gap-x-6 gap-y-2">
         <nav class="flex flex-wrap items-center gap-x-5 gap-y-1">
-          <a href="https://www.uma.es/servicio-central-de-informatica/info/156901/politica-de-cookies/" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-slate-600 transition-colors">Política de cookies</a>
-          <a href="https://sede.uma.es/opencms/system/modules/sede/contents/footer/normativa" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-slate-600 transition-colors">Política de privacidad</a>
-          <a href="https://sede.uma.es/opencms/system/modules/sede/contents/footer/normativa" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-slate-600 transition-colors">Avisos legales</a>
+          <a href="https://www.uma.es/servicio-central-de-informatica/info/156901/politica-de-cookies/" target="_blank" rel="noopener noreferrer" class="text-slate-600 hover:text-slate-900 transition-colors">Política de cookies</a>
+          <a href="https://sede.uma.es/opencms/system/modules/sede/contents/footer/normativa" target="_blank" rel="noopener noreferrer" class="text-slate-600 hover:text-slate-900 transition-colors">Política de privacidad</a>
+          <a href="https://sede.uma.es/opencms/system/modules/sede/contents/footer/normativa" target="_blank" rel="noopener noreferrer" class="text-slate-600 hover:text-slate-900 transition-colors">Avisos legales</a>
         </nav>
-        <span class="text-slate-400">&copy; 2026 Todos los derechos reservados</span>
+        <span class="text-slate-600">&copy; 2026 Todos los derechos reservados</span>
       </div>
     </div>
   </footer>
@@ -830,26 +945,179 @@
     let datasetCorruptedCount = 0;
     let previewRevealed = null;
 
-    function onSplitInputChange() {
-      const tr = parseFloat(document.getElementById('splitTrainInput')?.value) || 0;
-      const vl = parseFloat(document.getElementById('splitValInput')?.value) || 0;
-      const ts = parseFloat(document.getElementById('splitTestInput')?.value) || 0;
+    function updateSplitVisuals(tr, vl, ts) {
+      const segTrain = document.getElementById('splitBarSegmentTrain');
+      const segVal = document.getElementById('splitBarSegmentVal');
+      const segTest = document.getElementById('splitBarSegmentTest');
+
+      const barPctTr = document.getElementById('barPctTrain');
+      const barPctVl = document.getElementById('barPctVal');
+      const barPctTs = document.getElementById('barPctTest');
+
+      const h1 = document.getElementById('splitHandle1');
+      const h2 = document.getElementById('splitHandle2');
+
+      const p1 = tr;
+      const p2 = tr + vl;
+
+      if (segTrain) segTrain.style.width = `${tr}%`;
+      if (segVal) segVal.style.width = `${vl}%`;
+      if (segTest) segTest.style.width = `${ts}%`;
+
+      if (barPctTr) barPctTr.textContent = `${tr}%`;
+      if (barPctVl) barPctVl.textContent = `${vl}%`;
+      if (barPctTs) barPctTs.textContent = `${ts}%`;
+
+      if (h1) {
+        h1.style.left = `${p1}%`;
+        h1.setAttribute('aria-valuenow', String(tr));
+      }
+      if (h2) {
+        h2.style.left = `${p2}%`;
+        h2.setAttribute('aria-valuenow', String(tr + vl));
+      }
+
+      // Update Total Badge & Validation message
       const total = tr + vl + ts;
       const badge = document.getElementById('splitTotalBadge');
       const err = document.getElementById('splitValidationError');
       if (badge) {
         badge.textContent = `Total: ${total}%`;
         if (total === 100) {
-          badge.className = 'text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
+          badge.className = 'text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
           if (err) err.classList.add('hidden');
         } else {
-          badge.className = 'text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200';
+          badge.className = 'text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200';
           if (err) {
             err.classList.remove('hidden');
             err.textContent = `La suma actual es ${total}%. Debe ser exactamente 100% para particionar correctamente.`;
           }
         }
       }
+
+      // Update Image Counts in Soft Gray
+      const totalImgs = (typeof lastInspectedTotalImages === 'number' && lastInspectedTotalImages > 0)
+        ? lastInspectedTotalImages
+        : 0;
+
+      const countTr = document.getElementById('splitTrainCountLabel');
+      const countVl = document.getElementById('splitValCountLabel');
+      const countTs = document.getElementById('splitTestCountLabel');
+
+      if (totalImgs > 0) {
+        const cTr = Math.round(totalImgs * (tr / 100));
+        const cVl = Math.round(totalImgs * (vl / 100));
+        const cTs = Math.max(0, totalImgs - cTr - cVl);
+        if (countTr) countTr.textContent = `${cTr.toLocaleString()} imágenes`;
+        if (countVl) countVl.textContent = `${cVl.toLocaleString()} imágenes`;
+        if (countTs) countTs.textContent = `${cTs.toLocaleString()} imágenes`;
+      } else {
+        if (countTr) countTr.textContent = '- imágenes';
+        if (countVl) countVl.textContent = '- imágenes';
+        if (countTs) countTs.textContent = '- imágenes';
+      }
+    }
+
+    function applySplits(tr, vl, ts) {
+      const trainIn = document.getElementById('splitTrainInput');
+      const valIn = document.getElementById('splitValInput');
+      const testIn = document.getElementById('splitTestInput');
+      if (trainIn) trainIn.value = tr;
+      if (valIn) valIn.value = vl;
+      if (testIn) testIn.value = ts;
+      updateSplitVisuals(tr, vl, ts);
+    }
+
+    function onSplitInputChange(changedField) {
+      let tr = parseFloat(document.getElementById('splitTrainInput')?.value) || 0;
+      let vl = parseFloat(document.getElementById('splitValInput')?.value) || 0;
+      let ts = parseFloat(document.getElementById('splitTestInput')?.value) || 0;
+
+      tr = Math.max(0, Math.min(100, Math.round(tr)));
+      vl = Math.max(0, Math.min(100, Math.round(vl)));
+      ts = Math.max(0, Math.min(100, Math.round(ts)));
+
+      updateSplitVisuals(tr, vl, ts);
+    }
+
+    function initSplitSlider() {
+      const container = document.getElementById('splitTrackContainer');
+      const h1 = document.getElementById('splitHandle1');
+      const h2 = document.getElementById('splitHandle2');
+      if (!container || !h1 || !h2) return;
+
+      let activeHandle = null;
+
+      function onPointerDown(e, handleNum) {
+        activeHandle = handleNum;
+        try { e.target.setPointerCapture(e.pointerId); } catch (_) {}
+        e.preventDefault();
+      }
+
+      function onPointerMove(e) {
+        if (!activeHandle) return;
+        const rect = container.getBoundingClientRect();
+        if (rect.width <= 0) return;
+        const clientX = e.clientX;
+        const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        const pct = Math.round(ratio * 100);
+
+        let tr = parseInt(document.getElementById('splitTrainInput')?.value, 10) || 80;
+        let vl = parseInt(document.getElementById('splitValInput')?.value, 10) || 10;
+        let p1 = tr;
+        let p2 = tr + vl;
+
+        if (activeHandle === 1) {
+          // Handle 1 (train/val boundary): between 10% and (p2 - 5%)
+          p1 = Math.max(10, Math.min(p2 - 5, pct));
+          tr = p1;
+          vl = p2 - p1;
+          const ts = 100 - p2;
+          applySplits(tr, vl, ts);
+        } else if (activeHandle === 2) {
+          // Handle 2 (val/test boundary): between (p1 + 5%) and 95%
+          p2 = Math.max(p1 + 5, Math.min(95, pct));
+          vl = p2 - p1;
+          const ts = 100 - p2;
+          applySplits(tr, vl, ts);
+        }
+      }
+
+      function onPointerUp(e) {
+        if (activeHandle) {
+          try { e.target.releasePointerCapture(e.pointerId); } catch (_) {}
+          activeHandle = null;
+        }
+      }
+
+      h1.addEventListener('pointerdown', (e) => onPointerDown(e, 1));
+      h1.addEventListener('pointermove', onPointerMove);
+      h1.addEventListener('pointerup', onPointerUp);
+      h1.addEventListener('pointercancel', onPointerUp);
+
+      h2.addEventListener('pointerdown', (e) => onPointerDown(e, 2));
+      h2.addEventListener('pointermove', onPointerMove);
+      h2.addEventListener('pointerup', onPointerUp);
+      h2.addEventListener('pointercancel', onPointerUp);
+
+      container.addEventListener('pointerdown', (e) => {
+        const rect = container.getBoundingClientRect();
+        if (rect.width <= 0) return;
+        const pct = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+        let tr = parseInt(document.getElementById('splitTrainInput')?.value, 10) || 80;
+        let vl = parseInt(document.getElementById('splitValInput')?.value, 10) || 10;
+        const p1 = tr;
+        const p2 = tr + vl;
+        const dist1 = Math.abs(pct - p1);
+        const dist2 = Math.abs(pct - p2);
+        if (dist1 <= dist2) {
+          const newP1 = Math.max(10, Math.min(p2 - 5, pct));
+          applySplits(newP1, p2 - newP1, 100 - p2);
+        } else {
+          const newP2 = Math.max(p1 + 5, Math.min(95, pct));
+          applySplits(p1, newP2 - p1, 100 - newP2);
+        }
+      });
     }
 
     const CTA_DISABLED_CLASSES = ['opacity-50', 'cursor-not-allowed', 'pointer-events-none'];
@@ -918,7 +1186,7 @@
       const helperText = document.getElementById('classesHelperText');
       if (helperText) {
         helperText.textContent = 'Se configurarán automáticamente desde las carpetas del dataset inspeccionado.';
-        helperText.className = 'text-[11px] text-slate-400 mt-1';
+        helperText.className = 'text-xs text-slate-400 mt-1';
       }
     }
 
@@ -1063,12 +1331,38 @@
       }
     }
 
+    function updateArchModalityUI() {
+      const arch = (document.getElementById('archSelect')?.value || '').toLowerCase();
+      const badge = document.getElementById('archModalityBadge');
+      const text = document.getElementById('archModalityHelperText');
+      const isDet = arch.startsWith('yolo');
+
+      if (badge) {
+        if (isDet) {
+          badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-600/20';
+          badge.innerHTML = '<svg class="w-2.5 h-2.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg> Detección (Bounding Boxes)';
+        } else {
+          badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-400/20';
+          badge.innerHTML = '<svg class="w-2.5 h-2.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg> Clasificación Global';
+        }
+      }
+
+      if (text) {
+        if (isDet) {
+          text.textContent = 'Detección de Objetos: localiza y delimita cada patología u objeto con recuadros verdes y su grado de certeza sobre la imagen.';
+        } else {
+          text.textContent = 'Clasificación de Imagen: evalúa la fotografía en su totalidad y asigna probabilidades globales de condición/patología (sin recuadros sobre la foto).';
+        }
+      }
+    }
+
     function onArchUserChange() {
       const badge = document.getElementById('archSourceStatusBadge');
       if (badge) {
         badge.className = 'hidden';
         badge.textContent = '';
       }
+      updateArchModalityUI();
       updateLivePreview();
     }
 
@@ -1103,7 +1397,7 @@
         secDataset.classList.remove('hidden');
         secManual.classList.add('hidden');
         secArch.classList.remove('hidden');
-        if (btnText) btnText.textContent = 'Iniciar Entrenamiento y Publicar en Hub';
+        if (btnText) btnText.textContent = 'Iniciar Entrenamiento y Publicar';
         if (modePill) modePill.textContent = 'Auto-FL';
         if (notice) notice.textContent = 'Al pulsar el botón, el servidor iniciará el entrenamiento asíncrono no bloqueante mediante el Job Runner y solo publicará el modelo en el catálogo cuando el entrenamiento finalice con éxito.';
       } else {
@@ -1199,13 +1493,13 @@
         } else {
           rawClasses.slice(0, 4).forEach(c => {
             const span = document.createElement('span');
-            span.className = 'px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200';
+            span.className = 'px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200';
             span.textContent = formatClassName(c);
             classesCont.appendChild(span);
           });
           if (rawClasses.length > 4) {
             const moreSpan = document.createElement('span');
-            moreSpan.className = 'px-2 py-0.5 text-[11px] font-semibold text-slate-500';
+            moreSpan.className = 'px-2 py-0.5 text-xs font-semibold text-slate-500';
             moreSpan.textContent = `+${rawClasses.length - 4} más`;
             classesCont.appendChild(moreSpan);
           }
@@ -1216,11 +1510,11 @@
       if (tagsCont) {
         tagsCont.innerHTML = '';
         if (rawTags.length === 0) {
-          tagsCont.innerHTML = '<span class="text-[11px] text-slate-400 italic">Escribe etiquetas en el formulario para previsualizarlas aquí.</span>';
+          tagsCont.innerHTML = '<span class="text-xs text-slate-400 italic">Escribe etiquetas en el formulario para previsualizarlas aquí.</span>';
         } else {
           rawTags.forEach(t => {
             const span = document.createElement('span');
-            span.className = 'px-1.5 py-0.5 rounded text-[10px] bg-white border border-slate-200 text-slate-600 font-mono';
+            span.className = 'px-1.5 py-0.5 rounded text-xs bg-white border border-slate-200 text-slate-600 font-mono';
             span.textContent = t;
             tagsCont.appendChild(span);
           });
@@ -1231,7 +1525,7 @@
       } else {
         rawTags.forEach(t => {
           const span = document.createElement('span');
-          span.className = 'px-1.5 py-0.5 rounded text-[10px] bg-white border border-slate-200 text-slate-600';
+          span.className = 'px-1.5 py-0.5 rounded text-xs bg-white border border-slate-200 text-slate-600';
           span.textContent = t;
           tagsCont.appendChild(span);
         });
@@ -1249,11 +1543,11 @@
         manual: document.getElementById('btnModeManual'),
       };
       const activeExtra = 'bg-white text-slate-900 shadow-2xs';
-      const inactiveExtra = 'text-slate-500 hover:text-slate-900';
+      const inactiveExtra = 'text-slate-600 hover:text-slate-900';
       Object.entries(tabs).forEach(([key, el]) => {
         if (!el) return;
         const on = key === mode;
-        ['bg-white', 'text-slate-900', 'shadow-2xs', 'text-slate-500', 'hover:text-slate-900'].forEach(c => el.classList.remove(c));
+        ['bg-white', 'text-slate-900', 'shadow-2xs', 'text-slate-600', 'text-slate-500', 'hover:text-slate-900'].forEach(c => el.classList.remove(c));
         (on ? activeExtra : inactiveExtra).split(' ').forEach(c => el.classList.add(c));
         el.setAttribute('aria-selected', String(on));
       });
@@ -1352,7 +1646,7 @@
       const textEl = document.getElementById('inspectedHealthText');
       const barEl = document.getElementById('inspectedHealthBar');
       if (badgeEl) {
-        badgeEl.className = `inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold border transition-colors duration-300 kh-tabular-nums ${st.badge}`;
+        badgeEl.className = `inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold border transition-colors duration-300 kh-tabular-nums ${st.badge}`;
       }
       if (dotEl) {
         dotEl.className = `w-1.5 h-1.5 rounded-full transition-colors duration-300 ${st.dot}`;
@@ -1506,6 +1800,18 @@
       );
     }
 
+    function applyQuickFixDomainShift() {
+      const augSel = document.getElementById('augmentationSelect');
+      if (augSel) {
+        augSel.value = 'in_the_wild';
+        augSel.dispatchEvent(new Event('change'));
+      }
+      replaceBannerWithResolvedState(
+        'diagRowDomainShift',
+        'Augmentation In-The-Wild activado (sustitución sintética de fondos + recorte multi-escala)'
+      );
+    }
+
     function applyQuickFixSingleClass() {
       const classesIn = document.getElementById('classesInput');
       if (classesIn) {
@@ -1520,6 +1826,85 @@
         'diagRowSingleClass',
         'Edición manual de clases desbloqueada en la pestaña Configuración'
       );
+    }
+
+    async function triggerExtractCrops() {
+      if (!lastInspectedData || !lastInspectedData.dataset_path) return false;
+      const btn = document.getElementById('btnExtractCrops');
+      const launchBtn = document.getElementById('btnLaunchPipeline');
+      const origText = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `
+          <svg class="w-3.5 h-3.5 animate-spin text-white inline-block mr-1" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+          <span>Extrayendo recortes...</span>
+        `;
+      }
+      if (launchBtn) {
+        launchBtn.disabled = true;
+        launchBtn.innerHTML = `
+          <svg class="w-4 h-4 animate-spin text-white inline-block mr-2" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+          <span>Generando recortes de clases...</span>
+        `;
+      }
+
+      try {
+        const res = await fetch('/api/master/datasets/convert-crops', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dataset_path: lastInspectedData.dataset_path,
+            min_box_size: 24,
+            padding_pct: 0.05,
+            max_crops_per_class: 2000
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `Error al extraer recortes (${res.status})`);
+        }
+
+        const data = await res.json();
+        // Update dataset path input to the newly created crops dataset!
+        const pathInput = document.getElementById('datasetPathInput');
+        if (pathInput && data.dataset_path) {
+          pathInput.value = data.dataset_path;
+        }
+        renderInspectionResult(data, true);
+        fetchArchRecommendation();
+
+        if (launchBtn) {
+          launchBtn.disabled = false;
+          launchBtn.innerHTML = `
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            <span>Iniciar Entrenamiento y Publicar</span>
+          `;
+        }
+
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast(data.message || 'Dataset de recortes generado con éxito.', 'success');
+        }
+        return true;
+      } catch (err) {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = origText;
+        }
+        if (launchBtn) {
+          launchBtn.disabled = false;
+          launchBtn.innerHTML = `
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            <span>Iniciar Entrenamiento y Publicar</span>
+          `;
+        }
+        if (window.KhaosUI && KhaosUI.toast) {
+          KhaosUI.toast('Error al extraer recortes: ' + err.message, 'error');
+        } else {
+          alert('Error: ' + err.message);
+        }
+        return false;
+      }
     }
 
     function renderInspectionResult(data, isSuccess) {
@@ -1542,6 +1927,8 @@
       if (isSuccess && data.valid) {
         card.className = 'rounded-xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden transition-all';
         const isYolo = data.format === 'yolo_detection';
+        const isCoco = data.format === 'coco_detection';
+        const isDetection = isYolo || isCoco;
         lastInspectedData = data;
         lastInspectedTotalImages = data.total_images || 0;
 
@@ -1557,6 +1944,53 @@
         // Build clean, reactive diagnostic rows with Action + Dismiss (×)
         const diagnosticRows = [];
 
+        // 0. COCO / YOLO Object Detection Banner
+        if (isDetection) {
+          const detClasses = data.classes || [];
+          if (detClasses.length === 1) {
+            diagnosticRows.push(`
+              <div id="diagRowDetectionSingle" class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg bg-emerald-50/80 border border-emerald-200/90 text-xs text-emerald-950 transition-all duration-150">
+                <div class="flex items-start gap-2.5 min-w-0">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span>
+                  <div class="leading-snug">
+                    <div class="font-semibold text-emerald-950 flex items-center gap-1.5">
+                      <span>Detector Monoclase de Instancias ('${detClasses[0]}')</span>
+                      <span class="px-1.5 py-0.2 rounded text-xs font-mono bg-emerald-100 text-emerald-800 border border-emerald-200 font-medium">YOLOv8 Nativo</span>
+                    </div>
+                    <p class="text-emerald-900/90 text-xs mt-0.5">
+                      Se han identificado <strong>${(data.total_boxes || 0).toLocaleString()}</strong> cajas delimitadoras. El sistema entrenará automáticamente un detector de objetos YOLO para localizar y delimitar cada instancia en fotografías de campo.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            `);
+          } else {
+            diagnosticRows.push(`
+              <div id="diagRowCocoAction" class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg bg-indigo-50/80 border border-indigo-200/90 text-xs text-indigo-950 transition-all duration-150">
+                <div class="flex items-start gap-2.5 min-w-0">
+                  <span class="w-2 h-2 rounded-full bg-indigo-500 mt-1.5 shrink-0"></span>
+                  <div class="leading-snug">
+                    <div class="font-semibold text-indigo-950 flex items-center gap-1.5">
+                      <span>Dataset de Detección de Objetos (${detClasses.length} clases)</span>
+                      <span class="px-1.5 py-0.2 rounded text-xs font-mono bg-indigo-100 text-indigo-700 border border-indigo-200 font-medium">YOLOv8 / Auto-Crop</span>
+                    </div>
+                    <p class="text-indigo-800/90 text-xs mt-0.5">
+                      Se han identificado <strong>${(data.total_boxes || 0).toLocaleString()}</strong> cajas delimitadoras. Se entrenará un detector de objetos YOLO, o puedes extraer recortes para clasificación ImageFolder si lo prefieres.
+                    </p>
+                  </div>
+                </div>
+                ${isCoco ? `
+                <div class="flex items-center gap-2 shrink-0 ml-auto">
+                  <button type="button" id="btnExtractCrops" onclick="triggerExtractCrops()" class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
+                    <span>Generar Dataset de Recortes</span>
+                  </button>
+                </div>` : ''}
+              </div>
+            `);
+          }
+        }
+
         // 1. Corrupted files (Critical)
         if (hp.corrupted_count > 0) {
           diagnosticRows.push(`
@@ -1569,7 +2003,7 @@
                 </div>
               </div>
               <div class="flex items-center gap-1.5 shrink-0 ml-auto">
-                <button type="button" id="btnPurgeCorrupted" class="inline-flex items-center gap-1.5 bg-white hover:bg-red-100/80 text-red-800 border border-red-300 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors shadow-2xs cursor-pointer">
+                <button type="button" id="btnPurgeCorrupted" class="inline-flex items-center gap-1.5 bg-white hover:bg-red-100/80 text-red-800 border border-red-300 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors shadow-2xs cursor-pointer">
                   <span>Eliminar corruptos</span>
                 </button>
               </div>
@@ -1589,7 +2023,7 @@
                 </div>
               </div>
               <div class="flex items-center gap-1.5 shrink-0 ml-auto">
-                <button type="button" id="btnDeduplicate" class="inline-flex items-center gap-1.5 bg-amber-100/90 hover:bg-amber-200/80 text-amber-900 border border-amber-300/80 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors cursor-pointer">
+                <button type="button" id="btnDeduplicate" class="inline-flex items-center gap-1.5 bg-amber-100/90 hover:bg-amber-200/80 text-amber-900 border border-amber-300/80 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer">
                   <span>Limpiar duplicados</span>
                 </button>
                 <button type="button" onclick="dismissDiagnosticBanner('diagRowDuplicates')" class="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-amber-100/50 transition-colors cursor-pointer" title="Ignorar advertencia">
@@ -1615,7 +2049,7 @@
                 </div>
               </div>
               <div class="flex items-center gap-1.5 shrink-0 ml-auto">
-                <button type="button" onclick="applyQuickFixResolution()" class="inline-flex items-center gap-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors shadow-2xs cursor-pointer">
+                <button type="button" onclick="applyQuickFixResolution()" class="inline-flex items-center gap-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors shadow-2xs cursor-pointer">
                   <span>Ajustar preprocesado</span>
                 </button>
                 <button type="button" onclick="dismissDiagnosticBanner('diagRowResolution')" class="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-200/50 transition-colors cursor-pointer" title="Ignorar advertencia">
@@ -1626,8 +2060,8 @@
           `);
         }
 
-        // 4. Class Imbalance or Single Class
-        if ((data.classes || []).length < 2) {
+        // 4. Class Imbalance or Single Class (Classification only)
+        if (!isDetection && (data.classes || []).length < 2) {
           diagnosticRows.push(`
             <div id="diagRowSingleClass" class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200/90 text-xs text-slate-700 transition-all duration-150">
               <div class="flex items-start gap-2 min-w-0">
@@ -1638,7 +2072,7 @@
                 </div>
               </div>
               <div class="flex items-center gap-1.5 shrink-0 ml-auto">
-                <button type="button" onclick="applyQuickFixSingleClass()" class="inline-flex items-center gap-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors shadow-2xs cursor-pointer">
+                <button type="button" onclick="applyQuickFixSingleClass()" class="inline-flex items-center gap-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors shadow-2xs cursor-pointer">
                   <span>Editar clases</span>
                 </button>
                 <button type="button" onclick="dismissDiagnosticBanner('diagRowSingleClass')" class="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-200/50 transition-colors cursor-pointer" title="Ignorar advertencia">
@@ -1647,7 +2081,7 @@
               </div>
             </div>
           `);
-        } else if (imbalanceRatio > 5.0) {
+        } else if (!isDetection && imbalanceRatio > 5.0) {
           diagnosticRows.push(`
             <div id="diagRowImbalance" class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200/90 text-xs text-slate-700 transition-all duration-150">
               <div class="flex items-start gap-2 min-w-0">
@@ -1658,7 +2092,7 @@
                 </div>
               </div>
               <div class="flex items-center gap-1.5 shrink-0 ml-auto">
-                <button type="button" onclick="applyQuickFixImbalance()" class="inline-flex items-center gap-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors shadow-2xs cursor-pointer">
+                <button type="button" onclick="applyQuickFixImbalance()" class="inline-flex items-center gap-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors shadow-2xs cursor-pointer">
                   <span>Usar Weighted Loss</span>
                 </button>
                 <button type="button" onclick="dismissDiagnosticBanner('diagRowImbalance')" class="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-200/50 transition-colors cursor-pointer" title="Ignorar advertencia">
@@ -1669,12 +2103,138 @@
           `);
         }
 
-        const classBadgesHtml = Object.entries(data.image_counts || {}).map(([cls, cnt]) => `
-          <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium bg-white border border-slate-200/90 text-slate-700 shadow-2xs">
+        // 5. Environmental / Background Bias (Domain Shift Risk)
+        if (hp.domain_shift_risk === 'high' || hp.domain_shift_risk === 'medium') {
+          const bgLabels = {
+            dark_studio: 'fondo negro/oscuro de estudio',
+            light_studio: 'fondo blanco/claro uniforme',
+            uniform_surface: 'superficie monocromática uniforme'
+          };
+          const bgDesc = bgLabels[hp.dominant_bg_type] || 'fondo uniforme de laboratorio';
+          const unifPct = Math.round(Number(hp.background_uniformity_pct) || 0);
+          const augSel = document.getElementById('augmentationSelect');
+          if (augSel && hp.domain_shift_risk === 'high') {
+            augSel.value = 'in_the_wild';
+          }
+          diagnosticRows.push(`
+            <div id="diagRowDomainShift" class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 px-3 py-2 rounded-lg bg-amber-50/60 border border-amber-200/80 text-xs text-slate-700 transition-all duration-150">
+              <div class="flex items-start gap-2 min-w-0">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0"></span>
+                <div class="leading-snug">
+                  <span class="font-semibold text-slate-900">Sesgo de fondo detectado (${unifPct}% con ${bgDesc}).</span>
+                  <span class="text-slate-600 ml-1">Para evitar caída de precisión con fotos reales de móvil/campo, usa Augmentation In-The-Wild.</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+                <button type="button" onclick="applyQuickFixDomainShift()" class="inline-flex items-center gap-1 bg-white hover:bg-amber-100/70 text-amber-900 border border-amber-300 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors shadow-2xs cursor-pointer">
+                  <span>Activar In-The-Wild</span>
+                </button>
+                <button type="button" onclick="dismissDiagnosticBanner('diagRowDomainShift')" class="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-amber-100/50 transition-colors cursor-pointer" title="Ignorar advertencia">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            </div>
+          `);
+        }
+
+        if (isDetection) {
+          diagnosticRows.unshift(`
+            <div id="diagRowDetectionNotice" class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200/80 text-xs text-slate-700">
+              <div class="flex items-start gap-2 min-w-0">
+                <svg class="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg>
+                <div class="leading-snug">
+                  <span class="font-semibold text-emerald-950">Dataset de Detección de Objetos (${(data.total_boxes || 0).toLocaleString()} cajas delimitadoras).</span>
+                  <span class="text-emerald-900 ml-1">Para pintar recuadros sobre las fotos, selecciona un modelo YOLO (ej. <code class="font-mono font-medium">yolov8n</code>). Si eliges una arquitectura de Clasificación (ResNet/EfficientNet), se extraerán recortes para diagnóstico global.</span>
+                </div>
+              </div>
+            </div>
+          `);
+        }
+
+        const classBadgesHtml = Object.entries(data.image_counts || {}).map(([cls, cnt]) => {
+          const boxCnt = data.box_counts && data.box_counts[cls] ? data.box_counts[cls] : null;
+          const countText = boxCnt !== null ? `${boxCnt} cajas (${cnt} imgs)` : `${cnt}`;
+          return `
+          <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium bg-white border border-slate-200/90 text-slate-700 shadow-2xs" title="${cls}: ${countText}">
             <span class="truncate max-w-[160px]">${formatClassName(cls)}</span>
-            <span data-class-count="${cls}" class="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 kh-tabular-nums">${cnt}</span>
+            <span data-class-count="${cls}" class="text-xs font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 kh-tabular-nums">${countText}</span>
           </div>
-        `).join('');
+        `}).join('');
+
+        let detectionProfileHtml = '';
+        const dp = data.detection_profile;
+        if (dp) {
+          const sample = dp.sample_preview;
+          const sampleBoxCount = sample && sample.boxes ? sample.boxes.length : 0;
+          detectionProfileHtml = `
+            <!-- Detection Spatial & Geometry Profile -->
+            <div id="detectionGeometryProfileSection" class="px-4 py-3.5 border-t border-slate-100 bg-slate-50/50 space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                  <span class="text-xs font-semibold text-slate-900 uppercase tracking-wider">Métricas Geométricas & Espaciales (COCO/YOLO)</span>
+                </div>
+                <span class="text-[11px] font-mono text-slate-500">${(dp.total_boxes || 0).toLocaleString()} cajas en ${dp.total_images} imgs</span>
+              </div>
+
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-3.5 items-start">
+                <div class="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                  <!-- 1. COCO Sizes -->
+                  <div class="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs space-y-1.5">
+                    <div class="text-[10px] uppercase font-semibold text-slate-400">Tamaño (COCO)</div>
+                    <div class="space-y-0.5 text-[11px] font-mono text-slate-700">
+                      <div class="flex justify-between"><span>Small (&lt;32² px):</span> <span class="font-semibold text-slate-900">${dp.box_sizes_coco.small.pct}%</span></div>
+                      <div class="flex justify-between"><span>Medium (32²-96²):</span> <span class="font-semibold text-slate-900">${dp.box_sizes_coco.medium.pct}%</span></div>
+                      <div class="flex justify-between"><span>Large (≥96² px):</span> <span class="font-semibold text-slate-900">${dp.box_sizes_coco.large.pct}%</span></div>
+                    </div>
+                  </div>
+
+                  <!-- 2. Aspect Ratio -->
+                  <div class="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs space-y-1.5">
+                    <div class="text-[10px] uppercase font-semibold text-slate-400">Aspect Ratio (W/H)</div>
+                    <div class="space-y-0.5 text-[11px] font-mono text-slate-700">
+                      <div class="flex justify-between"><span>Mediana:</span> <span class="font-semibold text-slate-900">${dp.aspect_ratio.median}</span></div>
+                      <div class="flex justify-between"><span>Media:</span> <span>${dp.aspect_ratio.mean}</span></div>
+                      <div class="flex justify-between text-[10px] text-slate-400"><span>P10 - P90:</span> <span>${dp.aspect_ratio.p10} - ${dp.aspect_ratio.p90}</span></div>
+                    </div>
+                  </div>
+
+                  <!-- 3. Density -->
+                  <div class="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs space-y-1.5">
+                    <div class="text-[10px] uppercase font-semibold text-slate-400">Densidad (Cajas/Img)</div>
+                    <div class="space-y-0.5 text-[11px] font-mono text-slate-700">
+                      <div class="flex justify-between"><span>Media:</span> <span class="font-semibold text-slate-900">${dp.density.mean}</span></div>
+                      <div class="flex justify-between"><span>Mediana:</span> <span>${dp.density.median}</span></div>
+                      <div class="flex justify-between"><span>Máximo:</span> <span>${dp.density.max}</span></div>
+                    </div>
+                  </div>
+
+                  <!-- 4. Overlap & Unannotated -->
+                  <div class="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs space-y-1.5">
+                    <div class="text-[10px] uppercase font-semibold text-slate-400">Solapamiento & Fondo</div>
+                    <div class="space-y-0.5 text-[11px] font-mono text-slate-700">
+                      <div class="flex justify-between" title="Pares de cajas de la misma imagen con IoU > 0.50"><span>IoU &gt; 0.50:</span> <span class="font-semibold text-slate-900">${dp.intra_image_overlap.overlapping_pairs_gt_050}</span></div>
+                      <div class="flex justify-between" title="Imágenes con al menos un par solapado"><span>Imgs solapadas:</span> <span>${dp.intra_image_overlap.images_with_high_overlap_pct}%</span></div>
+                      <div class="flex justify-between" title="Imágenes sin cajas"><span>Sin cajas:</span> <span>${dp.unannotated_images.count} (${dp.unannotated_images.pct}%)</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Visual Sample Preview on Canvas -->
+                <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white space-y-1.5 shadow-2xs">
+                  <div class="flex items-center justify-between text-[10px] font-mono">
+                    <span class="text-slate-400">Muestra anotada</span>
+                    <span id="previewSampleBoxCount" class="text-emerald-400 font-semibold">${sampleBoxCount} caja${sampleBoxCount === 1 ? '' : 's'}</span>
+                  </div>
+                  <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center">
+                    <canvas id="datasetInspectPreviewCanvas" class="max-w-full max-h-full object-contain"></canvas>
+                    ${!sample ? '<span class="text-[10px] text-slate-500 font-mono">Sin vista previa disponible</span>' : ''}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
 
         card.innerHTML = `
           <!-- Header Bar -->
@@ -1682,19 +2242,19 @@
             <div class="flex items-center gap-2 min-w-0">
               <span id="inspectedStatusDot" class="w-2 h-2 rounded-full ${datasetHasCorrupted ? 'bg-red-500' : 'bg-emerald-500'} shrink-0"></span>
               <span id="inspectedStatusTitle" class="text-xs font-semibold text-slate-900">
-                ${datasetHasCorrupted ? 'Errores de integridad detectados' : (isYolo ? 'Dataset YOLO verificado' : 'Dataset verificado')}
+                ${datasetHasCorrupted ? 'Errores de integridad detectados' : (isCoco ? 'Dataset Detección COCO verificado' : (isYolo ? 'Dataset YOLO verificado' : 'Dataset verificado'))}
               </span>
-              <span class="text-[11px] font-mono text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200/80 truncate max-w-[260px]" title="${data.dataset_path}">${data.dataset_path}</span>
-              ${data.recommended_arch ? `<span class="hidden md:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-100 text-slate-600 border border-slate-200/70">Sugerido: ${data.recommended_arch}</span>` : ''}
+              <span class="text-xs font-mono text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200/80 truncate max-w-[260px]" title="${data.dataset_path}">${data.dataset_path}</span>
+              ${data.recommended_arch ? `<span class="hidden md:inline-flex items-center px-1.5 py-0.5 rounded text-xs font-mono font-medium bg-slate-100 text-slate-600 border border-slate-200/70">Sugerido: ${data.recommended_arch}</span>` : ''}
             </div>
 
             <div class="flex items-center gap-3 shrink-0">
               <span id="inspectedTotalImagesLabel" class="font-mono text-xs font-semibold text-slate-700 kh-tabular-nums">
-                ${isYolo ? `${data.total_boxes} cajas · ${data.total_images} imágenes` : `${data.total_images} imágenes`}
+                ${isDetection ? `${(data.total_boxes || 0).toLocaleString()} cajas · ${(data.total_images || 0).toLocaleString()} imágenes` : `${data.total_images} imágenes`}
               </span>
               <span class="h-3.5 w-px bg-slate-200"></span>
               <div class="flex items-center gap-2">
-                <span id="inspectedHealthBadge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold border transition-colors duration-300 kh-tabular-nums ${st.badge}">
+                <span id="inspectedHealthBadge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold border transition-colors duration-300 kh-tabular-nums ${st.badge}">
                   <span id="inspectedHealthDot" class="w-1.5 h-1.5 rounded-full transition-colors duration-300 ${st.dot}"></span>
                   <span id="inspectedHealthText">Salud ${hp.health_score}/100</span>
                 </span>
@@ -1707,15 +2267,22 @@
 
           <!-- Classes Strip -->
           <div class="px-4 py-2.5 flex flex-wrap items-center gap-1.5 max-h-32 overflow-y-auto">
-            <span class="text-[11px] font-medium text-slate-400 mr-1">${data.classes.length} clases:</span>
+            <span class="text-xs font-medium text-slate-400 mr-1">${data.classes.length} clases:</span>
             ${classBadgesHtml}
           </div>
+
+          <!-- Detection Geometry & Metrics Profile -->
+          ${detectionProfileHtml}
 
           <!-- Diagnostics & Actionable Remedies -->
           <div id="diagnosticsListContainer" class="${diagnosticRows.length ? 'px-4 pb-3 pt-1 space-y-1.5 border-t border-slate-100' : 'hidden'}">
             ${diagnosticRows.join('')}
           </div>
         `;
+
+        if (dp && dp.sample_preview) {
+          renderInspectSampleCanvas(dp.sample_preview);
+        }
 
         // Attach Vanilla JS listeners for deduplication and corruption purge
         const btnDedup = document.getElementById('btnDeduplicate');
@@ -1731,12 +2298,17 @@
         detectedClasses = data.classes;
 
         // Dynamic UI for Data Splits & Pre-Split Detection
+        const splitsSec = document.getElementById('dataSplitsSection');
+        const manualSplits = document.getElementById('manualSplitControls');
         const preSplitBanner = document.getElementById('preSplitBanner');
         const splitTrainIn = document.getElementById('splitTrainInput');
         const splitValIn = document.getElementById('splitValInput');
         const splitTestIn = document.getElementById('splitTestInput');
 
+        if (splitsSec) splitsSec.classList.remove('hidden');
+
         if (data.is_pre_split) {
+          if (manualSplits) manualSplits.classList.add('hidden');
           if (preSplitBanner) preSplitBanner.classList.remove('hidden');
           if (splitTrainIn) {
             splitTrainIn.disabled = true;
@@ -1754,7 +2326,7 @@
           const counts = data.split_distribution || {};
           const pBadge = document.getElementById('preSplitPercentagesBadge');
           if (pBadge) {
-            pBadge.textContent = `Distribución detectada: ${pcts.train}% / ${pcts.val}% / ${pcts.test}%`;
+            pBadge.textContent = `Distribución: ${pcts.train}% / ${pcts.val}% / ${pcts.test}%`;
           }
           const bTrain = document.getElementById('preSplitBarTrain');
           if (bTrain) bTrain.style.width = `${pcts.train}%`;
@@ -1770,6 +2342,7 @@
           const cTest = document.getElementById('preSplitCountTest');
           if (cTest) cTest.textContent = `Test: ${counts.test ?? '-'} imgs (${pcts.test}%)`;
         } else {
+          if (manualSplits) manualSplits.classList.remove('hidden');
           if (preSplitBanner) preSplitBanner.classList.add('hidden');
           if (splitTrainIn) {
             splitTrainIn.disabled = false;
@@ -1783,6 +2356,10 @@
             splitTestIn.disabled = false;
             splitTestIn.classList.remove('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
           }
+          const tr = parseFloat(splitTrainIn?.value) || 80;
+          const vl = parseFloat(splitValIn?.value) || 10;
+          const ts = parseFloat(splitTestIn?.value) || 10;
+          applySplits(tr, vl, ts);
         }
 
         // Unlabeled Data Alert Banner
@@ -1806,7 +2383,7 @@
         const helperText = document.getElementById('classesHelperText');
         if (helperText) {
           helperText.textContent = 'Clases bloqueadas: Extraídas automáticamente del dataset.';
-          helperText.className = 'text-[11px] text-slate-500 font-medium mt-1';
+          helperText.className = 'text-xs text-slate-500 font-medium mt-1';
         }
 
         // Ingest suggestions & apply frontend Smart Metadata Extraction Engine
@@ -1846,6 +2423,8 @@
         fetchArchRecommendation(false);
         refreshStudioGate();
       } else {
+        const splitsSec = document.getElementById('dataSplitsSection');
+        if (splitsSec) splitsSec.classList.add('hidden');
         refreshStudioGate();
         card.className = 'rounded-xl border border-red-200 bg-white p-4 space-y-1.5 shadow-2xs';
         card.innerHTML = `
@@ -1856,6 +2435,46 @@
           <p class="text-xs text-slate-600 leading-relaxed pl-4">${data.error || data.detail || 'No se pudieron leer clases con imágenes válidas.'}</p>
         `;
       }
+    }
+
+    function renderInspectSampleCanvas(sample) {
+      if (!sample || !sample.image_path) return;
+      const canvas = document.getElementById('datasetInspectPreviewCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.onload = () => {
+        const W = sample.image_width || img.naturalWidth || 640;
+        const H = sample.image_height || img.naturalHeight || 640;
+        canvas.width = W;
+        canvas.height = H;
+        ctx.drawImage(img, 0, 0, W, H);
+
+        const colors = ['#10b981', '#0284c7', '#f59e0b', '#8b5cf6', '#f43f5e', '#14b8a6', '#6366f1', '#ec4899'];
+        (sample.boxes || []).forEach((b, idx) => {
+          const color = colors[idx % colors.length];
+          const [xc, yc, bw, bh] = b.box_xywhn;
+          const x1 = (xc - bw / 2.0) * W;
+          const y1 = (yc - bh / 2.0) * H;
+          const w_px = bw * W;
+          const h_px = bh * H;
+
+          ctx.strokeStyle = color;
+          ctx.lineWidth = Math.max(2, Math.round(W / 250));
+          ctx.strokeRect(x1, y1, w_px, h_px);
+
+          const label = b.class_name || 'object';
+          const fontSize = Math.max(10, Math.round(W / 45));
+          ctx.font = `${fontSize}px Inter, sans-serif`;
+          const tm = ctx.measureText(label);
+          const th = fontSize + 6;
+          ctx.fillStyle = color;
+          ctx.fillRect(x1, Math.max(0, y1 - th), tm.width + 8, th);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(label, x1 + 4, Math.max(th - 4, y1 - 4));
+        });
+      };
+      img.src = '/api/master/datasets/preview-image?image_path=' + encodeURIComponent(sample.image_path);
     }
 
     function handleDragOver(e) {
@@ -2020,11 +2639,11 @@
               class="text-left p-2.5 rounded-xl border border-slate-200 bg-white hover:border-indigo-400 hover:bg-indigo-50/20 transition-all shadow-2xs group"
             >
               <div class="flex items-center justify-between mb-1">
-                <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">${ds.badge || 'Dataset'}</span>
-                <span class="text-[10px] text-slate-400 font-mono">${ds.total_images.toLocaleString()} fotos</span>
+                <span class="text-xs font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">${ds.badge || 'Dataset'}</span>
+                <span class="text-xs text-slate-400 font-mono">${ds.total_images.toLocaleString()} fotos</span>
               </div>
               <div class="text-xs font-bold text-slate-800 group-hover:text-indigo-700 truncate">${ds.title}</div>
-              <div class="text-[10px] text-slate-400 font-mono truncate" title="${ds.root_path}">${ds.root_path}</div>
+              <div class="text-xs text-slate-400 font-mono truncate" title="${ds.root_path}">${ds.root_path}</div>
             </button>
           `).join('');
         }
@@ -2101,6 +2720,7 @@
       notice.classList.remove('hidden');
 
       const hasDataset = Boolean(lastInspectedData && lastInspectedTotalImages > 0);
+      const isDetection = Boolean(lastInspectedData && (lastInspectedData.dataset_task === 'object_detection' || lastInspectedData.format === 'coco_detection' || lastInspectedData.format === 'yolo_detection'));
       const totalImages = lastInspectedTotalImages || 0;
       let selectedArch = 'resnet18';
       let selectedTl = 'head_only';
@@ -2109,7 +2729,14 @@
       let tierLabel = '';
       let rationale = '';
 
-      if (!hasDataset) {
+      if (isDetection) {
+        tierLabel = 'Dataset de Detección de Objetos (Ultralytics YOLO)';
+        rationale = `Dataset anotado con ${(lastInspectedData.total_boxes || 0).toLocaleString()} cajas delimitadoras. Optimizado con Ultralytics YOLOv8 Nano para localización y conteo preciso de instancias en campo.`;
+        selectedArch = (lastInspectedData.recommended_arch && lastInspectedData.recommended_arch.startsWith('yolo')) ? lastInspectedData.recommended_arch : 'yolov8n';
+        selectedTl = 'partial';
+        selectedAug = 'basic';
+        selectedBatch = '16';
+      } else if (!hasDataset) {
         tierLabel = 'Configuración Base (Sin Dataset Inspeccionado)';
         rationale = 'No se ha inspeccionado un dataset aún. Se han configurado los hiperparámetros estándar recomendados para datasets pequeños (ResNet-18, Linear Probing, Batch 16). Para una calibración a medida basada en volumen real y desbalance, inspecciona o sube tu dataset primero.';
         selectedArch = 'resnet18';
@@ -2168,6 +2795,7 @@
       if (archSelect && Array.from(archSelect.options).some(o => o.value === selectedArch)) {
         archSelect.value = selectedArch;
       }
+      updateArchModalityUI();
       const tlSelect = document.getElementById('transferLearningSelect');
       if (tlSelect && Array.from(tlSelect.options).some(o => o.value === selectedTl)) {
         tlSelect.value = selectedTl;
@@ -2210,7 +2838,7 @@
           <span class="font-mono uppercase font-bold text-indigo-700 bg-white px-2.5 py-0.5 rounded-md border border-indigo-200/80 shadow-2xs">${selectedArch}</span>
         </div>
         <p class="text-[12px] text-slate-600 leading-relaxed">${rationale}</p>
-        <div class="pt-1 flex flex-wrap items-center gap-2 text-[11px] font-mono">
+        <div class="pt-1 flex flex-wrap items-center gap-2 text-xs font-mono">
           <span class="bg-white/90 px-2 py-0.5 rounded border border-indigo-100 text-slate-700">TL: <strong>${selectedTl}</strong></span>
           <span class="bg-white/90 px-2 py-0.5 rounded border border-indigo-100 text-slate-700">Batch: <strong>${selectedBatch}</strong></span>
           <span class="bg-white/90 px-2 py-0.5 rounded border border-indigo-100 text-slate-700">Aug: <strong>${selectedAug}</strong></span>
@@ -2219,7 +2847,7 @@
           </span>
         </div>
         ${isImbalanced ? `
-          <div class="text-[11px] text-amber-800 bg-amber-50/90 border border-amber-200/80 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
+          <div class="text-xs text-amber-800 bg-amber-50/90 border border-amber-200/80 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
             <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             <span><strong>Desbalance severo (${ratioDisplay}×):</strong> Focal Loss activado para evitar colapso predictivo hacia la clase mayoritaria.</span>
           </div>
@@ -2351,6 +2979,24 @@
       btn.disabled = true;
 
       if (currentMode === 'autofl') {
+        const archEarly = document.getElementById('archSelect')?.value || '';
+        const isYoloArch = archEarly.toLowerCase().startsWith('yolo');
+        const isDetectionTask = isYoloArch;
+
+        // Only extract classification crops if explicitly requested for classification on multi-class COCO
+        if (lastInspectedData && lastInspectedData.format === 'coco_detection' && !isDetectionTask) {
+          if (window.KhaosUI && KhaosUI.toast) {
+            KhaosUI.toast('Extrayendo recortes de detección balanceados para clasificación...', 'info');
+          }
+          btn.innerHTML = '<span class="animate-spin inline-block mr-2">&bull;</span> Extrayendo recortes...';
+          const cropSuccess = await triggerExtractCrops();
+          if (!cropSuccess) {
+            btn.disabled = false;
+            btn.innerHTML = '<span>Iniciar Entrenamiento y Publicar</span>';
+            return;
+          }
+        }
+
         const datasetPath = document.getElementById('datasetPathInput').value.trim();
         const epochs = Math.min(100, Math.max(10, parseInt(document.getElementById('epochsInput').value, 10) || 30));
         const batchSize = parseInt(document.getElementById('batchSizeInput').value, 10) || 32;
@@ -2395,6 +3041,10 @@
 
         btn.innerHTML = '<span class="animate-spin inline-block mr-2">&bull;</span> Iniciando Job Runner...';
 
+        const finalTask = isYoloArch
+          ? 'detection'
+          : (archEarly === 'auto' && lastInspectedData && (lastInspectedData.dataset_task === 'object_detection' || lastInspectedData.format === 'coco_detection' || lastInspectedData.format === 'yolo_detection') ? 'detection' : 'classification');
+
         try {
           const res = await fetch('/api/master/models/auto-fl', {
             method: 'POST',
@@ -2410,6 +3060,7 @@
               description: description,
               input_guide: inputGuide,
               dataset_path: datasetPath,
+              task: finalTask,
               epochs: epochs,
               batch_size: batchSize,
               lr: lr,
@@ -2426,22 +3077,29 @@
 
           const data = await res.json();
           if (res.status === 202) {
-            btn.innerHTML = '<span class="animate-spin inline-block mr-2">&bull;</span> Encolado &bull; Redirigiendo...';
+            const isEnqueued = data.queue_position && data.queue_position > 0;
+            btn.innerHTML = `<span class="animate-spin inline-block mr-2">&bull;</span> ${isEnqueued ? `En Cola (#${data.queue_position})` : 'Iniciado'} &bull; Redirigiendo...`;
             btn.disabled = true;
 
             // Immediate notification on the current screen
             if (window.KhaosUI && KhaosUI.toast) {
-              KhaosUI.toast('Creación del modelo en cola. Redirigiendo a Administración...', 'info', 2500);
+              const msg = isEnqueued
+                ? `Modelo añadido a la cola en la posición #${data.queue_position}. Redirigiendo...`
+                : 'Creación del modelo iniciada. Redirigiendo a Administración...';
+              KhaosUI.toast(msg, 'info', 2500);
             }
 
             feedback.className = 'p-5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-semibold text-center space-y-3 shadow-2xs';
             feedback.innerHTML = `
               <div class="font-bold text-sm text-slate-900 flex items-center justify-center gap-2">
                 <svg class="w-4 h-4 text-indigo-600 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                <span>Creación del modelo en cola</span>
+                <span>${isEnqueued ? `Modelo en cola de espera (Posición #${data.queue_position})` : 'Creación del modelo iniciada'}</span>
               </div>
               <p class="text-[12px] text-slate-600 leading-relaxed max-w-lg mx-auto">
-                El modelo <strong>${escapeHtml(title)}</strong> se ha enviado al Job Runner. Redirigiendo al panel de administración para seguir el progreso del entrenamiento en segundo plano...
+                ${isEnqueued
+                  ? `El modelo <strong>${escapeHtml(title)}</strong> se encuentra en cola de espera (posición #${data.queue_position}). Se entrenará y publicará automáticamente en cuanto finalice el trabajo actual sin riesgo de sobrecarga.`
+                  : `El modelo <strong>${escapeHtml(title)}</strong> se ha enviado al Job Runner. Redirigiendo al panel de administración para seguir el progreso del entrenamiento en tiempo real...`
+                }
               </p>
               <div class="pt-1 flex items-center justify-center gap-3">
                 <a href="/master?launched=${encodeURIComponent(slug)}&title=${encodeURIComponent(title)}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs shadow-2xs transition-all">
@@ -2460,14 +3118,14 @@
             feedback.textContent = 'Error: ' + (data.detail || res.statusText);
             feedback.classList.remove('hidden');
             btn.disabled = false;
-            btn.innerHTML = '<span>Iniciar Entrenamiento y Publicar en Hub</span>';
+            btn.innerHTML = '<span>Iniciar Entrenamiento y Publicar</span>';
           }
         } catch (err) {
           feedback.className = 'p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs text-center';
           feedback.textContent = 'Error de conexión: ' + err.message;
           feedback.classList.remove('hidden');
           btn.disabled = false;
-          btn.innerHTML = '<span>Iniciar Entrenamiento y Publicar en Hub</span>';
+          btn.innerHTML = '<span>Iniciar Entrenamiento y Publicar</span>';
         }
       } else {
         // Manual checkpoint mode
@@ -2537,10 +3195,43 @@
       }
     }
 
+    async function checkGpuWorkerStatus() {
+      const badge = document.getElementById('gpuWorkerBadge');
+      const text = document.getElementById('gpuWorkerText');
+      const tag = document.getElementById('gpuWorkerTag');
+      const dot = document.getElementById('gpuWorkerDot');
+      if (!badge || !text) return;
+      try {
+        const res = await fetch('/api/master/gpu-worker');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.configured && data.reachable && data.health) {
+          const dev = data.health.device_name || 'GPU';
+          const vram = data.health.vram_total_gb ? ` (${data.health.vram_total_gb} GB VRAM)` : '';
+          text.textContent = `Acelerador hardware activo: ${dev}${vram}`;
+          if (tag) tag.textContent = 'GPU Dedicada';
+          badge.className = 'p-3 rounded-xl text-xs flex items-center justify-between border border-emerald-200 bg-emerald-50 text-emerald-800';
+          if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+          badge.classList.remove('hidden');
+        } else if (data.configured && !data.reachable) {
+          text.textContent = 'Acelerador GPU no disponible. El entrenamiento se ejecutará en CPU local.';
+          if (tag) tag.textContent = 'Fallback CPU';
+          badge.className = 'p-3 rounded-xl text-xs flex items-center justify-between border border-amber-200 bg-amber-50 text-amber-800';
+          if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-500';
+          badge.classList.remove('hidden');
+        }
+      } catch (e) {
+        // Silent fallback
+      }
+    }
+
     // Initialize defaults on load
     document.addEventListener('DOMContentLoaded', () => {
+      checkGpuWorkerStatus();
       setDatasetIngestionMode('upload');
       initSplitResize();
+      initSplitSlider();
+      applySplits(80, 10, 10);
       const pathInput = document.getElementById('datasetPathInput');
       if (pathInput) {
         pathInput.addEventListener('input', () => {

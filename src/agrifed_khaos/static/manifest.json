@@ -1,0 +1,35 @@
+{
+  "name": "KHAOS Hub • Diagnóstico y Aprendizaje Federado",
+  "short_name": "KHAOS Hub",
+  "description": "Plataforma multi-dispositivo de inferencia agronómica, entrenamiento en el borde y federación de modelos de visión artificial.",
+  "start_url": "/expert",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f172a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/static/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/favicon.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/logo-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
+

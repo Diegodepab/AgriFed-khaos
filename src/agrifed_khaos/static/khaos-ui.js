@@ -189,6 +189,11 @@
         '</div>' +
       '</div>';
 
+    var isDet = (m.task === 'detection') || (m.architecture || '').toLowerCase().indexOf('yolo') === 0;
+    var taskBadgeHeader = isDet
+      ? '<span class="text-[10px] font-mono font-medium text-emerald-300 bg-emerald-950/80 px-1.5 py-0.5 rounded backdrop-blur-sm border border-emerald-500/30">DETECCIÓN</span>'
+      : '<span class="text-[10px] font-mono font-medium text-slate-300 bg-slate-900/75 px-1.5 py-0.5 rounded backdrop-blur-sm border border-white/10">CLASIFICACIÓN</span>';
+
     return (
       '<div class="h-32 w-full bg-slate-900 relative overflow-hidden flex items-center justify-center shrink-0">' +
         imgHtml +
@@ -207,6 +212,7 @@
           '<span class="text-[10px] font-mono text-white/95 bg-slate-900/75 px-2 py-0.5 rounded backdrop-blur-sm border border-white/10">' +
             escapeHtml(arch) +
           '</span>' +
+          taskBadgeHeader +
         '</div>' +
       '</div>'
     );
@@ -272,10 +278,14 @@
         '</div>';
     } else {
       var escapedSlugJs = String(slug).replace(/'/g, "\\'");
+      var canValidate = currentAuthUser && (currentAuthUser.role === 'expert' || currentAuthUser.role === 'admin');
+      var validateBtn = canValidate
+        ? '<a href="/models/' + safeSlug + '/expert" class="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition" title="Validación Experta HITL">Validar</a>'
+        : '';
       footerActions =
         '<div class="flex items-center gap-1.5">' +
-          '<a href="/models/' + safeSlug + '/expert" class="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition" title="Validación Experta HITL">Validar</a>' +
-          '<button type="button" onclick="openAnalysisStudioBySlug(\'' + escapedSlugJs + '\')" class="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-indigo-600 text-white text-xs font-bold transition shadow-sm">Usar Modelo &rarr;</button>' +
+          validateBtn +
+          '<button type="button" onclick="openAnalysisStudioBySlug(\'' + escapedSlugJs + '\')" class="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-sm">Usar Modelo &rarr;</button>' +
         '</div>';
     }
 
@@ -456,27 +466,27 @@
       modal.setAttribute('role', 'dialog');
       modal.setAttribute('aria-modal', 'true');
       modal.setAttribute('aria-labelledby', 'khHelpTitle');
-      modal.className = 'hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm overflow-y-auto';
+      modal.className = 'hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-sm overflow-y-auto';
 
       modal.innerHTML =
-        '<div class="bg-white rounded-2xl border border-slate-200/60 shadow-2xl max-w-xl w-full p-6 sm:p-7 space-y-5 my-6 animate-in fade-in duration-200">' +
-          '<div class="flex items-start justify-between pb-3 border-b border-slate-100 gap-4">' +
+        '<div class="bg-white rounded-2xl border border-slate-200/60 shadow-2xl max-w-xl w-full p-4 sm:p-7 space-y-4 sm:space-y-5 my-2 sm:my-6 animate-in fade-in duration-200">' +
+          '<div class="flex items-start justify-between pb-3 border-b border-slate-100 gap-3 sm:gap-4">' +
             '<div class="space-y-1">' +
               '<span id="khHelpScope" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10 uppercase tracking-wider"></span>' +
-              '<h3 id="khHelpTitle" class="text-lg font-semibold text-slate-900 tracking-tight pt-1"></h3>' +
+              '<h3 id="khHelpTitle" class="text-base sm:text-lg font-semibold text-slate-900 tracking-tight pt-0.5 sm:pt-1"></h3>' +
               '<p id="khHelpDesc" class="text-xs text-slate-500 leading-relaxed"></p>' +
             '</div>' +
-            '<button type="button" data-modal-close onclick="KhaosUI.closeHelp()" aria-label="Cerrar ayuda" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors">' +
+            '<button type="button" data-modal-close onclick="KhaosUI.closeHelp()" aria-label="Cerrar ayuda" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors shrink-0">' +
               '<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>' +
             '</button>' +
           '</div>' +
-          '<div id="khHelpStepsList" class="space-y-3 text-xs leading-relaxed max-h-[55vh] overflow-y-auto pr-1"></div>' +
-          '<div id="khHelpTipBox" class="p-3.5 rounded-xl bg-slate-50/80 ring-1 ring-inset ring-slate-200/60 text-xs text-slate-600 flex items-start gap-2.5">' +
+          '<div id="khHelpStepsList" class="space-y-2.5 sm:space-y-3 text-xs leading-relaxed max-h-[50vh] sm:max-h-[55vh] overflow-y-auto pr-1"></div>' +
+          '<div id="khHelpTipBox" class="p-3 sm:p-3.5 rounded-xl bg-slate-50/80 ring-1 ring-inset ring-slate-200/60 text-xs text-slate-600 flex items-start gap-2.5">' +
             '<svg class="w-4 h-4 text-amber-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
             '<p id="khHelpTipText" class="text-[11px] leading-relaxed"></p>' +
           '</div>' +
-          '<div class="pt-2 flex justify-end">' +
-            '<button type="button" onclick="KhaosUI.closeHelp()" class="px-4 py-2 rounded-lg text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-2xs">' +
+          '<div class="pt-1 sm:pt-2 flex justify-end">' +
+            '<button type="button" onclick="KhaosUI.closeHelp()" class="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-2xs text-center">' +
               'Entendido' +
             '</button>' +
           '</div>' +
@@ -558,6 +568,334 @@
     }
   });
 
+  // =========================================================================
+  // GLOBAL HEADER PROFILE, AUTHENTICATION & ROLE-BASED NAV SYSTEM
+  // =========================================================================
+  var currentAuthUser = null;
+
+  function roleBadgeInfo(role) {
+    if (role === 'admin') {
+      return { label: 'Administrador', cls: 'bg-slate-900 text-white' };
+    }
+    if (role === 'expert') {
+      return { label: 'Experto', cls: 'bg-emerald-100 text-emerald-800 border border-emerald-200' };
+    }
+    return { label: 'Usuario', cls: 'bg-slate-100 text-slate-700 border border-slate-200' };
+  }
+
+  function applyRoleNavigationVisibility(user) {
+    var navLinks = document.querySelectorAll('header nav a');
+    var role = user ? user.role : null;
+    for (var i = 0; i < navLinks.length; i++) {
+      var a = navLinks[i];
+      var href = a.getAttribute('href') || '';
+      if (href === '/master' || href.startsWith('/master/')) {
+        a.style.display = (role === 'admin') ? '' : 'none';
+      } else if (href === '/accounts' || href.startsWith('/accounts')) {
+        a.style.display = (role === 'admin') ? '' : 'none';
+      } else if (href === '/expert' || href.endsWith('/expert')) {
+        a.style.display = (role === 'admin' || role === 'expert') ? '' : 'none';
+      } else if (href === '/') {
+        a.style.display = '';
+      }
+    }
+  }
+
+  function ensureAuthModals() {
+    if (!document.getElementById('khUserProfileModal')) {
+      var profModal = document.createElement('div');
+      profModal.id = 'khUserProfileModal';
+      profModal.setAttribute('role', 'dialog');
+      profModal.setAttribute('aria-modal', 'true');
+      profModal.className = 'hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm';
+      profModal.innerHTML =
+        '<div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xl max-w-md w-full p-6 space-y-5">' +
+          '<div class="flex items-start justify-between border-b border-slate-100 pb-3">' +
+            '<div>' +
+              '<div class="flex items-center gap-2">' +
+                '<h3 class="text-base font-bold text-slate-900">Mi Perfil de Usuario</h3>' +
+                '<span id="khProfileRoleBadge" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700">-</span>' +
+              '</div>' +
+              '<p class="text-xs text-slate-500 mt-0.5">Gestiona tu nombre de usuario y contraseña de acceso.</p>' +
+            '</div>' +
+            '<button type="button" data-modal-close onclick="KhaosUI.closeProfileModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 cursor-pointer">&times;</button>' +
+          '</div>' +
+          '<form id="khProfileUpdateForm" class="space-y-4">' +
+            '<div>' +
+              '<label class="block text-xs font-semibold text-slate-700 mb-1">Nombre de usuario</label>' +
+              '<input type="text" id="khProfileUsername" required minlength="3" maxlength="32" class="w-full rounded-xl border border-slate-200 bg-slate-50 focus:bg-white px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900">' +
+            '</div>' +
+            '<div>' +
+              '<label class="block text-xs font-semibold text-slate-700 mb-1">Correo electrónico <span class="text-[10px] font-normal text-slate-400">(Privado &bull; Solo visible para ti)</span></label>' +
+              '<input type="email" id="khProfileEmail" readonly disabled class="w-full rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2 text-xs font-mono text-slate-500 cursor-not-allowed">' +
+            '</div>' +
+            '<div class="pt-2 border-t border-slate-100 space-y-3">' +
+              '<div class="text-xs font-bold text-slate-800">Cambiar Contraseña <span class="text-[11px] font-normal text-slate-400">(Opcional)</span></div>' +
+              '<div>' +
+                '<label class="block text-[11px] font-medium text-slate-600 mb-1">Contraseña actual</label>' +
+                '<input type="password" id="khProfileCurrentPassword" placeholder="Introduce tu contraseña actual..." class="w-full rounded-xl border border-slate-200 bg-slate-50 focus:bg-white px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900">' +
+              '</div>' +
+              '<div>' +
+                '<label class="block text-[11px] font-medium text-slate-600 mb-1">Nueva contraseña (mín. 6 caracteres)</label>' +
+                '<input type="password" id="khProfileNewPassword" minlength="6" placeholder="Introduce la nueva contraseña..." class="w-full rounded-xl border border-slate-200 bg-slate-50 focus:bg-white px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900">' +
+              '</div>' +
+            '</div>' +
+            '<div id="khProfileAdminAccountsBlock" class="pt-3 border-t border-slate-100 hidden space-y-2">' +
+              '<div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Administración de la Plataforma</div>' +
+              '<a href="/accounts" class="w-full py-2.5 px-3 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors flex items-center justify-between shadow-xs">' +
+                '<span class="flex items-center gap-2">' +
+                  '<svg class="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' +
+                  '<span>Gestión de Cuentas y Políticas (/accounts)</span>' +
+                '</span>' +
+                '<span class="text-slate-400">&rarr;</span>' +
+              '</a>' +
+            '</div>' +
+            '<div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">' +
+              '<button type="button" onclick="KhaosUI.logout()" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer">Cerrar Sesión</button>' +
+              '<div class="flex items-center gap-2">' +
+                '<button type="button" onclick="KhaosUI.closeProfileModal()" class="px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer">Cancelar</button>' +
+                '<button type="submit" id="khBtnSaveProfile" class="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors cursor-pointer">Guardar Cambios</button>' +
+              '</div>' +
+            '</div>' +
+          '</form>' +
+        '</div>';
+      profModal.addEventListener('click', function (e) {
+        if (e.target === profModal) closeProfileModal();
+      });
+      document.body.appendChild(profModal);
+
+      var form = document.getElementById('khProfileUpdateForm');
+      if (form) {
+        form.addEventListener('submit', function (ev) {
+          ev.preventDefault();
+          submitProfileUpdate();
+        });
+      }
+    }
+
+    if (!document.getElementById('khAuthLoginModal')) {
+      var loginModal = document.createElement('div');
+      loginModal.id = 'khAuthLoginModal';
+      loginModal.setAttribute('role', 'dialog');
+      loginModal.setAttribute('aria-modal', 'true');
+      loginModal.className = 'hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm';
+      loginModal.innerHTML =
+        '<div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xl max-w-sm w-full p-6 space-y-5">' +
+          '<div class="flex items-start justify-between border-b border-slate-100 pb-3">' +
+            '<div>' +
+              '<h3 class="text-base font-bold text-slate-900">Iniciar Sesión en KHAOS Hub</h3>' +
+              '<p class="text-xs text-slate-500 mt-0.5">Accede como Administrador, Experto o Usuario.</p>' +
+            '</div>' +
+            '<button type="button" data-modal-close onclick="KhaosUI.closeLoginModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 cursor-pointer">&times;</button>' +
+          '</div>' +
+          '<form id="khAuthLoginForm" class="space-y-3.5">' +
+            '<div>' +
+              '<label class="block text-xs font-semibold text-slate-700 mb-1">Nombre de usuario o correo</label>' +
+              '<input type="text" id="khLoginUsername" required placeholder="ej. experto, admin, usuario" class="w-full rounded-xl border border-slate-200 bg-slate-50 focus:bg-white px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900">' +
+            '</div>' +
+            '<div>' +
+              '<label class="block text-xs font-semibold text-slate-700 mb-1">Contraseña</label>' +
+              '<input type="password" id="khLoginPassword" required placeholder="••••••••" class="w-full rounded-xl border border-slate-200 bg-slate-50 focus:bg-white px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900">' +
+            '</div>' +
+            '<button type="submit" id="khBtnLoginSubmit" class="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors cursor-pointer">Entrar</button>' +
+          '</form>' +
+        '</div>';
+      loginModal.addEventListener('click', function (e) {
+        if (e.target === loginModal) closeLoginModal();
+      });
+      document.body.appendChild(loginModal);
+
+      var lForm = document.getElementById('khAuthLoginForm');
+      if (lForm) {
+        lForm.addEventListener('submit', function (ev) {
+          ev.preventDefault();
+          submitLogin();
+        });
+      }
+    }
+  }
+
+  function renderHeaderProfileSlot() {
+    var mount = document.getElementById('khHeaderProfileMount');
+    if (!mount) {
+      var helpBtn = document.querySelector('header button[onclick*="openContextualHelp"], header button[onclick*="toggleHelpModal"]');
+      if (helpBtn && helpBtn.parentNode) {
+        mount = document.createElement('div');
+        mount.id = 'khHeaderProfileMount';
+        mount.className = 'flex items-center shrink-0';
+        helpBtn.parentNode.appendChild(mount);
+      }
+    }
+    if (!mount) return;
+
+    if (currentAuthUser) {
+      var rb = roleBadgeInfo(currentAuthUser.role);
+      mount.innerHTML =
+        '<button type="button" id="khBtnOpenProfile" onclick="KhaosUI.openProfileModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer" title="Ver mi perfil de usuario">' +
+          '<svg class="w-3.5 h-3.5 text-slate-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' +
+          '<span class="font-semibold text-slate-900">Perfil</span>' +
+          '<span class="font-mono text-slate-500 text-[11px] hidden sm:inline">(@' + escapeHtml(currentAuthUser.username) + ')</span>' +
+          '<span class="hidden md:inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ' + rb.cls + '">' + escapeHtml(rb.label) + '</span>' +
+        '</button>';
+    } else {
+      mount.innerHTML =
+        '<a href="/login" id="khBtnOpenLogin" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-2xs cursor-pointer" title="Iniciar sesión en la plataforma">' +
+          '<svg class="w-3.5 h-3.5 text-slate-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>' +
+          '<span>Iniciar Sesión</span>' +
+        '</a>';
+    }
+    applyRoleNavigationVisibility(currentAuthUser);
+  }
+
+  function loadCurrentUser() {
+    ensureAuthModals();
+    renderHeaderProfileSlot();
+    fetch('/api/auth/me')
+      .then(function (r) { return r.ok ? r.json() : { authenticated: false }; })
+      .then(function (d) {
+        currentAuthUser = d && d.authenticated ? d.user : null;
+        renderHeaderProfileSlot();
+        var ownerBadge = document.getElementById('workspaceOwnerBadge');
+        if (ownerBadge && currentAuthUser && currentAuthUser.username) {
+          ownerBadge.textContent = '@' + currentAuthUser.username;
+        }
+        if (typeof global.onKhaosAuthReady === 'function') {
+          global.onKhaosAuthReady(currentAuthUser);
+        }
+      })
+      .catch(function () {});
+  }
+
+  function openProfileModal() {
+    ensureAuthModals();
+    if (!currentAuthUser) {
+      openLoginModal();
+      return;
+    }
+    var modal = document.getElementById('khUserProfileModal');
+    if (!modal) return;
+    var uInput = document.getElementById('khProfileUsername');
+    var eInput = document.getElementById('khProfileEmail');
+    var cPwd = document.getElementById('khProfileCurrentPassword');
+    var nPwd = document.getElementById('khProfileNewPassword');
+    var rBadge = document.getElementById('khProfileRoleBadge');
+
+    if (uInput) uInput.value = currentAuthUser.username || '';
+    if (eInput) eInput.value = currentAuthUser.email || '';
+    if (cPwd) cPwd.value = '';
+    if (nPwd) nPwd.value = '';
+    if (rBadge) {
+      var rb = roleBadgeInfo(currentAuthUser.role);
+      rBadge.textContent = rb.label;
+      rBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ' + rb.cls;
+    }
+    var admBlock = document.getElementById('khProfileAdminAccountsBlock');
+    if (admBlock) {
+      if (currentAuthUser.role === 'admin') {
+        admBlock.classList.remove('hidden');
+      } else {
+        admBlock.classList.add('hidden');
+      }
+    }
+    modal.classList.remove('hidden');
+  }
+
+  function closeProfileModal() {
+    var modal = document.getElementById('khUserProfileModal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function openLoginModal() {
+    ensureAuthModals();
+    var modal = document.getElementById('khAuthLoginModal');
+    if (modal) modal.classList.remove('hidden');
+  }
+
+  function closeLoginModal() {
+    var modal = document.getElementById('khAuthLoginModal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function submitLogin() {
+    var u = document.getElementById('khLoginUsername').value.trim();
+    var p = document.getElementById('khLoginPassword').value;
+    var btn = document.getElementById('khBtnLoginSubmit');
+    if (!u || !p) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Verificando...'; }
+
+    fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p })
+    })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.data.detail || 'Error al iniciar sesión');
+        currentAuthUser = res.data.user;
+        closeLoginModal();
+        renderHeaderProfileSlot();
+        toast('Sesión iniciada como @' + currentAuthUser.username, 'success', 3000);
+        if (typeof global.loadClientWorkspace === 'function') global.loadClientWorkspace();
+        if (typeof global.loadAccountsDirectory === 'function') global.loadAccountsDirectory();
+      })
+      .catch(function (err) {
+        toast(err.message, 'error', 4000);
+      })
+      .finally(function () {
+        if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
+      });
+  }
+
+  function submitProfileUpdate() {
+    var u = document.getElementById('khProfileUsername').value.trim();
+    var cPwd = document.getElementById('khProfileCurrentPassword').value;
+    var nPwd = document.getElementById('khProfileNewPassword').value;
+    var btn = document.getElementById('khBtnSaveProfile');
+    if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
+    fetch('/api/auth/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: u,
+        current_password: cPwd || null,
+        new_password: nPwd || null
+      })
+    })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.data.detail || 'Error al actualizar perfil');
+        currentAuthUser = res.data.user;
+        closeProfileModal();
+        renderHeaderProfileSlot();
+        toast('Perfil actualizado correctamente', 'success', 3000);
+        if (typeof global.loadClientWorkspace === 'function') global.loadClientWorkspace();
+      })
+      .catch(function (err) {
+        toast(err.message, 'error', 4000);
+      })
+      .finally(function () {
+        if (btn) { btn.disabled = false; btn.textContent = 'Guardar Cambios'; }
+      });
+  }
+
+  function logoutUser() {
+    fetch('/api/auth/logout', { method: 'POST' })
+      .then(function () {
+        currentAuthUser = null;
+        closeProfileModal();
+        renderHeaderProfileSlot();
+        toast('Sesión cerrada', 'info', 2500);
+        window.location.href = '/login';
+      });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadCurrentUser);
+  } else {
+    setTimeout(loadCurrentUser, 20);
+  }
+
   global.KhaosUI = {
     escapeHtml: escapeHtml,
     formatText: formatText,
@@ -567,7 +905,13 @@
     renderThumbnailHeader: renderThumbnailHeader,
     renderCatalogCardHtml: renderCatalogCardHtml,
     openHelp: openHelp,
-    closeHelp: closeHelp
+    closeHelp: closeHelp,
+    openProfileModal: openProfileModal,
+    closeProfileModal: closeProfileModal,
+    openLoginModal: openLoginModal,
+    closeLoginModal: closeLoginModal,
+    logout: logoutUser,
+    getCurrentUser: function () { return currentAuthUser; }
   };
 })(window);
 

@@ -5,71 +5,127 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>KHAOS &bull; Catálogo de Modelos</title>
   <meta name="description" content="Catálogo de Modelos de Inteligencia Artificial para el Diagnóstico y Calidad Agrícola">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="/static/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <script>
     (function() {
       const origWarn = console.warn;
       console.warn = function(...args) {
-        if (args.length > 0 && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
+        if (args.length > 0 && typeof args[0] === 'string' && (args[0].includes('cdn.tailwindcss.com') || args[0].includes('tailwindcss.js'))) {
           return;
         }
         origWarn.apply(console, args);
       };
     })();
   </script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
-          },
-        },
-      },
-    };
-  </script>
+  <link rel="preload" href="/static/khaos-bundle.min.css" as="style">
+  <link rel="stylesheet" href="/static/khaos-bundle.min.css">
   <link rel="stylesheet" href="/static/khaos-ui.css">
-  <script src="/static/khaos-ui.js"></script>
+  <style>
+    /* Strict Catalog Card Geometry & Standardization */
+    .catalog-thumb-box {
+      width: 100% !important;
+      height: 180px !important;
+      max-height: 180px !important;
+      min-height: 180px !important;
+      position: relative !important;
+      overflow: hidden !important;
+      background-color: #f8fafc !important;
+      border-bottom: 1px solid #e2e8f0 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 0.75rem !important;
+    }
+    .catalog-thumb-box img {
+      max-width: 100% !important;
+      max-height: 100% !important;
+      width: auto !important;
+      height: auto !important;
+      object-fit: contain !important;
+      display: block !important;
+      transition: transform 0.25s ease;
+    }
+    .catalog-thumb-box:hover img {
+      transform: scale(1.04);
+    }
+
+    /* Strong Visual Contrast: Title vs Description */
+    .catalog-card-title {
+      font-size: 1.05rem !important;
+      font-weight: 700 !important;
+      color: #0f172a !important;
+      letter-spacing: -0.02em !important;
+      line-height: 1.3 !important;
+      height: 2.65em !important;
+      max-height: 2.65em !important;
+      display: -webkit-box !important;
+      -webkit-box-orient: vertical !important;
+      -webkit-line-clamp: 2 !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+    .catalog-card-desc {
+      font-size: 0.8125rem !important;
+      font-weight: 400 !important;
+      color: #64748b !important;
+      line-height: 1.45 !important;
+      height: 5.8em !important;
+      max-height: 5.8em !important;
+      display: -webkit-box !important;
+      -webkit-box-orient: vertical !important;
+      -webkit-line-clamp: 4 !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+
+    .catalog-classes-box {
+      min-height: 4.25rem !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: flex-end !important;
+    }
+  </style>
+  <script src="/static/khaos-ui.js" defer></script>
 </head>
 <body class="min-h-full flex flex-col font-sans text-slate-900 antialiased selection:bg-slate-200 selection:text-slate-900">
 
   <!-- Top Navigation Bar -->
   <header class="sticky top-0 z-40 w-full border-b border-slate-200/60 bg-white/80 backdrop-blur-md">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
-      <div class="flex h-16 items-center justify-between">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 xl:px-12">
+      <div class="flex h-16 items-center justify-between gap-2">
         
         <!-- Brand Identity -->
-        <a href="/" class="flex items-center gap-3 group">
-          <div class="h-8 w-8 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-2xs group-hover:bg-slate-800 transition-colors">
-            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-              <line x1="12" y1="22.08" x2="12" y2="12"/>
-            </svg>
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-semibold tracking-tight text-slate-900">KHAOS <span class="text-slate-400 font-normal">Hub</span></span>
-            <span class="hidden sm:inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-50 text-slate-500 ring-1 ring-inset ring-slate-500/10 uppercase tracking-wider">Data Space</span>
+        <a href="/" class="flex items-center gap-2 sm:gap-3 group shrink-0">
+          <picture>
+            <source srcset="/static/logo.webp" type="image/webp">
+            <img src="/static/logo.png" alt="KHAOS Logo" width="32" height="32" class="h-7 w-7 sm:h-8 sm:w-8 rounded-lg object-contain group-hover:scale-105 transition-transform shrink-0" fetchpriority="high" />
+          </picture>
+          <div class="flex items-center gap-1.5 sm:gap-2">
+            <span class="text-xs sm:text-sm font-semibold tracking-tight text-slate-900">KHAOS <span class="text-slate-600 font-normal">Hub</span></span>
+            <span class="hidden md:inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10 uppercase tracking-wider">Data Space</span>
           </div>
         </a>
 
         <!-- Right Actions: Nav + Help -->
-        <div class="flex items-center gap-2 sm:gap-3">
+        <div class="flex items-center gap-1.5 sm:gap-3">
           <!-- Navigation Links: Harmonized Linear Aesthetic -->
-          <nav class="flex items-center gap-1 bg-slate-100/80 p-1 rounded-lg">
-            <a href="/" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-900 bg-white shadow-2xs">
+          <nav class="flex items-center gap-0.5 sm:gap-1 bg-slate-100/80 p-0.5 sm:p-1 rounded-lg" aria-label="Navegación principal">
+            <a href="/" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[11px] sm:text-xs font-semibold text-slate-900 bg-white shadow-2xs">
               Modelos
               <!-- Backward-compatibility tokens for test suite -->
               <span class="sr-only">🌾 Cliente</span>
               <span class="sr-only">Diagnóstico Agrícola Inteligente</span>
             </a>
-            <a href="/expert" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+            <a href="/expert" style="display:none;" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[11px] sm:text-xs font-medium text-slate-700 hover:text-slate-900 transition-colors">
               Evaluación
             </a>
-            <a href="/master" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+            <a href="/master" style="display:none;" class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-[11px] sm:text-xs font-medium text-slate-700 hover:text-slate-900 transition-colors">
               Administración
             </a>
           </nav>
@@ -78,21 +134,24 @@
           <button
             type="button"
             onclick="toggleHelpModal(true)"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            class="inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors shrink-0"
             title="Guía y Ayuda del Módulo"
           >
             <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
-            <span class="hidden sm:inline">Ayuda</span>
+            <span class="hidden md:inline">Ayuda</span>
           </button>
+
+          <!-- Profile / Login Slot -->
+          <div id="khHeaderProfileMount" class="flex items-center shrink-0"></div>
         </div>
       </div>
     </div>
   </header>
 
   <!-- Main Container -->
-  <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-10 space-y-8">
+  <main class="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 xl:px-12 py-6 sm:py-10 space-y-6 sm:space-y-8">
 
     <!-- Page Header (Clean, Minimalist) -->
     <div class="space-y-1 pb-1">
@@ -115,20 +174,39 @@
           onclick="toggleMobileFilters()"
           aria-expanded="false"
           aria-controls="catalogFilterSidebar"
-          class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-700 bg-white ring-1 ring-inset ring-slate-200 shadow-2xs hover:bg-slate-50 transition-colors"
+          class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-700 bg-white ring-1 ring-inset ring-slate-200 shadow-2xs hover:bg-slate-50 active:bg-slate-100 transition-colors"
         >
           <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/>
           </svg>
-          <span>Filtros del Catálogo</span>
-          <span id="mobileFilterActiveBadge" class="hidden px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 text-white">0</span>
+          <span>Filtros y Categorías</span>
+          <span id="mobileFilterActiveBadge" class="hidden px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 text-white">0</span>
         </button>
+        <span id="mobileResultsSummary" class="text-xs text-slate-500 font-medium truncate max-w-[150px]"></span>
       </div>
 
       <!-- LEFT COLUMN: User-Centric Filter Sidebar -->
-      <aside id="catalogFilterSidebar" aria-label="Filtros del catálogo" class="hidden lg:block w-full lg:w-64 xl:w-72 shrink-0 lg:sticky lg:top-24 space-y-6 bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm transition-all duration-300 hover:shadow-md">
+      <aside id="catalogFilterSidebar" aria-label="Filtros del catálogo" class="hidden lg:block w-full lg:w-64 xl:w-72 shrink-0 lg:sticky lg:top-24 space-y-5 bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/60 shadow-sm transition-all duration-300">
         
-        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <!-- Mobile Drawer Header (<lg) -->
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 lg:hidden">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/>
+            </svg>
+            <span class="text-xs font-bold text-slate-900 uppercase tracking-wider">Filtros del Catálogo</span>
+          </div>
+          <button
+            type="button"
+            onclick="toggleMobileFilters()"
+            class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            aria-label="Cerrar filtros"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div class="hidden lg:flex items-center justify-between pb-2 border-b border-slate-100">
           <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Filtros
           </h2>
@@ -136,21 +214,21 @@
             id="btnResetSidebar"
             type="button"
             onclick="clearAllFilters()"
-            class="hidden text-[11px] font-medium text-slate-400 hover:text-red-500 transition-colors"
+            class="hidden text-[11px] font-medium text-slate-600 hover:text-rose-600 transition-colors"
           >
             Limpiar
           </button>
         </div>
 
-        <!-- Empty Filters Notice (shown when all facets have <= 1 option) -->
+        <!-- Empty Filters Notice -->
         <div id="sidebarEmptyNotice" class="hidden py-3 text-center text-xs text-slate-400 space-y-1">
           <p class="font-medium text-slate-600">Catálogo Unificado</p>
           <p class="text-[11px] text-slate-400 leading-relaxed">
-            Los filtros por categoría y muestra se activan automáticamente al registrar modelos de múltiples dominios.
+            Los filtros se habilitarán automáticamente al cargar modelos.
           </p>
         </div>
 
-        <!-- Facet 1: Dominio o Categoría -->
+        <!-- Facet 1: Dominio o Área de Aplicación -->
         <div id="facetCategorySection" class="space-y-2">
           <label class="text-xs font-semibold text-slate-900 block">
             Dominio o Categoría
@@ -160,34 +238,122 @@
           </div>
         </div>
 
-        <!-- Facet 2: Elemento / Muestra Analizada -->
-        <div id="facetSampleSection" class="space-y-2 pt-2 border-t border-slate-100">
+        <!-- Facet: Modalidad de Visión (Detección vs Clasificación) -->
+        <div id="facetTaskSection" class="space-y-2 pt-3 border-t border-slate-100">
           <label class="text-xs font-semibold text-slate-900 block">
-            Elemento Analizado
+            Modalidad de Visión
           </label>
-          <select
-            id="facetSampleSelect"
-            onchange="onFacetSampleChange(this.value)"
-            class="w-full text-xs rounded-xl bg-slate-50 border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none py-2 px-3 text-slate-900 font-medium transition-all"
-          >
-            <option value="all">Cualquier elemento</option>
+          <div id="sidebarTaskList" class="space-y-1">
             <!-- Populated dynamically -->
+          </div>
+          <select
+            id="facetTaskSelect"
+            onchange="onFacetTaskChange(this.value)"
+            class="sr-only"
+            aria-hidden="true"
+            tabindex="-1"
+          >
+            <option value="all">Todas las modalidades</option>
+            <option value="detection">Detección de Objetos (Bounding Boxes)</option>
+            <option value="classification">Clasificación Global de Imagen</option>
           </select>
         </div>
 
-        <!-- Facet 3: Propósito o Finalidad -->
-        <div id="facetPurposeSection" class="space-y-2 pt-2 border-t border-slate-100">
+        <!-- Facet 2: Clases / Etiquetas Detectables -->
+        <div id="facetClassSection" class="space-y-2 pt-3 border-t border-slate-100">
+          <span id="facetSampleSection" class="sr-only">Filtro de Clases y Muestras</span>
+          <span id="facetPurposeSection" class="sr-only">Filtro de Propósito y Aplicación</span>
           <label class="text-xs font-semibold text-slate-900 block">
-            Propósito del Análisis
+            Clase o Condición Específica
+          </label>
+          <div id="sidebarClassList" class="space-y-1">
+            <!-- Populated dynamically -->
+          </div>
+          <button
+            id="btnToggleMoreClasses"
+            type="button"
+            onclick="toggleClassesExpanded()"
+            class="hidden text-xs text-slate-500 hover:text-slate-800 font-medium py-1 px-1 transition-colors cursor-pointer"
+          >
+            + Ver más
+          </button>
+          <select
+            id="facetClassSelect"
+            onchange="onFacetClassChange(this.value)"
+            class="sr-only"
+            aria-hidden="true"
+            tabindex="-1"
+          >
+            <option value="all">Todas las clases</option>
+          </select>
+        </div>
+
+        <!-- Facet 3: Complejidad del Modelo -->
+        <div id="facetComplexitySection" class="space-y-2 pt-3 border-t border-slate-100">
+          <label class="text-xs font-semibold text-slate-900 block">
+            Complejidad (Nº Clases)
+          </label>
+          <div id="sidebarComplexityList" class="space-y-1">
+            <!-- Populated dynamically -->
+          </div>
+          <select
+            id="facetComplexitySelect"
+            onchange="onFacetComplexityChange(this.value)"
+            class="sr-only"
+            aria-hidden="true"
+            tabindex="-1"
+          >
+            <option value="all">Cualquier número de clases</option>
+            <option value="binary">Binario (2 clases)</option>
+            <option value="few">Multiclase estándar (3 - 8 clases)</option>
+            <option value="many">Multiclase masivo (9+ clases)</option>
+          </select>
+        </div>
+
+        <!-- Facet 4: Arquitectura Neuronal -->
+        <div id="facetArchSection" class="space-y-2 pt-3 border-t border-slate-100">
+          <label class="text-xs font-semibold text-slate-900 block">
+            Arquitectura Neuronal
+          </label>
+          <div id="sidebarArchList" class="space-y-1">
+            <!-- Populated dynamically -->
+          </div>
+          <select
+            id="facetArchSelect"
+            onchange="onFacetArchChange(this.value)"
+            class="sr-only"
+            aria-hidden="true"
+            tabindex="-1"
+          >
+            <option value="all">Todas las arquitecturas</option>
+          </select>
+        </div>
+
+        <!-- Facet 5: Estado Operativo (Hidden as all cataloged models are functional) -->
+        <div id="facetStatusSection" class="hidden space-y-2 pt-3 border-t border-slate-100">
+          <label for="facetStatusSelect" class="text-xs font-semibold text-slate-900 block">
+            Estado del Servicio
           </label>
           <select
-            id="facetPurposeSelect"
-            onchange="onFacetPurposeChange(this.value)"
-            class="w-full text-xs rounded-xl bg-slate-50 border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none py-2 px-3 text-slate-900 font-medium transition-all"
+            id="facetStatusSelect"
+            onchange="onFacetStatusChange(this.value)"
+            class="w-full text-xs rounded-xl bg-slate-50 border-none ring-1 ring-slate-200 focus:ring-2 focus:ring-slate-900 focus:bg-white focus:outline-none py-2 px-3 text-slate-900 font-medium transition-all"
           >
-            <option value="all">Cualquier propósito</option>
-            <!-- Populated dynamically -->
+            <option value="all">Todos los estados</option>
+            <option value="online">En Servicio (Activo)</option>
+            <option value="calibrated">Umbrales Calibrados</option>
           </select>
+        </div>
+
+        <!-- Mobile Apply Button (<lg) -->
+        <div class="pt-2 lg:hidden">
+          <button
+            type="button"
+            onclick="toggleMobileFilters()"
+            class="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-semibold shadow-2xs hover:bg-slate-800 transition-colors"
+          >
+            Aplicar Filtros
+          </button>
         </div>
 
       </aside>
@@ -261,7 +427,7 @@
               type="button"
               id="btnViewSpecs"
               onclick="setViewMode('specs')"
-              class="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 text-slate-500 hover:text-slate-900"
+              class="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 text-slate-700 hover:text-slate-900"
               title="Vista en Fichas Técnicas"
             >
               <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -276,7 +442,7 @@
               type="button"
               id="btnViewList"
               onclick="setViewMode('list')"
-              class="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 text-slate-500 hover:text-slate-900"
+              class="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 text-slate-700 hover:text-slate-900"
               title="Vista en Lista"
             >
               <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -289,7 +455,7 @@
         </div>
 
         <!-- Models Container (Populated in Grid or List mode) -->
-        <div id="modelsContainer">
+        <div id="modelsContainer" class="min-h-[500px]">
           <!-- Loading Skeleton -->
           <div class="py-16 text-center text-slate-400">
             <svg class="w-7 h-7 animate-spin text-slate-900 mx-auto mb-2" viewBox="0 0 24 24" fill="none">
@@ -325,7 +491,7 @@
         </div>
 
         <!-- Pagination Bar -->
-        <div id="paginationBar" class="hidden flex items-center justify-between border-t border-slate-200 pt-4 text-xs text-slate-500">
+        <div id="paginationBar" class="hidden flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200 pt-4 text-xs text-slate-500">
           <span id="paginationInfo">Mostrando 1 - 2</span>
           <div class="flex items-center gap-2">
             <button
@@ -356,7 +522,7 @@
 
   <!-- Interactive Analysis Studio Modal (In-Catalog In-Browser Workflow) -->
   <div id="analysisStudioModal" role="dialog" aria-modal="true" aria-labelledby="studioModelTitle" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-sm overflow-y-auto">
-    <div class="bg-white rounded-2xl border border-slate-200/60 shadow-2xl max-w-2xl w-full p-6 sm:p-8 space-y-6 my-6">
+    <div class="bg-white rounded-2xl border border-slate-200/60 shadow-2xl max-w-2xl w-full p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 my-2 sm:my-6">
       
       <!-- Studio Header -->
       <div class="flex items-start justify-between pb-3 border-b border-slate-100 gap-4">
@@ -365,15 +531,11 @@
             <span id="studioCropBadge" class="px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200/80">
               Cultivo
             </span>
-            <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-              Modelo en servicio
-            </span>
             <span id="studioArchBadge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-100 text-slate-600 border border-slate-200">
               resnet18
             </span>
           </div>
-          <h2 id="studioModelTitle" class="text-lg sm:text-xl font-bold text-slate-900">
+          <h2 id="studioModelTitle" class="text-base sm:text-xl font-bold text-slate-900">
             Análisis de Muestra
           </h2>
           <p id="studioModelDescription" class="text-xs text-slate-500 leading-relaxed">
@@ -393,17 +555,17 @@
       </div>
 
       <!-- Progressive Step Indicator -->
-      <div class="grid grid-cols-3 gap-2 text-[11px]" aria-label="Progreso del análisis">
-        <div id="studioStep1Pill" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white font-semibold shadow-2xs transition-colors">
-          <span class="w-4 h-4 rounded-full bg-white/20 text-[10px] flex items-center justify-center font-bold">1</span>
+      <div class="grid grid-cols-3 gap-1.5 sm:gap-2 text-[10px] sm:text-[11px]" aria-label="Progreso del análisis">
+        <div id="studioStep1Pill" class="flex items-center justify-center sm:justify-start gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl bg-slate-900 text-white font-semibold shadow-2xs transition-colors">
+          <span class="w-4 h-4 rounded-full bg-white/20 text-[10px] flex items-center justify-center font-bold shrink-0">1</span>
           <span class="truncate">1. Captura</span>
         </div>
-        <div id="studioStep2Pill" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50/70 text-slate-400 font-normal transition-colors">
-          <span class="w-4 h-4 rounded-full bg-slate-200/60 text-slate-500 text-[10px] flex items-center justify-center font-bold">2</span>
+        <div id="studioStep2Pill" class="flex items-center justify-center sm:justify-start gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl bg-slate-50/70 text-slate-400 font-normal transition-colors">
+          <span class="w-4 h-4 rounded-full bg-slate-200/60 text-slate-500 text-[10px] flex items-center justify-center font-bold shrink-0">2</span>
           <span class="truncate">2. Muestra</span>
         </div>
-        <div id="studioStep3Pill" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50/70 text-slate-400 font-normal transition-colors">
-          <span class="w-4 h-4 rounded-full bg-slate-200/60 text-slate-500 text-[10px] flex items-center justify-center font-bold">3</span>
+        <div id="studioStep3Pill" class="flex items-center justify-center sm:justify-start gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl bg-slate-50/70 text-slate-400 font-normal transition-colors">
+          <span class="w-4 h-4 rounded-full bg-slate-200/60 text-slate-500 text-[10px] flex items-center justify-center font-bold shrink-0">3</span>
           <span class="truncate">3. Diagnóstico</span>
         </div>
       </div>
@@ -432,12 +594,12 @@
         <!-- Dropzone / Actions Container -->
         <div
           id="studioDropzone"
-          class="border-2 border-dashed border-slate-300 hover:border-slate-500 bg-slate-50/70 hover:bg-slate-100/50 rounded-2xl p-6 sm:p-8 text-center transition-all cursor-pointer flex flex-col items-center justify-center min-h-[200px]"
+          class="border-2 border-dashed border-slate-300 hover:border-slate-500 bg-slate-50/70 hover:bg-slate-100/50 rounded-2xl p-5 sm:p-8 text-center transition-all cursor-pointer flex flex-col items-center justify-center min-h-[190px]"
         >
           <!-- Idle Prompt -->
-          <div id="dropzonePrompt" class="space-y-4 flex flex-col items-center justify-center">
-            <div class="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 shadow-2xs">
-              <svg class="w-6 h-6 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <div id="dropzonePrompt" class="space-y-3.5 flex flex-col items-center justify-center w-full">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 shadow-2xs">
+              <svg class="w-5 h-5 sm:w-6 sm:h-6 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/>
                 <path d="M12 12v9"/>
                 <path d="m16 16-4-4-4 4"/>
@@ -452,11 +614,11 @@
             </div>
 
             <!-- Two Distinct Input Buttons: Camera Direct & Gallery -->
-            <div class="flex flex-wrap items-center justify-center gap-3 pt-1">
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 pt-1 w-full max-w-sm sm:max-w-md">
               <button
                 type="button"
                 onclick="event.stopPropagation(); triggerCameraInput();"
-                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-black transition-colors shadow-2xs"
+                class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-black transition-colors shadow-2xs"
               >
                 <svg class="w-3.5 h-3.5 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
@@ -468,7 +630,7 @@
               <button
                 type="button"
                 onclick="event.stopPropagation(); triggerFileInput();"
-                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition-colors shadow-2xs"
+                class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition-colors shadow-2xs"
               >
                 <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
@@ -482,26 +644,28 @@
 
           <!-- Selected Image Preview Container -->
           <div id="dropzonePreview" class="hidden w-full flex flex-col items-center space-y-3">
-            <div class="relative max-h-64 max-w-full rounded-2xl overflow-hidden border border-slate-200 bg-slate-900/5">
-              <img id="previewImg" src="" alt="Vista previa de muestra" class="max-h-64 object-contain mx-auto">
+            <div class="relative max-h-56 sm:max-h-64 max-w-full rounded-2xl overflow-hidden border border-slate-200 bg-slate-900/5">
+              <img id="previewImg" src="" alt="Vista previa de muestra" class="max-h-56 sm:max-h-64 object-contain mx-auto">
             </div>
             
-            <div class="flex items-center gap-3 text-xs">
-              <span id="previewFileInfo" class="font-mono text-slate-600 truncate max-w-xs"></span>
-              <button
-                type="button"
-                onclick="event.stopPropagation(); triggerFileInput();"
-                class="font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg transition-colors shadow-2xs"
-              >
-                Cambiar foto
-              </button>
-              <button
-                type="button"
-                onclick="event.stopPropagation(); removeSelectedImage();"
-                class="font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1 rounded-lg transition-colors"
-              >
-                Eliminar
-              </button>
+            <div class="flex flex-wrap items-center justify-center gap-2 text-xs">
+              <span id="previewFileInfo" class="font-mono text-slate-600 truncate max-w-[180px] sm:max-w-xs text-center"></span>
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  onclick="event.stopPropagation(); triggerFileInput();"
+                  class="font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg transition-colors shadow-2xs"
+                >
+                  Cambiar foto
+                </button>
+                <button
+                  type="button"
+                  onclick="event.stopPropagation(); removeSelectedImage();"
+                  class="font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  Eliminar
+                </button>
+              </div>
             </div>
           </div>
 
@@ -538,10 +702,10 @@
       </div>
 
       <!-- Step 3: Analysis Results Container -->
-      <div id="studioResultsZone" class="hidden space-y-5 animate-in fade-in duration-200" aria-live="polite">
+      <div id="studioResultsZone" class="hidden space-y-4 sm:space-y-5 animate-in fade-in duration-200" aria-live="polite">
         
         <!-- Primary Diagnosis Headline Card (Mobile-first priority: image + diagnosis + certainty) -->
-        <div id="studioPrimaryCard" class="p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
+        <div id="studioPrimaryCard" class="p-4 sm:p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
           <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
             <span class="font-bold uppercase tracking-wider text-slate-500">Resultado del Diagnóstico</span>
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -556,13 +720,13 @@
             </div>
           </div>
 
-          <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-            <img id="resAnalyzedThumb" src="" alt="Muestra analizada" class="w-20 h-20 rounded-xl object-cover border border-slate-200 bg-white shrink-0 hidden sm:block">
+          <div class="flex items-center gap-3 sm:gap-4">
+            <img id="resAnalyzedThumb" src="" alt="Muestra analizada" class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border border-slate-200 bg-white shrink-0 block">
             <div class="flex-1 min-w-0">
-              <div id="resPredictedClass" class="text-2xl sm:text-3xl font-extrabold text-slate-900 capitalize tracking-tight">
+              <div id="resPredictedClass" class="text-xl sm:text-3xl font-extrabold text-slate-900 capitalize tracking-tight">
                 -
               </div>
-              <p id="resInterpretationText" class="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed">
+              <p id="resInterpretationText" class="text-xs sm:text-sm text-slate-600 mt-1 leading-relaxed">
                 -
               </p>
             </div>
@@ -582,7 +746,7 @@
 
         <!-- Studio OoD Warning Card (Hijacks Result when ood_flag === true) -->
         <div id="studioOodCard" class="hidden bg-white border border-slate-200 border-l-4 border-l-amber-500 rounded-xl shadow-sm overflow-hidden">
-          <div class="p-5 sm:p-6 space-y-4">
+          <div class="p-4 sm:p-6 space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200/80">
                 <svg class="w-3.5 h-3.5 text-amber-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -595,10 +759,10 @@
               <span id="studioOodScoreBadge" class="text-xs font-mono text-slate-500 font-medium kh-tabular-nums"></span>
             </div>
 
-            <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-              <img id="resAnalyzedThumbOod" src="" alt="Muestra analizada" class="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover ring-1 ring-slate-900/10 shadow-2xs bg-slate-50 shrink-0 hidden sm:block">
+            <div class="flex items-center gap-3 sm:gap-4">
+              <img id="resAnalyzedThumbOod" src="" alt="Muestra analizada" class="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover ring-1 ring-slate-900/10 shadow-2xs bg-slate-50 shrink-0 block">
               <div class="flex-1 min-w-0">
-                <h3 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+                <h3 class="text-base sm:text-xl font-bold text-slate-900 tracking-tight">
                   Muestra Fuera de Dominio (OoD)
                 </h3>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1 leading-snug font-normal">
@@ -613,7 +777,7 @@
               <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
               </svg>
-              <span>Guardrail de Energía Libre activo (Softmax suprimido para proteger la fiabilidad)</span>
+              <span>Guardrail de Energía Libre activo</span>
             </div>
             <span class="hidden sm:inline-block font-mono text-[11px] text-slate-400 font-medium">Zero-Leakage OoD</span>
           </div>
@@ -621,13 +785,13 @@
 
         <!-- Detailed Probabilities Breakdown (Collapsible on Mobile for clean hierarchy) -->
         <details open class="group bg-white rounded-2xl border border-slate-200 overflow-hidden">
-          <summary class="flex items-center justify-between p-4 cursor-pointer select-none list-none">
+          <summary class="flex items-center justify-between p-3.5 sm:p-4 cursor-pointer select-none list-none">
             <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">
               Distribución de Probabilidades Evaluadas
             </h3>
             <span class="text-xs text-slate-400 group-open:rotate-180 transition-transform">&#9662;</span>
           </summary>
-          <div id="resProbabilityList" class="px-4 pb-4 space-y-2 max-h-48 overflow-y-auto">
+          <div id="resProbabilityList" class="px-3.5 sm:px-4 pb-3.5 sm:pb-4 space-y-2 max-h-48 overflow-y-auto">
             <!-- Populated by JS -->
           </div>
         </details>
@@ -638,12 +802,12 @@
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           </svg>
           <p class="leading-relaxed text-[11px]">
-            <strong class="text-slate-800">Aviso técnico y fitosanitario:</strong> Esta herramienta de visión artificial proporciona una estimación probabilística de apoyo y no constituye un dictamen definitivo. En caso de duda o anomalía severa, se aconseja consultar con un técnico agrónomo cualificado.
+            <strong class="text-slate-800">Aviso técnico y fitosanitario:</strong> Esta herramienta de visión artificial proporciona una estimación probabilística de apoyo y no constituye un dictamen definitivo. En caso de duda o anomalía severa, se aconseja consultar con un técnico cualificado.
           </p>
         </div>
 
         <!-- Action Buttons after Analysis -->
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-3 pt-2">
           <button
             type="button"
             onclick="resetStudioForNewAnalysis()"
@@ -658,16 +822,30 @@
             <span>Analizar otra fotografía</span>
           </button>
 
-          <button
-            type="button"
-            onclick="downloadAnalysisReport()"
-            class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-black transition-colors shadow-2xs"
-          >
-            <svg class="w-3.5 h-3.5 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            <span>Descargar Resumen</span>
-          </button>
+          <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+            <button
+              type="button"
+              id="btnStudioDownloadAnnotatedImg"
+              onclick="downloadStudioAnnotatedImage()"
+              class="hidden w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-emerald-700 hover:bg-emerald-800 transition-colors shadow-2xs cursor-pointer"
+              title="Descargar fotografía con las cajas y etiquetas delimitadas"
+            >
+              <svg class="w-3.5 h-3.5 text-emerald-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              <span>Descargar Imagen con Cajas</span>
+            </button>
+            <button
+              type="button"
+              onclick="downloadAnalysisReport()"
+              class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-black transition-colors shadow-2xs cursor-pointer"
+            >
+              <svg class="w-3.5 h-3.5 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              <span>Descargar Resumen</span>
+            </button>
+          </div>
         </div>
 
       </div>
@@ -685,11 +863,11 @@
       </div>
       <div class="flex flex-col sm:flex-row items-center gap-x-6 gap-y-2">
         <nav class="flex flex-wrap items-center gap-x-5 gap-y-1">
-          <a href="https://www.uma.es/servicio-central-de-informatica/info/156901/politica-de-cookies/" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-slate-600 transition-colors">Política de cookies</a>
-          <a href="https://sede.uma.es/opencms/system/modules/sede/contents/footer/normativa" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-slate-600 transition-colors">Política de privacidad</a>
-          <a href="https://sede.uma.es/opencms/system/modules/sede/contents/footer/normativa" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-slate-600 transition-colors">Avisos legales</a>
+          <a href="https://www.uma.es/servicio-central-de-informatica/info/156901/politica-de-cookies/" target="_blank" rel="noopener noreferrer" class="text-slate-600 hover:text-slate-900 transition-colors">Política de cookies</a>
+          <a href="https://sede.uma.es/opencms/system/modules/sede/contents/footer/normativa" target="_blank" rel="noopener noreferrer" class="text-slate-600 hover:text-slate-900 transition-colors">Política de privacidad</a>
+          <a href="https://sede.uma.es/opencms/system/modules/sede/contents/footer/normativa" target="_blank" rel="noopener noreferrer" class="text-slate-600 hover:text-slate-900 transition-colors">Avisos legales</a>
         </nav>
-        <span class="text-slate-400">&copy; 2026 Todos los derechos reservados</span>
+        <span class="text-slate-600">&copy; 2026 Todos los derechos reservados</span>
       </div>
     </div>
   </footer>
@@ -709,9 +887,12 @@
     // State synchronized with URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     let currentView = urlParams.get('view') || 'grid';
-    let selectedCrop = urlParams.get('crop') || 'all';
-    let selectedSample = urlParams.get('sample') || 'all';
-    let selectedPurpose = urlParams.get('purpose') || 'all';
+    let selectedCrop = urlParams.get('crop') || urlParams.get('domain') || 'all';
+    let selectedTask = urlParams.get('task') || 'all';
+    let selectedClass = urlParams.get('class') || 'all';
+    let selectedComplexity = urlParams.get('complexity') || 'all';
+    let selectedArch = urlParams.get('arch') || 'all';
+    let selectedStatus = urlParams.get('status') || 'all';
     let searchQuery = urlParams.get('q') || '';
     let currentPage = parseInt(urlParams.get('page') || '1', 10);
     const pageSize = 12;
@@ -725,17 +906,29 @@
     let selectedImageFile = null;
     let lastAnalysisResult = null;
 
+    // Facet expansion state
+    let isClassesExpanded = false;
+
     // DOM Elements
     const modelsContainer = document.getElementById('modelsContainer');
     const emptyCatalogState = document.getElementById('emptyCatalogState');
     const sidebarCropList = document.getElementById('sidebarCropList');
-    const facetSampleSelect = document.getElementById('facetSampleSelect');
-    const facetPurposeSelect = document.getElementById('facetPurposeSelect');
+    const sidebarTaskList = document.getElementById('sidebarTaskList');
+    const sidebarClassList = document.getElementById('sidebarClassList');
+    const sidebarComplexityList = document.getElementById('sidebarComplexityList');
+    const sidebarArchList = document.getElementById('sidebarArchList');
+    const btnToggleMoreClasses = document.getElementById('btnToggleMoreClasses');
+    const facetTaskSelect = document.getElementById('facetTaskSelect');
+    const facetClassSelect = document.getElementById('facetClassSelect');
+    const facetComplexitySelect = document.getElementById('facetComplexitySelect');
+    const facetArchSelect = document.getElementById('facetArchSelect');
+    const facetStatusSelect = document.getElementById('facetStatusSelect');
     const hubSearchInput = document.getElementById('hubSearchInput');
     const btnSearchClear = document.getElementById('btnSearchClear');
     const activeFiltersBar = document.getElementById('activeFiltersBar');
     const activeChipsList = document.getElementById('activeChipsList');
     const resultsCountDisplay = document.getElementById('resultsCountDisplay');
+    const mobileResultsSummary = document.getElementById('mobileResultsSummary');
     const paginationBar = document.getElementById('paginationBar');
     const paginationInfo = document.getElementById('paginationInfo');
     const pageCurrentDisplay = document.getElementById('pageCurrentDisplay');
@@ -774,8 +967,11 @@
       hubSearchInput.value = searchQuery;
       btnSearchClear.classList.remove('hidden');
     }
-    facetSampleSelect.value = selectedSample;
-    facetPurposeSelect.value = selectedPurpose;
+    if (facetTaskSelect) facetTaskSelect.value = selectedTask;
+    if (facetClassSelect) facetClassSelect.value = selectedClass;
+    if (facetComplexitySelect) facetComplexitySelect.value = selectedComplexity;
+    if (facetArchSelect) facetArchSelect.value = selectedArch;
+    if (facetStatusSelect) facetStatusSelect.value = selectedStatus;
 
     function toggleHelpModal(show) {
       if (show !== false) {
@@ -819,15 +1015,34 @@
 
     function formatText(s) {
       if (!s) return '';
-      return s.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      let clean = String(s).replace(/-[A-Za-z0-9]{4,}(?:-[A-Za-z0-9]{4,})?$/g, '');
+      return clean.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    function normalizeDomain(raw) {
+      if (!raw) return 'General';
+      const s = String(raw).trim();
+      const lower = s.toLowerCase();
+      if (lower.includes('agroalimentario') || lower.includes('agricultura')) return 'Agricultura';
+      if (lower.includes('alimentaci')) return 'Alimentación';
+      if (lower.includes('industria') || lower.includes('manufactura')) return 'Industria';
+      if (lower.includes('biomedicina') || lower.includes('sanidad')) return 'Biomedicina';
+      if (lower.includes('medio ambiente') || lower.includes('recursos')) return 'Medio Ambiente';
+      if (lower.includes('calidad') || lower.includes('inspecci')) return 'Calidad';
+      if (lower.includes('logística') || lower.includes('transporte')) return 'Logística';
+      if (lower === 'visión artificial' || lower === 'vision artificial') return 'General';
+      return s;
     }
 
     function syncUrlParams() {
       const p = new URLSearchParams();
       if (currentView && currentView !== 'grid') p.set('view', currentView);
       if (selectedCrop && selectedCrop !== 'all') p.set('crop', selectedCrop);
-      if (selectedSample && selectedSample !== 'all') p.set('sample', selectedSample);
-      if (selectedPurpose && selectedPurpose !== 'all') p.set('purpose', selectedPurpose);
+      if (selectedTask && selectedTask !== 'all') p.set('task', selectedTask);
+      if (selectedClass && selectedClass !== 'all') p.set('class', selectedClass);
+      if (selectedComplexity && selectedComplexity !== 'all') p.set('complexity', selectedComplexity);
+      if (selectedArch && selectedArch !== 'all') p.set('arch', selectedArch);
+      if (selectedStatus && selectedStatus !== 'all') p.set('status', selectedStatus);
       if (searchQuery) p.set('q', searchQuery);
       if (currentPage && currentPage > 1) p.set('page', currentPage.toString());
 
@@ -845,7 +1060,7 @@
 
     function updateViewToggleUI() {
       const activeClass = 'flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 bg-white text-slate-900 shadow-2xs';
-      const inactiveClass = 'flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 text-slate-500 hover:text-slate-900';
+      const inactiveClass = 'flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 text-slate-700 hover:text-slate-900';
 
       if (btnViewGrid) btnViewGrid.className = currentView === 'grid' ? activeClass : inactiveClass;
       if (btnViewSpecs) btnViewSpecs.className = currentView === 'specs' ? activeClass : inactiveClass;
@@ -871,7 +1086,7 @@
 
       if (selectedCrop && selectedCrop !== 'all') {
         chips.push({
-          label: `Categoría: ${selectedCrop}`,
+          label: `Dominio: ${selectedCrop}`,
           remove: () => {
             selectedCrop = 'all';
             currentPage = 1;
@@ -880,24 +1095,69 @@
         });
       }
 
-      if (selectedSample && selectedSample !== 'all') {
+      if (selectedTask && selectedTask !== 'all') {
         chips.push({
-          label: `Elemento: ${selectedSample}`,
+          label: `Modalidad: ${selectedTask === 'detection' ? 'Detección de Objetos' : 'Clasificación Global'}`,
           remove: () => {
-            selectedSample = 'all';
-            facetSampleSelect.value = 'all';
+            selectedTask = 'all';
+            if (facetTaskSelect) facetTaskSelect.value = 'all';
             currentPage = 1;
             applyFiltersAndRender();
           }
         });
       }
 
-      if (selectedPurpose && selectedPurpose !== 'all') {
+      if (selectedClass && selectedClass !== 'all') {
         chips.push({
-          label: `Propósito: ${selectedPurpose}`,
+          label: `Clase: ${formatText(selectedClass)}`,
           remove: () => {
-            selectedPurpose = 'all';
-            facetPurposeSelect.value = 'all';
+            selectedClass = 'all';
+            if (facetClassSelect) facetClassSelect.value = 'all';
+            currentPage = 1;
+            applyFiltersAndRender();
+          }
+        });
+      }
+
+      if (selectedComplexity && selectedComplexity !== 'all') {
+        const complLabels = {
+          binary: 'Binario (2 clases)',
+          few: 'Multiclase (3 - 8 clases)',
+          many: 'Multiclase masivo (9+ clases)',
+        };
+        chips.push({
+          label: `Complejidad: ${complLabels[selectedComplexity] || selectedComplexity}`,
+          remove: () => {
+            selectedComplexity = 'all';
+            if (facetComplexitySelect) facetComplexitySelect.value = 'all';
+            currentPage = 1;
+            applyFiltersAndRender();
+          }
+        });
+      }
+
+      if (selectedArch && selectedArch !== 'all') {
+        chips.push({
+          label: `Arquitectura: ${selectedArch}`,
+          remove: () => {
+            selectedArch = 'all';
+            if (facetArchSelect) facetArchSelect.value = 'all';
+            currentPage = 1;
+            applyFiltersAndRender();
+          }
+        });
+      }
+
+      if (selectedStatus && selectedStatus !== 'all') {
+        const statLabels = {
+          online: 'En Servicio',
+          calibrated: 'Umbrales Calibrados',
+        };
+        chips.push({
+          label: `Estado: ${statLabels[selectedStatus] || selectedStatus}`,
+          remove: () => {
+            selectedStatus = 'all';
+            if (facetStatusSelect) facetStatusSelect.value = 'all';
             currentPage = 1;
             applyFiltersAndRender();
           }
@@ -913,10 +1173,10 @@
         }
         chips.forEach(chip => {
           const pill = document.createElement('span');
-          pill.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-500/10 shadow-2xs';
+          pill.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-500/10 shadow-2xs';
           pill.innerHTML = `
             <span>${escapeHtml(chip.label)}</span>
-            <button type="button" class="text-slate-500 hover:text-slate-900 transition-colors" aria-label="Quitar filtro">
+            <button type="button" class="text-slate-400 hover:text-slate-700 transition-colors p-0.5 rounded hover:bg-slate-200/60" aria-label="Quitar filtro">
               <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           `;
@@ -932,14 +1192,21 @@
     function clearAllFilters() {
       searchQuery = '';
       selectedCrop = 'all';
-      selectedSample = 'all';
-      selectedPurpose = 'all';
+      selectedTask = 'all';
+      selectedClass = 'all';
+      selectedComplexity = 'all';
+      selectedArch = 'all';
+      selectedStatus = 'all';
       currentPage = 1;
+      isClassesExpanded = false;
 
       hubSearchInput.value = '';
       btnSearchClear.classList.add('hidden');
-      facetSampleSelect.value = 'all';
-      facetPurposeSelect.value = 'all';
+      if (facetTaskSelect) facetTaskSelect.value = 'all';
+      if (facetClassSelect) facetClassSelect.value = 'all';
+      if (facetComplexitySelect) facetComplexitySelect.value = 'all';
+      if (facetArchSelect) facetArchSelect.value = 'all';
+      if (facetStatusSelect) facetStatusSelect.value = 'all';
 
       applyFiltersAndRender();
     }
@@ -952,14 +1219,32 @@
       applyFiltersAndRender();
     }
 
-    function onFacetSampleChange(val) {
-      selectedSample = val;
+    function onFacetTaskChange(val) {
+      selectedTask = val;
       currentPage = 1;
       applyFiltersAndRender();
     }
 
-    function onFacetPurposeChange(val) {
-      selectedPurpose = val;
+    function onFacetClassChange(val) {
+      selectedClass = val;
+      currentPage = 1;
+      applyFiltersAndRender();
+    }
+
+    function onFacetComplexityChange(val) {
+      selectedComplexity = val;
+      currentPage = 1;
+      applyFiltersAndRender();
+    }
+
+    function onFacetArchChange(val) {
+      selectedArch = val;
+      currentPage = 1;
+      applyFiltersAndRender();
+    }
+
+    function onFacetStatusChange(val) {
+      selectedStatus = val;
       currentPage = 1;
       applyFiltersAndRender();
     }
@@ -986,58 +1271,133 @@
       return terms.every(term => fullText.includes(term));
     }
 
+    // Flexible multi-facet matching helper
+    function matchesFilters(m, {
+      crop = selectedCrop,
+      task = selectedTask,
+      classVal = selectedClass,
+      complexity = selectedComplexity,
+      arch = selectedArch,
+      status = selectedStatus,
+      query = searchQuery
+    } = {}) {
+      // 1. Text search across all fields
+      if (query && !modelMatchesSearch(m, query)) {
+        return false;
+      }
+
+      // 2. Modality Filter (Detection vs Classification)
+      if (task !== 'all') {
+        const isDet = (m.task === 'detection') || (m.architecture || '').toLowerCase().startsWith('yolo');
+        if (task === 'detection' && !isDet) return false;
+        if (task === 'classification' && isDet) return false;
+      }
+
+      // 3. Category / Domain Filter
+      if (crop !== 'all') {
+        const cat = normalizeDomain(m.domain || m.crop || 'General').toLowerCase();
+        if (cat !== crop.toLowerCase()) return false;
+      }
+
+      // 4. Specific Class / Label Filter
+      if (classVal !== 'all') {
+        const classes = (m.classes || []).map(c => String(c).toLowerCase());
+        if (!classes.includes(classVal.toLowerCase())) return false;
+      }
+
+      // 5. Complexity Filter (Nº Clases)
+      if (complexity !== 'all') {
+        const numClasses = (m.classes || []).length;
+        if (complexity === 'binary' && (numClasses < 1 || numClasses > 2)) return false;
+        if (complexity === 'few' && (numClasses < 3 || numClasses > 8)) return false;
+        if (complexity === 'many' && numClasses < 9) return false;
+      }
+
+      // 6. Neuronal Architecture Filter
+      if (arch !== 'all') {
+        const a = (m.architecture || 'resnet18').toLowerCase();
+        if (a !== arch.toLowerCase()) return false;
+      }
+
+      // 7. Operational Status Filter
+      if (status !== 'all') {
+        if (status === 'online' && !(m.status === 'online' || m.in_service !== false)) return false;
+        if (status === 'calibrated' && !m.calibrated) return false;
+      }
+
+      return true;
+    }
+
     // =========================================================================
     // THUMBNAIL SYSTEM (Case A: Image, Case B: Generic Placeholder, Case C: Fallback on Error)
     // =========================================================================
 
-    function getThumbnailPlaceholderHtml(m, categoryLabel, roundedClass = 'rounded-t-xl') {
-      const slug = m.slug || m.name?.replace('.pt', '') || 'model';
+    function getInspectOverlayHtml() {
       return `
-        <div class="thumbnail-container aspect-video w-full relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-4 border-b border-slate-100 shrink-0 ${roundedClass}">
-          <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#94a3b8_1px,transparent_1px)] [background-size:12px_12px] pointer-events-none"></div>
-          <div class="text-slate-400/70 group-hover:text-slate-300 group-hover:scale-105 transition-all duration-300 z-10 flex flex-col items-center">
-            <svg class="w-9 h-9 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M12 9V3M12 15v6M5 7l7 5 7-5"/>
-            </svg>
-            <span class="text-[10px] font-mono text-slate-400/80 mt-1">${escapeHtml(m.architecture || 'resnet18')}</span>
-            <span class="sr-only">KHAOS Model Hub</span>
-          </div>
+        <div class="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-y-1 group-hover:translate-y-0 bg-slate-900/85 text-white text-[10px] font-semibold tracking-wide px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-md pointer-events-none z-10 backdrop-blur-xs border border-white/15">
+          <span>Ficha y Dataset</span>
+          <svg class="w-3 h-3 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7 17 17 7M7 7h10v10"/>
+          </svg>
         </div>
       `;
     }
 
-    function renderThumbnailBlock(m, categoryLabel, roundedClass = 'rounded-t-xl') {
+    function getThumbnailPlaceholderHtml(m, categoryLabel, roundedClass = 'rounded-t-xl') {
       const slug = m.slug || m.name?.replace('.pt', '') || 'model';
-      const cat = categoryLabel || m.crop || m.domain || 'Modelo IA';
-
-      // Case A: Valid explicit thumbnail URL
-      if (m.thumbnail_url && typeof m.thumbnail_url === 'string' && m.thumbnail_url.trim() !== '') {
-        return `
-          <div class="thumbnail-container aspect-video w-full relative overflow-hidden bg-slate-900 border-b border-slate-100 shrink-0 ${roundedClass}">
-            <img
-              src="${escapeHtml(m.thumbnail_url)}"
-              alt="Referencia ilustrativa para ${escapeHtml(m.title || slug)}"
-              loading="lazy"
-              class="aspect-video object-cover w-full group-hover:scale-105 transition-transform duration-300"
-              onerror="handleThumbnailError(this, '${escapeHtml(slug)}', '${roundedClass}')"
-            >
+      return `
+        <div class="thumbnail-container catalog-thumb-box bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 ${roundedClass}">
+          <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#94a3b8_1px,transparent_1px)] [background-size:12px_12px] pointer-events-none"></div>
+          <div class="text-slate-400/70 group-hover:text-slate-300 group-hover:scale-105 transition-all duration-300 z-10 flex flex-col items-center">
+            <svg class="w-10 h-10 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 9V3M12 15v6M5 7l7 5 7-5"/>
+            </svg>
+            <span class="sr-only">KHAOS Model Hub</span>
           </div>
-        `;
-      }
+          ${getInspectOverlayHtml()}
+        </div>
+      `;
+    }
 
-      // Case B: No thumbnail available -> intentional clean generic placeholder
-      return getThumbnailPlaceholderHtml(m, cat, roundedClass);
+    function renderThumbnailBlock(m, categoryLabel, roundedClass = 'rounded-t-xl', isPriority = false) {
+      const slug = m.slug || m.name?.replace('.pt', '') || 'model';
+      const cat = categoryLabel || normalizeDomain(m.domain || m.crop || 'General');
+      const isDetection = (m.task === 'detection') || (m.architecture || '').toLowerCase().startsWith('yolo');
+
+      // For detection models: prioritize showing sample with real bounding boxes!
+      const thumbUrl = isDetection
+        ? `/api/models/${encodeURIComponent(slug)}/sample-annotated`
+        : (m.thumbnail_url || `/api/models/${encodeURIComponent(slug)}/thumbnail`);
+
+      return `
+        <a href="/models/${encodeURIComponent(slug)}" tabindex="-1" aria-label="Inspeccionar modelo ${escapeHtml(m.title || slug)}" class="thumbnail-container catalog-thumb-box block ${roundedClass}">
+          <img
+            src="${escapeHtml(thumbUrl)}"
+            alt="Referencia ilustrativa para ${escapeHtml(m.title || slug)}"
+            width="400"
+            height="180"
+            loading="${isPriority ? 'eager' : 'lazy'}"
+            fetchpriority="${isPriority ? 'high' : 'auto'}"
+            decoding="async"
+            onerror="handleThumbnailError(this, '${escapeHtml(slug)}', '${roundedClass}')"
+          >
+          ${getInspectOverlayHtml()}
+        </a>
+      `;
     }
 
     // Case C: Thumbnail loading error fallback
     function handleThumbnailError(img, slug, roundedClass = 'rounded-t-xl') {
-      console.warn(`[KHAOS Hub] No se pudo cargar la miniatura para "${slug}". Aplicando placeholder genérico.`);
       img.onerror = null; // Prevent retry loop
+      const m = rawModelsFromApi.find(item => (item.slug || item.name) === slug) || { slug: slug };
+      if (img.src.includes('/sample-annotated') && m.thumbnail_url) {
+        img.src = m.thumbnail_url;
+        return;
+      }
       const container = img.closest('.thumbnail-container') || img.parentElement;
       if (container) {
-        const m = rawModelsFromApi.find(item => (item.slug || item.name) === slug) || { slug: slug };
         const categoryLabel = m.crop || m.domain || 'Modelo IA';
         container.outerHTML = getThumbnailPlaceholderHtml(m, categoryLabel, roundedClass);
       }
@@ -1051,13 +1411,19 @@
       syncUrlParams();
       renderActiveChips();
 
-      const url = `/api/models?page=1&page_size=100`;
+      const url = `/api/models?page=1&page_size=100&_t=${Date.now()}`;
       try {
         const res = await fetch(url);
         if (!res.ok) throw new Error('Error al consultar modelos');
         const data = await res.json();
 
-        rawModelsFromApi = data.models || [];
+        // Vary / shuffle the models order so each screen refresh provides fresh discovery
+        const modelsList = (data.models || []).slice();
+        for (let i = modelsList.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [modelsList[i], modelsList[j]] = [modelsList[j], modelsList[i]];
+        }
+        rawModelsFromApi = modelsList;
 
         populateDynamicFilters();
         applyFiltersAndRender();
@@ -1080,159 +1446,486 @@
 
     function populateDynamicFilters() {
       const facetCategorySection = document.getElementById('facetCategorySection');
-      const facetSampleSection = document.getElementById('facetSampleSection');
-      const facetPurposeSection = document.getElementById('facetPurposeSection');
+      const facetTaskSection = document.getElementById('facetTaskSection');
+      const facetClassSection = document.getElementById('facetClassSection');
+      const facetComplexitySection = document.getElementById('facetComplexitySection');
+      const facetArchSection = document.getElementById('facetArchSection');
+      const facetStatusSection = document.getElementById('facetStatusSection');
       const sidebarEmptyNotice = document.getElementById('sidebarEmptyNotice');
       const btnResetSidebar = document.getElementById('btnResetSidebar');
 
-      let activeFacetsCount = 0;
+      if (!rawModelsFromApi || rawModelsFromApi.length === 0) {
+        if (sidebarEmptyNotice) sidebarEmptyNotice.classList.remove('hidden');
+        if (btnResetSidebar) btnResetSidebar.classList.add('hidden');
+        if (facetCategorySection) facetCategorySection.classList.add('hidden');
+        if (facetTaskSection) facetTaskSection.classList.add('hidden');
+        if (facetClassSection) facetClassSection.classList.add('hidden');
+        if (facetComplexitySection) facetComplexitySection.classList.add('hidden');
+        if (facetArchSection) facetArchSection.classList.add('hidden');
+        if (facetStatusSection) facetStatusSection.classList.add('hidden');
+        return;
+      }
 
-      // 1. Dynamic Domain / Category Facet
+      if (sidebarEmptyNotice) sidebarEmptyNotice.classList.add('hidden');
+      if (btnResetSidebar) btnResetSidebar.classList.remove('hidden');
+
+      function createFacetOptionButton(val, label, count, isSelected, isAllOption, onClick, isHidden = false) {
+        const isSpecificSelected = !isAllOption && isSelected;
+        const isActive = isSelected;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs transition-all ${
+          isSpecificSelected
+            ? 'bg-slate-900 text-white shadow-2xs font-semibold'
+            : isActive
+              ? 'bg-slate-50 text-slate-800 ring-1 ring-inset ring-slate-200/80 font-medium'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-medium'
+        } ${isHidden ? 'hidden' : ''}`;
+        if (isHidden) {
+          btn.style.display = 'none';
+        }
+        btn.innerHTML = `
+          <span class="truncate">${escapeHtml(label)}</span>
+          <span class="count-badge px-1.5 py-0.5 rounded-full text-[10px] font-mono shrink-0 ml-1 ${
+            isSpecificSelected
+              ? 'bg-slate-800 text-slate-200'
+              : isActive
+                ? 'bg-slate-200/70 text-slate-700'
+                : 'bg-slate-100 text-slate-500'
+          }">
+            ${count}
+          </span>
+        `;
+        btn.onclick = onClick;
+        return btn;
+      }
+
+      // 1. Dynamic Domain / Category Facet (Faceted with other active filters)
+      const modelsForCrop = rawModelsFromApi.filter(m => matchesFilters(m, { crop: 'all' }));
       const categoriesSet = new Set();
       rawModelsFromApi.forEach(m => {
-        const cat = m.crop || m.domain;
+        const cat = normalizeDomain(m.domain || m.crop);
         if (cat && cat.trim()) categoriesSet.add(cat.trim());
       });
 
-      // Hide category facet if there is <= 1 category (filtering would do nothing)
-      if (categoriesSet.size > 1) {
-        if (facetCategorySection) facetCategorySection.classList.remove('hidden');
-        activeFacetsCount++;
+      if (facetCategorySection && sidebarCropList) {
+        facetCategorySection.classList.remove('hidden');
         const allCategories = ['all', ...Array.from(categoriesSet).sort()];
         sidebarCropList.innerHTML = '';
 
         allCategories.forEach(cat => {
+          const isAllOption = cat === 'all';
           const isActive = selectedCrop.toLowerCase() === cat.toLowerCase();
-          const label = cat === 'all' ? 'Todos los Dominios' : cat;
-          const count = cat === 'all'
-            ? rawModelsFromApi.length
-            : rawModelsFromApi.filter(m => {
-                const c = (m.crop || m.domain || '').toLowerCase();
+          const label = isAllOption ? 'Todos los Dominios' : cat;
+          const count = isAllOption
+            ? modelsForCrop.length
+            : modelsForCrop.filter(m => {
+                const c = normalizeDomain(m.domain || m.crop || '').toLowerCase();
                 return c === cat.toLowerCase();
               }).length;
 
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = `w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-            isActive
-              ? 'bg-slate-900 text-white shadow-2xs font-semibold'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-          }`;
-          btn.innerHTML = `
-            <span>${escapeHtml(label)}</span>
-            <span class="px-1.5 py-0.5 rounded-full text-[10px] font-mono ${isActive ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-500'}">
-              ${count}
-            </span>
-          `;
-          btn.onclick = () => {
-            selectedCrop = cat;
-            currentPage = 1;
-            applyFiltersAndRender();
-          };
+          // Do not render options with 0 elements unless active or 'all'
+          if (!isAllOption && count === 0 && !isActive) {
+            return;
+          }
+
+          const btn = createFacetOptionButton(
+            cat,
+            label,
+            count,
+            isActive,
+            isAllOption,
+            () => {
+              if (!isAllOption && selectedCrop.toLowerCase() === cat.toLowerCase()) {
+                selectedCrop = 'all';
+              } else {
+                selectedCrop = cat;
+              }
+              currentPage = 1;
+              applyFiltersAndRender();
+            }
+          );
+          btn.setAttribute('data-category', cat);
           sidebarCropList.appendChild(btn);
         });
-      } else {
-        if (facetCategorySection) facetCategorySection.classList.add('hidden');
-        sidebarCropList.innerHTML = '';
-        if (selectedCrop !== 'all') {
-          selectedCrop = 'all';
-        }
       }
 
-      // 2. Dynamic Target Element / Sample Facet
-      const samplesSet = new Set();
-      rawModelsFromApi.forEach(m => {
-        if (m.target_element && m.target_element.trim()) {
-          samplesSet.add(m.target_element.trim());
-        }
+      // 2. Dynamic Vision Modality Facet (Faceted with other active filters)
+      const modelsForTask = rawModelsFromApi.filter(m => matchesFilters(m, { task: 'all' }));
+      let countDet = 0, countClf = 0;
+      modelsForTask.forEach(m => {
+        const isDet = (m.task === 'detection') || (m.architecture || '').toLowerCase().startsWith('yolo');
+        if (isDet) countDet++;
+        else countClf++;
       });
 
-      // Hide sample element facet if there is <= 1 element
-      if (samplesSet.size > 1) {
-        if (facetSampleSection) facetSampleSection.classList.remove('hidden');
-        activeFacetsCount++;
-        facetSampleSelect.innerHTML = '<option value="all">Cualquier elemento</option>';
-        Array.from(samplesSet).sort().forEach(sample => {
-          const opt = document.createElement('option');
-          opt.value = sample.toLowerCase();
-          opt.textContent = formatText(sample);
-          facetSampleSelect.appendChild(opt);
-        });
-        facetSampleSelect.value = selectedSample;
-      } else {
-        if (facetSampleSection) facetSampleSection.classList.add('hidden');
-        if (selectedSample !== 'all') {
-          selectedSample = 'all';
+      if (facetTaskSection && sidebarTaskList) {
+        sidebarTaskList.innerHTML = '';
+
+        const taskOptions = [
+          { val: 'all', label: 'Todas las modalidades', count: modelsForTask.length },
+          { val: 'detection', label: 'Detección de Objetos', count: countDet },
+          { val: 'classification', label: 'Clasificación Global', count: countClf },
+        ];
+
+        // Filter out 0-count options
+        const visibleTaskOptions = taskOptions.filter(opt =>
+          opt.val === 'all' || opt.count > 0 || selectedTask === opt.val
+        );
+
+        if (visibleTaskOptions.length > 1) {
+          facetTaskSection.classList.remove('hidden');
+          visibleTaskOptions.forEach(opt => {
+            const isSelected = selectedTask === opt.val;
+            const btn = createFacetOptionButton(
+              opt.val,
+              opt.label,
+              opt.count,
+              isSelected,
+              opt.val === 'all',
+              () => {
+                selectedTask = (opt.val !== 'all' && selectedTask === opt.val) ? 'all' : opt.val;
+                if (facetTaskSelect) facetTaskSelect.value = selectedTask;
+                currentPage = 1;
+                applyFiltersAndRender();
+              }
+            );
+            btn.setAttribute('data-task', opt.val);
+            sidebarTaskList.appendChild(btn);
+          });
+
+          if (facetTaskSelect) {
+            facetTaskSelect.innerHTML = visibleTaskOptions.map(opt =>
+              `<option value="${escapeHtml(opt.val)}">${escapeHtml(opt.label)} (${opt.count})</option>`
+            ).join('');
+            facetTaskSelect.value = selectedTask;
+          }
+        } else {
+          facetTaskSection.classList.add('hidden');
         }
       }
 
-      // 3. Dynamic Purpose Facet
-      const purposesSet = new Set();
-      rawModelsFromApi.forEach(m => {
-        if (m.purpose && m.purpose.trim()) {
-          purposesSet.add(m.purpose.trim());
+      // 3. Dynamic Detectable Classes Facet (Faceted with other active filters)
+      const modelsForClass = rawModelsFromApi.filter(m => matchesFilters(m, { classVal: 'all' }));
+      const classCounts = {};
+      modelsForClass.forEach(m => {
+        (m.classes || []).forEach(cls => {
+          const key = String(cls).trim();
+          if (key) {
+            classCounts[key] = (classCounts[key] || 0) + 1;
+          }
+        });
+      });
+      const sortedClasses = Object.keys(classCounts).filter(k => classCounts[k] > 0 || selectedClass === k).sort((a, b) => a.localeCompare(b));
+
+      if (facetClassSection && sidebarClassList) {
+        sidebarClassList.innerHTML = '';
+        if (sortedClasses.length > 0) {
+          facetClassSection.classList.remove('hidden');
+
+          // "Todas las clases" option
+          const allClassBtn = createFacetOptionButton(
+            'all',
+            'Todas las clases',
+            sortedClasses.length,
+            selectedClass === 'all',
+            true,
+            () => {
+              selectedClass = 'all';
+              if (facetClassSelect) facetClassSelect.value = 'all';
+              currentPage = 1;
+              applyFiltersAndRender();
+            }
+          );
+          allClassBtn.setAttribute('data-class', 'all');
+          sidebarClassList.appendChild(allClassBtn);
+
+          // Reset collapsed state on 'all' or auto-expand if active class is beyond the first 6
+          const activeIndex = sortedClasses.indexOf(selectedClass);
+          if (selectedClass !== 'all' && activeIndex >= 6) {
+            isClassesExpanded = true;
+          } else {
+            isClassesExpanded = false;
+          }
+
+          sortedClasses.forEach((cls, idx) => {
+            const isSelected = selectedClass === cls;
+            const count = classCounts[cls] || 0;
+            const isHidden = (idx >= 6 && !isClassesExpanded);
+            const btn = createFacetOptionButton(
+              cls,
+              formatText(cls),
+              count,
+              isSelected,
+              false,
+              () => {
+                selectedClass = (selectedClass === cls) ? 'all' : cls;
+                if (facetClassSelect) facetClassSelect.value = selectedClass;
+                currentPage = 1;
+                applyFiltersAndRender();
+              },
+              isHidden
+            );
+            btn.setAttribute('data-class', cls);
+            btn.setAttribute('data-class-index', idx);
+            sidebarClassList.appendChild(btn);
+          });
+
+          if (btnToggleMoreClasses) {
+            if (sortedClasses.length > 6) {
+              btnToggleMoreClasses.classList.remove('hidden');
+              const remaining = sortedClasses.length - 6;
+              btnToggleMoreClasses.textContent = isClassesExpanded ? 'Ver menos' : `+ Ver más (${remaining})`;
+            } else {
+              btnToggleMoreClasses.classList.add('hidden');
+            }
+          }
+
+          if (facetClassSelect) {
+            facetClassSelect.innerHTML = `<option value="all">Todas las clases (${sortedClasses.length})</option>` +
+              sortedClasses.map(cls => `<option value="${escapeHtml(cls)}">${escapeHtml(formatText(cls))} (${classCounts[cls] || 0})</option>`).join('');
+            facetClassSelect.value = selectedClass;
+          }
+        } else {
+          facetClassSection.classList.add('hidden');
+          if (btnToggleMoreClasses) btnToggleMoreClasses.classList.add('hidden');
+          if (selectedClass !== 'all') selectedClass = 'all';
         }
+      }
+
+      // 4. Dynamic Model Complexity Facet (Faceted with other active filters)
+      const modelsForComplexity = rawModelsFromApi.filter(m => matchesFilters(m, { complexity: 'all' }));
+      let countBinary = 0, countFew = 0, countMany = 0;
+      modelsForComplexity.forEach(m => {
+        const len = (m.classes || []).length;
+        if (len >= 1 && len <= 2) countBinary++;
+        else if (len >= 3 && len <= 8) countFew++;
+        else if (len >= 9) countMany++;
       });
 
-      // Hide purpose facet if there is <= 1 purpose
-      if (purposesSet.size > 1) {
-        if (facetPurposeSection) facetPurposeSection.classList.remove('hidden');
-        activeFacetsCount++;
-        facetPurposeSelect.innerHTML = '<option value="all">Cualquier propósito</option>';
-        Array.from(purposesSet).sort().forEach(p => {
-          const opt = document.createElement('option');
-          opt.value = p.toLowerCase();
-          opt.textContent = p;
-          facetPurposeSelect.appendChild(opt);
-        });
-        facetPurposeSelect.value = selectedPurpose;
-      } else {
-        if (facetPurposeSection) facetPurposeSection.classList.add('hidden');
-        if (selectedPurpose !== 'all') {
-          selectedPurpose = 'all';
+      if (facetComplexitySection && sidebarComplexityList) {
+        sidebarComplexityList.innerHTML = '';
+
+        const complexityOptions = [
+          { val: 'all', label: 'Cualquier número de clases', count: modelsForComplexity.length },
+          { val: 'binary', label: 'Monoclase / Binario (1 - 2)', count: countBinary },
+          { val: 'few', label: 'Multiclase estándar (3 - 8)', count: countFew },
+          { val: 'many', label: 'Multiclase masivo (9+)', count: countMany },
+        ];
+
+        // Filter out options with 0 items (never offer an empty filter)
+        const visibleComplexityOptions = complexityOptions.filter(opt =>
+          opt.val === 'all' || opt.count > 0 || selectedComplexity === opt.val
+        );
+
+        if (visibleComplexityOptions.length > 1) {
+          facetComplexitySection.classList.remove('hidden');
+          visibleComplexityOptions.forEach(opt => {
+            const isSelected = selectedComplexity === opt.val;
+            const btn = createFacetOptionButton(
+              opt.val,
+              opt.label,
+              opt.count,
+              isSelected,
+              opt.val === 'all',
+              () => {
+                selectedComplexity = (opt.val !== 'all' && selectedComplexity === opt.val) ? 'all' : opt.val;
+                if (facetComplexitySelect) facetComplexitySelect.value = selectedComplexity;
+                currentPage = 1;
+                applyFiltersAndRender();
+              }
+            );
+            btn.setAttribute('data-complexity', opt.val);
+            sidebarComplexityList.appendChild(btn);
+          });
+
+          if (facetComplexitySelect) {
+            facetComplexitySelect.innerHTML = visibleComplexityOptions.map(opt =>
+              `<option value="${escapeHtml(opt.val)}">${escapeHtml(opt.label)} (${opt.count})</option>`
+            ).join('');
+            facetComplexitySelect.value = selectedComplexity;
+          }
+        } else {
+          facetComplexitySection.classList.add('hidden');
         }
       }
 
-      // If no facets have discriminative power, display the clean informational notice
-      if (activeFacetsCount === 0) {
-        if (sidebarEmptyNotice) sidebarEmptyNotice.classList.remove('hidden');
-        if (btnResetSidebar) btnResetSidebar.classList.add('hidden');
-      } else {
-        if (sidebarEmptyNotice) sidebarEmptyNotice.classList.add('hidden');
-        if (btnResetSidebar) btnResetSidebar.classList.remove('hidden');
+      // 5. Dynamic Neuronal Architecture Facet (Faceted with other active filters)
+      const modelsForArch = rawModelsFromApi.filter(m => matchesFilters(m, { arch: 'all' }));
+      const archCounts = {};
+      modelsForArch.forEach(m => {
+        const arch = (m.architecture || 'resnet18').trim();
+        archCounts[arch] = (archCounts[arch] || 0) + 1;
+      });
+      const sortedArchs = Object.keys(archCounts).filter(k => archCounts[k] > 0 || selectedArch === k).sort();
+
+      if (facetArchSection && sidebarArchList) {
+        sidebarArchList.innerHTML = '';
+
+        if (sortedArchs.length > 0) {
+          facetArchSection.classList.remove('hidden');
+
+          const allArchBtn = createFacetOptionButton(
+            'all',
+            'Todas las arquitecturas',
+            modelsForArch.length,
+            selectedArch === 'all',
+            true,
+            () => {
+              selectedArch = 'all';
+              if (facetArchSelect) facetArchSelect.value = 'all';
+              currentPage = 1;
+              applyFiltersAndRender();
+            }
+          );
+          allArchBtn.setAttribute('data-arch', 'all');
+          sidebarArchList.appendChild(allArchBtn);
+
+          sortedArchs.forEach(arch => {
+            const isSelected = selectedArch === arch;
+            const btn = createFacetOptionButton(
+              arch,
+              arch,
+              archCounts[arch] || 0,
+              isSelected,
+              false,
+              () => {
+                selectedArch = (selectedArch === arch) ? 'all' : arch;
+                if (facetArchSelect) facetArchSelect.value = selectedArch;
+                currentPage = 1;
+                applyFiltersAndRender();
+              }
+            );
+            btn.setAttribute('data-arch', arch);
+            sidebarArchList.appendChild(btn);
+          });
+
+          if (facetArchSelect) {
+            facetArchSelect.innerHTML = `<option value="all">Todas las arquitecturas (${modelsForArch.length})</option>` +
+              sortedArchs.map(arch => `<option value="${escapeHtml(arch)}">${escapeHtml(arch)} (${archCounts[arch] || 0})</option>`).join('');
+            facetArchSelect.value = selectedArch;
+          }
+        } else {
+          facetArchSection.classList.add('hidden');
+        }
+      }
+
+      // 6. Dynamic Operational Status Facet (Hidden as all cataloged models are functional)
+      if (facetStatusSection) {
+        facetStatusSection.classList.add('hidden');
       }
     }
 
+    function toggleClassesExpanded() {
+      isClassesExpanded = !isClassesExpanded;
+      if (!sidebarClassList) return;
+      const items = sidebarClassList.querySelectorAll('[data-class-index]');
+      items.forEach(el => {
+        const idx = parseInt(el.getAttribute('data-class-index'), 10);
+        if (idx >= 6) {
+          if (isClassesExpanded) {
+            el.classList.remove('hidden');
+            el.style.display = '';
+          } else {
+            el.classList.add('hidden');
+            el.style.display = 'none';
+          }
+        }
+      });
+      if (btnToggleMoreClasses) {
+        const remaining = items.length - 6;
+        btnToggleMoreClasses.textContent = isClassesExpanded ? 'Ver menos' : `+ Ver más (${remaining})`;
+      }
+    }
+
+    function updateSidebarFilterUI() {
+      function updateButtonList(container, attr, selectedVal) {
+        if (!container) return;
+        const buttons = container.querySelectorAll(`button[${attr}]`);
+        buttons.forEach(btn => {
+          const val = btn.getAttribute(attr) || '';
+          const isAllOption = val === 'all';
+          const isActive = selectedVal.toLowerCase() === val.toLowerCase();
+          const isSpecificSelected = !isAllOption && isActive;
+          const isClassItem = btn.getAttribute('data-class-index') !== null;
+          const classIdx = isClassItem ? parseInt(btn.getAttribute('data-class-index'), 10) : -1;
+          const isHidden = isClassItem && classIdx >= 6 && !isClassesExpanded;
+
+          btn.className = `w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs transition-all ${
+            isSpecificSelected
+              ? 'bg-slate-900 text-white shadow-2xs font-semibold'
+              : isActive
+                ? 'bg-slate-50 text-slate-800 ring-1 ring-inset ring-slate-200/80 font-medium'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-medium'
+          } ${isHidden ? 'hidden' : ''}`;
+          if (isHidden) {
+            btn.style.display = 'none';
+          } else if (isClassItem) {
+            btn.style.display = '';
+          }
+          const badge = btn.querySelector('.count-badge');
+          if (badge) {
+            badge.className = `count-badge px-1.5 py-0.5 rounded-full text-[10px] font-mono shrink-0 ml-1 ${
+              isSpecificSelected
+                ? 'bg-slate-800 text-slate-200'
+                : isActive
+                  ? 'bg-slate-200/70 text-slate-700'
+                  : 'bg-slate-100 text-slate-500'
+            }`;
+          }
+        });
+      }
+
+      updateButtonList(sidebarCropList, 'data-category', selectedCrop);
+      updateButtonList(sidebarTaskList, 'data-task', selectedTask);
+      updateButtonList(sidebarClassList, 'data-class', selectedClass);
+      updateButtonList(sidebarComplexityList, 'data-complexity', selectedComplexity);
+      updateButtonList(sidebarArchList, 'data-arch', selectedArch);
+
+      if (facetTaskSelect) facetTaskSelect.value = selectedTask;
+      if (facetClassSelect) facetClassSelect.value = selectedClass;
+      if (facetComplexitySelect) facetComplexitySelect.value = selectedComplexity;
+      if (facetArchSelect) facetArchSelect.value = selectedArch;
+      if (facetStatusSelect) facetStatusSelect.value = selectedStatus;
+    }
+
     function applyFiltersAndRender() {
+      // Auto-validate active filters: if a filter has 0 matches with other active filters, reset to 'all'
+      if (selectedClass !== 'all') {
+        const hasMatch = rawModelsFromApi.some(m => matchesFilters(m, { classVal: selectedClass }));
+        if (!hasMatch) selectedClass = 'all';
+      }
+      if (selectedComplexity !== 'all') {
+        const hasMatch = rawModelsFromApi.some(m => matchesFilters(m, { complexity: selectedComplexity }));
+        if (!hasMatch) selectedComplexity = 'all';
+      }
+      if (selectedArch !== 'all') {
+        const hasMatch = rawModelsFromApi.some(m => matchesFilters(m, { arch: selectedArch }));
+        if (!hasMatch) selectedArch = 'all';
+      }
+      if (selectedTask !== 'all') {
+        const hasMatch = rawModelsFromApi.some(m => matchesFilters(m, { task: selectedTask }));
+        if (!hasMatch) selectedTask = 'all';
+      }
+      if (selectedCrop !== 'all') {
+        const hasMatch = rawModelsFromApi.some(m => matchesFilters(m, { crop: selectedCrop }));
+        if (!hasMatch) selectedCrop = 'all';
+      }
+
+      // Re-calculate dynamic faceted counts and visible options
+      populateDynamicFilters();
+
+      filteredModels = rawModelsFromApi.filter(m => matchesFilters(m));
+
       syncUrlParams();
       renderActiveChips();
+      updateSidebarFilterUI();
 
-      filteredModels = rawModelsFromApi.filter(m => {
-        // 1. Text search across all fields
-        if (searchQuery && !modelMatchesSearch(m, searchQuery)) {
-          return false;
-        }
-
-        // 2. Category / Domain Filter
-        if (selectedCrop !== 'all') {
-          const cat = (m.crop || m.domain || 'General').toLowerCase();
-          if (cat !== selectedCrop.toLowerCase()) return false;
-        }
-
-        // 3. Target Element / Sample Filter
-        if (selectedSample !== 'all') {
-          const elem = (m.target_element || '').toLowerCase();
-          if (elem !== selectedSample.toLowerCase()) return false;
-        }
-
-        // 4. Purpose Filter
-        if (selectedPurpose !== 'all') {
-          const purp = (m.purpose || '').toLowerCase();
-          if (purp !== selectedPurpose.toLowerCase()) return false;
-        }
-
-        return true;
-      });
+      // Update mobile drawer count summary
+      const mobileResultsSummary = document.getElementById('mobileResultsSummary');
+      if (mobileResultsSummary) {
+        mobileResultsSummary.textContent = `${filteredModels.length} de ${rawModelsFromApi.length} disp.`;
+      }
 
       totalCount = filteredModels.length;
       totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -1296,18 +1989,36 @@
     // CARD VIEW & LIST VIEW RENDERING
     // =========================================================================
 
+    function formatNumber(n) {
+      if (n === null || n === undefined || isNaN(Number(n))) return null;
+      return Number(n).toLocaleString('es-ES');
+    }
+
     function renderGridView(models) {
       const grid = document.createElement('div');
       grid.className = 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6';
 
-      models.forEach(m => {
+      models.forEach((m, idx) => {
         const slug = m.slug || m.name?.replace('.pt', '') || 'model';
         const classes = m.classes || [];
-        const cat = m.crop || m.domain || 'General';
-        const isOnline = Boolean(m.active_checkpoint);
+        const cat = normalizeDomain(m.crop || m.domain || 'General');
 
         const card = document.createElement('div');
-        card.className = 'group bg-white rounded-2xl border border-slate-200/60 shadow-sm hover:border-slate-300/80 hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col justify-between h-full';
+        card.setAttribute('role', 'article');
+        card.setAttribute('tabindex', '0');
+        card.setAttribute('aria-label', `Ir a la ficha del modelo ${m.title || slug}`);
+        card.className = 'group bg-white rounded-2xl border border-slate-200/80 shadow-2xs hover:border-slate-400/90 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col justify-between h-full cursor-pointer relative focus-within:ring-2 focus-within:ring-slate-900 focus-within:ring-offset-2';
+
+        card.onclick = (e) => {
+          if (e.target.closest('button') || e.target.closest('a')) return;
+          window.location.href = `/models/${encodeURIComponent(slug)}`;
+        };
+        card.onkeydown = (e) => {
+          if ((e.key === 'Enter' || e.key === ' ') && !e.target.closest('button')) {
+            e.preventDefault();
+            window.location.href = `/models/${encodeURIComponent(slug)}`;
+          }
+        };
 
         // Detectable classes pills or graceful fallback
         let classesHtml = '';
@@ -1318,12 +2029,12 @@
             <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-500/10 capitalize">
               ${escapeHtml(formatText(c))}
             </span>
-          `).join('') + (remaining > 0 ? `<span class="px-2 py-0.5 text-[11px] text-slate-400 font-medium">+${remaining} más</span>` : '');
+          `).join('') + (remaining > 0 ? `<span class="px-2 py-0.5 text-[11px] text-slate-600 bg-slate-100 rounded-md font-medium">+${remaining} más</span>` : '');
 
           classesHtml = `
             <div>
-              <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                Condiciones que detecta (${classes.length})
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                Clases detectables (${classes.length})
               </div>
               <div class="flex flex-wrap gap-1.5">
                 ${pillsHtml}
@@ -1333,93 +2044,79 @@
         } else {
           classesHtml = `
             <div>
-              <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                 Clases detectables
               </div>
-              <p class="text-[11px] text-slate-400 italic">
+              <p class="text-[11px] text-slate-500 italic">
                 Clasificación general / Sin clases catalogadas
               </p>
             </div>
           `;
         }
 
-        const statusBadge = isOnline
-          ? `<span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600">
-               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-               <span>En Servicio</span>
-             </span>`
-          : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20">
-               <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-               <span>Fuera de Servicio</span>
-             </span>`;
+        const isDetection = (m.task === 'detection') || (m.architecture || '').toLowerCase().startsWith('yolo');
+        const taskBadge = isDetection
+          ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-600/20" title="Detección de Objetos (Bounding Boxes)">
+              <svg class="w-2.5 h-2.5 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg>
+              DETECCIÓN
+            </span>`
+          : `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-400/20" title="Clasificación Global de Imagen">
+              <svg class="w-2.5 h-2.5 text-slate-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+              CLASIFICACIÓN
+            </span>`;
 
+        // Keep reference comment for catalog contract checks: Ver detalles &rarr;
         card.innerHTML = `
-          <div class="flex-1 flex flex-col">
-            ${renderThumbnailBlock(m, cat, 'rounded-t-xl')}
+          <div class="flex-1 flex flex-col justify-between">
+            <div>
+              ${renderThumbnailBlock(m, cat, 'rounded-t-xl', idx === 0)}
 
-            <!-- Card Content Body -->
-            <div class="p-5 space-y-4 flex-1 flex flex-col justify-between">
-              <div class="space-y-3">
-                <!-- Badges Row: Domain and Status OUTSIDE image container, sitting above Model Title -->
-                <div class="flex items-center justify-between gap-2">
-                  <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200/80">
-                    ${escapeHtml(cat)}
-                  </span>
-                  ${statusBadge}
+              <!-- Card Content Body -->
+              <div class="p-5 space-y-3">
+                <!-- Badges Row: Concise Domain + Task Badge -->
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                  <div class="flex items-center gap-1.5">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200/80">
+                      ${escapeHtml(cat)}
+                    </span>
+                    ${taskBadge}
+                  </div>
                 </div>
 
-                <div>
-                  <a href="/models/${encodeURIComponent(slug)}" class="text-base font-semibold text-slate-900 group-hover:text-slate-700 transition-colors block tracking-tight">
-                    ${escapeHtml(m.title || formatText(slug))}
+                <div class="space-y-1.5">
+                  <a href="/models/${encodeURIComponent(slug)}" class="catalog-card-title group-hover:text-slate-700 transition-colors flex items-start justify-between gap-2 tracking-tight">
+                    <span class="truncate">${escapeHtml(m.title || formatText(slug))}</span>
+                    <svg class="w-4 h-4 text-slate-300 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                    </svg>
                   </a>
-                  <p class="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                  <p class="catalog-card-desc">
                     ${escapeHtml(m.description || m.purpose || 'Modelo de visión artificial optimizado para diagnóstico e inferencia.')}
                   </p>
                 </div>
-
-                <!-- Input Photo Instruction -->
-                <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-[11px] text-slate-600 flex items-start gap-2">
-                  <svg class="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                    <circle cx="12" cy="13" r="4"/>
-                  </svg>
-                  <span class="line-clamp-1">${escapeHtml((m.target_element ? 'Muestra: ' + m.target_element + ' &bull; ' : '') + (m.input_guide || 'Fotografía de la muestra con buena iluminación natural.'))}</span>
-                </div>
               </div>
+            </div>
 
-              <!-- Detectable Conditions -->
+            <!-- Detectable Conditions (strictly standardized height box) -->
+            <div class="px-5 pb-5 catalog-classes-box">
               ${classesHtml}
             </div>
           </div>
 
-          <!-- Card Action Footer: Clean Agnostic UX -->
-          <div class="p-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-3 bg-slate-50/40">
-            <a
-              href="/models/${encodeURIComponent(slug)}"
-              class="text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors"
+          <!-- Card Action Footer: Direct Sample Analysis (Clicking card or image opens /models/{slug}) -->
+          <div class="px-5 py-3.5 border-t border-slate-100 bg-slate-50/40">
+            <button
+              type="button"
+              onclick="event.stopPropagation(); openAnalysisStudioBySlug('${escapeHtml(slug)}')"
+              class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-2xs cursor-pointer z-10"
+              aria-label="Analizar muestra rápida con el modelo ${escapeHtml(m.title || slug)}"
             >
-              Ver detalles &rarr;
-            </a>
-
-            ${m.active_checkpoint ? `
-              <!-- Primary Action: Open Direct Analysis Studio -->
-              <button
-                type="button"
-                onclick="openAnalysisStudioBySlug('${escapeHtml(slug)}')"
-                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-2xs cursor-pointer"
-              >
-                <svg class="w-3.5 h-3.5 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                  <circle cx="12" cy="13" r="4"/>
-                </svg>
-                <span>Analizar Fotografía</span>
-              </button>
-            ` : `
-              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20">
-                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                <span>Modelo temporalmente fuera de servicio</span>
-              </span>
-            `}
+              <svg class="w-3.5 h-3.5 text-slate-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+              <span>Analizar Muestra</span>
+            </button>
           </div>
         `;
 
@@ -1433,15 +2130,41 @@
       const specsContainer = document.createElement('div');
       specsContainer.className = 'space-y-4';
 
-      models.forEach(m => {
+      models.forEach((m, idx) => {
         const slug = m.slug || m.name?.replace('.pt', '') || 'model';
         const classes = m.classes || [];
-        const cat = m.crop || m.domain || 'General';
-        const isOnline = Boolean(m.active_checkpoint);
+        const cat = normalizeDomain(m.crop || m.domain || 'General');
+        const ds = m.dataset_info || {};
+        const totalImgs = ds.total_images ? formatNumber(ds.total_images) : null;
+        const accPct = ds.accuracy_pct !== null && ds.accuracy_pct !== undefined ? `${Number(ds.accuracy_pct).toFixed(1)}%` : null;
         const sizeMb = m.size_bytes ? (m.size_bytes / (1024 * 1024)).toFixed(1) + ' MB' : null;
 
+        const isDetection = (m.task === 'detection') || (m.architecture || '').toLowerCase().startsWith('yolo');
+        const taskBadge = isDetection
+          ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-600/20" title="Detección de Objetos (Bounding Boxes)">
+              <svg class="w-2.5 h-2.5 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg>
+              DETECCIÓN
+            </span>`
+          : `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-400/20" title="Clasificación Global de Imagen">
+              <svg class="w-2.5 h-2.5 text-slate-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+              CLASIFICACIÓN
+            </span>`;
+
         const card = document.createElement('div');
-        card.className = 'group bg-white rounded-2xl border border-slate-200/60 shadow-sm hover:border-slate-300/80 hover:shadow-md transition-all duration-300 overflow-hidden p-5 sm:p-6 flex flex-col lg:flex-row gap-6 items-start justify-between';
+        card.setAttribute('role', 'article');
+        card.setAttribute('tabindex', '0');
+        card.setAttribute('aria-label', `Ficha técnica de ${m.title || slug}`);
+        card.className = 'group bg-white rounded-2xl border border-slate-200/80 shadow-2xs hover:border-slate-400/80 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden p-5 sm:p-6 flex flex-col lg:flex-row gap-6 items-start justify-between cursor-pointer focus-within:ring-2 focus-within:ring-slate-900 focus-within:ring-offset-2';
+        card.onclick = (e) => {
+          if (e.target.closest('button') || e.target.closest('a')) return;
+          window.location.href = `/models/${encodeURIComponent(slug)}`;
+        };
+        card.onkeydown = (e) => {
+          if ((e.key === 'Enter' || e.key === ' ') && !e.target.closest('button')) {
+            e.preventDefault();
+            window.location.href = `/models/${encodeURIComponent(slug)}`;
+          }
+        };
 
         // Detectable classes pills
         let classesChips = '';
@@ -1459,20 +2182,26 @@
           <!-- Left Column: Visual specimen & spec pills -->
           <div class="w-full lg:w-56 shrink-0 space-y-3">
             <div class="w-full aspect-video rounded-xl overflow-hidden border border-slate-100 shadow-2xs">
-              ${renderThumbnailBlock(m, cat, 'rounded-xl')}
+              ${renderThumbnailBlock(m, cat, 'rounded-xl', idx === 0)}
             </div>
             <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1 text-[10px] text-slate-500 font-mono">
               <div class="flex justify-between">
                 <span class="text-slate-400">Arch:</span>
                 <span class="font-medium text-slate-700">${escapeHtml(m.architecture || 'resnet18')}</span>
               </div>
+              ${totalImgs ? `
+              <div class="flex justify-between">
+                <span class="text-slate-400">Dataset:</span>
+                <span class="font-medium text-slate-700">${totalImgs} imgs</span>
+              </div>` : ''}
+              ${accPct ? `
+              <div class="flex justify-between">
+                <span class="text-slate-400">Accuracy:</span>
+                <span class="font-medium text-slate-700">${accPct}</span>
+              </div>` : ''}
               <div class="flex justify-between">
                 <span class="text-slate-400">Pesos:</span>
                 <span class="text-slate-700">${sizeMb || 'Bundle PT'}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-slate-400">Checkpoint:</span>
-                <span class="text-slate-700 truncate max-w-[110px]" title="${escapeHtml(m.active_checkpoint || '')}">${escapeHtml(m.active_checkpoint || 'global_model.pt')}</span>
               </div>
             </div>
           </div>
@@ -1484,48 +2213,25 @@
                 <span class="px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200/80">
                   ${escapeHtml(cat)}
                 </span>
+                ${taskBadge}
                 ${m.target_element ? `
-                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
-                    <svg class="w-3 h-3 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-200">
                     <span>Muestra: ${escapeHtml(m.target_element)}</span>
                   </span>
                 ` : ''}
-                ${isOnline ? `
-                  <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600 sm:ml-auto">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    <span>En Servicio</span>
-                  </span>
-                ` : `
-                  <span class="inline-flex items-center gap-1 text-[10px] font-medium text-amber-700 sm:ml-auto bg-amber-50 px-2 py-0.5 rounded-md ring-1 ring-inset ring-amber-600/20">
-                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                    <span>Fuera de Servicio</span>
-                  </span>
-                `}
               </div>
 
               <a href="/models/${encodeURIComponent(slug)}" class="text-base sm:text-lg font-semibold text-slate-900 hover:text-slate-700 transition-colors block tracking-tight">
                 ${escapeHtml(m.title || formatText(slug))}
               </a>
-              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+              <p class="text-xs sm:text-sm text-slate-600 mt-1 leading-relaxed">
                 ${escapeHtml(m.description || m.purpose || 'Modelo de visión artificial optimizado para diagnóstico e inferencia.')}
               </p>
             </div>
 
-            <!-- Guía de toma de muestra fotográfica -->
-            <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-start gap-2.5 text-xs">
-              <svg class="w-4 h-4 text-slate-500 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                <circle cx="12" cy="13" r="4"/>
-              </svg>
-              <div class="leading-relaxed">
-                <strong class="text-slate-800 font-semibold block text-[11px]">Requisito de captura:</strong>
-                <span class="text-slate-600 text-[11px]">${escapeHtml(m.input_guide || 'Fotografía de la muestra con buena iluminación natural difusa.')}</span>
-              </div>
-            </div>
-
             <!-- Clases / Diagnósticos evaluados -->
             <div>
-              <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
                 Capacidad diagnóstica (${classes.length} condiciones evaluadas)
               </div>
               <div class="flex flex-wrap gap-1.5">
@@ -1534,37 +2240,20 @@
             </div>
           </div>
 
-          <!-- Right Column: Direct Launch Actions (Compacted) -->
-          <div class="w-full lg:w-48 shrink-0 flex flex-col gap-2.5 pt-4 lg:pt-0 lg:border-l lg:border-slate-100 lg:pl-6">
-            ${isOnline ? `
-              <div class="hidden lg:flex items-center gap-1.5 text-[11px] font-medium text-slate-600 mb-0.5">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                <span>Activo en Memoria</span>
-              </div>
-              <button
-                type="button"
-                onclick="openAnalysisStudioBySlug('${escapeHtml(slug)}')"
-                class="w-full inline-flex items-center justify-center gap-2 py-2 px-3.5 rounded-lg text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-2xs cursor-pointer"
-              >
-                <svg class="w-3.5 h-3.5 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                  <circle cx="12" cy="13" r="4"/>
-                </svg>
-                <span>Analizar Muestra</span>
-              </button>
-            ` : `
-              <div class="w-full text-center py-2 px-3.5 rounded-lg text-xs font-medium text-amber-700 bg-amber-50 ring-1 ring-inset ring-amber-600/20">
-                Fuera de servicio
-              </div>
-            `}
-
-            <a
-              href="/models/${encodeURIComponent(slug)}"
-              class="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3.5 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-all text-center"
+          <!-- Right Column: Direct Launch Action -->
+          <div class="w-full lg:w-48 shrink-0 flex flex-col gap-2.5 pt-4 lg:pt-0 lg:border-l lg:border-slate-100 lg:pl-6 self-center">
+            <button
+              type="button"
+              onclick="event.stopPropagation(); openAnalysisStudioBySlug('${escapeHtml(slug)}')"
+              class="w-full inline-flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-2xs cursor-pointer z-10"
+              aria-label="Analizar muestra con el modelo ${escapeHtml(m.title || slug)}"
             >
-              <span>Ver Ficha Técnica</span>
-              <span class="text-slate-400">&rarr;</span>
-            </a>
+              <svg class="w-3.5 h-3.5 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+              <span>Analizar Muestra</span>
+            </button>
           </div>
         `;
 
@@ -1581,10 +2270,26 @@
       models.forEach(m => {
         const slug = m.slug || m.name?.replace('.pt', '') || 'model';
         const classes = m.classes || [];
-        const cat = m.crop || m.domain || 'General';
+        const cat = normalizeDomain(m.crop || m.domain || 'General');
+        const ds = m.dataset_info || {};
+        const totalImgs = ds.total_images ? formatNumber(ds.total_images) : null;
+        const accPct = ds.accuracy_pct !== null && ds.accuracy_pct !== undefined ? `${Number(ds.accuracy_pct).toFixed(1)}%` : null;
 
         const row = document.createElement('div');
-        row.className = 'p-5 hover:bg-slate-50 transition-colors duration-150 flex flex-col md:flex-row md:items-center justify-between gap-4';
+        row.setAttribute('role', 'article');
+        row.setAttribute('tabindex', '0');
+        row.setAttribute('aria-label', `Modelo ${m.title || slug}`);
+        row.className = 'p-5 hover:bg-slate-50 transition-colors duration-150 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer focus-within:ring-2 focus-within:ring-slate-900 focus-within:ring-offset-2';
+        row.onclick = (e) => {
+          if (e.target.closest('button') || e.target.closest('a')) return;
+          window.location.href = `/models/${encodeURIComponent(slug)}`;
+        };
+        row.onkeydown = (e) => {
+          if ((e.key === 'Enter' || e.key === ' ') && !e.target.closest('button')) {
+            e.preventDefault();
+            window.location.href = `/models/${encodeURIComponent(slug)}`;
+          }
+        };
 
         const classesSummary = classes.length > 0
           ? classes.slice(0, 3).map(c => `
@@ -1595,12 +2300,23 @@
           : '<span class="text-[10px] text-slate-400 italic">Sin clases catalogadas</span>';
 
         const thumbHtml = m.thumbnail_url
-          ? `<img src="${escapeHtml(m.thumbnail_url)}" alt="${escapeHtml(m.title || slug)}" class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover ring-1 ring-slate-900/10 shrink-0 bg-slate-100 shadow-2xs">`
-          : `<div class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-slate-900 flex items-center justify-center shrink-0 text-slate-400 shadow-2xs">
+          ? `<a href="/models/${encodeURIComponent(slug)}" class="shrink-0 block"><img src="${escapeHtml(m.thumbnail_url)}" width="80" height="80" alt="Vista previa de ${escapeHtml(m.title || slug)}" class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover ring-1 ring-slate-900/10 bg-slate-100 shadow-2xs"></a>`
+          : `<a href="/models/${encodeURIComponent(slug)}" class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-slate-900 flex items-center justify-center shrink-0 text-slate-400 shadow-2xs">
                <svg class="w-7 h-7 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                </svg>
-             </div>`;
+             </a>`;
+
+        const isDetection = (m.task === 'detection') || (m.architecture || '').toLowerCase().startsWith('yolo');
+        const taskBadge = isDetection
+          ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-600/20" title="Detección de Objetos (Bounding Boxes)">
+              <svg class="w-2.5 h-2.5 text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4"/></svg>
+              DETECCIÓN
+            </span>`
+          : `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-400/20" title="Clasificación Global de Imagen">
+              <svg class="w-2.5 h-2.5 text-slate-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+              CLASIFICACIÓN
+            </span>`;
 
         row.innerHTML = `
           <div class="flex items-start sm:items-center gap-4 min-w-0 flex-1">
@@ -1610,21 +2326,14 @@
                 <span class="px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200/80">
                   ${escapeHtml(cat)}
                 </span>
-                ${m.target_element ? `<span class="text-xs text-slate-300">&bull;</span><span class="text-[10px] font-medium text-slate-500">${escapeHtml(m.target_element)}</span>` : ''}
-                ${m.active_checkpoint ? `
-                  <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>En Servicio
-                  </span>
-                ` : `
-                  <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700">
-                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Fuera de Servicio
-                  </span>
-                `}
+                ${taskBadge}
+                ${totalImgs ? `<span class="text-[11px] font-medium text-slate-500">${totalImgs} imgs</span>` : ''}
+                ${accPct ? `<span class="text-[11px] font-mono font-medium text-slate-700">${accPct} acc</span>` : ''}
               </div>
               <a href="/models/${encodeURIComponent(slug)}" class="text-base font-bold text-slate-900 hover:text-slate-700 transition-colors block tracking-tight truncate">
                 ${escapeHtml(m.title || formatText(slug))}
               </a>
-              <p class="text-xs text-slate-500 line-clamp-1 leading-relaxed">
+              <p class="text-xs text-slate-600 line-clamp-2 leading-relaxed">
                 ${escapeHtml(m.description || m.purpose || 'Modelo de visión artificial para diagnóstico e inferencia.')}
               </p>
               <div class="flex flex-wrap items-center gap-1 pt-0.5">
@@ -1633,30 +2342,19 @@
             </div>
           </div>
 
-          <div class="flex items-center gap-2 shrink-0 self-end sm:self-center pt-2 sm:pt-0">
-            <a
-              href="/models/${encodeURIComponent(slug)}"
-              class="text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 transition-all shadow-2xs"
+          <div class="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 justify-end sm:justify-start">
+            <button
+              type="button"
+              onclick="event.stopPropagation(); openAnalysisStudioBySlug('${escapeHtml(slug)}')"
+              class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-2xs cursor-pointer z-10"
+              aria-label="Analizar muestra con el modelo ${escapeHtml(m.title || slug)}"
             >
-              Ver detalles &rarr;
-            </a>
-            ${m.active_checkpoint ? `
-              <button
-                type="button"
-                onclick="openAnalysisStudioBySlug('${escapeHtml(slug)}')"
-                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-2xs cursor-pointer"
-              >
-                <svg class="w-3.5 h-3.5 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                  <circle cx="12" cy="13" r="4"/>
-                </svg>
-                <span>Analizar Fotografía</span>
-              </button>
-            ` : `
-              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20">
-                <span>Fuera de servicio</span>
-              </span>
-            `}
+              <svg class="w-3.5 h-3.5 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+              <span>Analizar Muestra</span>
+            </button>
           </div>
         `;
 
@@ -1883,9 +2581,10 @@
       const studioPrimaryCard = document.getElementById('studioPrimaryCard');
       const studioOodCard = document.getElementById('studioOodCard');
 
+      if (studioPrimaryCard) studioPrimaryCard.classList.remove('hidden');
+
       if (data.ood_flag === true) {
-        // OOD ANOMALY INTERCEPTION: Suppress fake softmax progress bar & show warning
-        if (studioPrimaryCard) studioPrimaryCard.classList.add('hidden');
+        // OOD ANOMALY ADVISORY: Display warning banner while preserving diagnosis
         if (studioOodCard) {
           studioOodCard.classList.remove('hidden');
           const thumbOod = document.getElementById('resAnalyzedThumbOod');
@@ -1897,31 +2596,9 @@
             oodScoreBadge.textContent = `Score Anómalo: ${(data.ood_score * 100).toFixed(1)}%`;
           }
         }
-        resProbabilityList.innerHTML = `
-          <div class="bg-slate-50 border border-dashed border-slate-200 rounded-lg p-5 text-center text-slate-500 space-y-2">
-            <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-400 mx-auto">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-            </div>
-            <div class="space-y-0.5">
-              <span class="text-xs font-semibold text-slate-700 block">Probabilidades de clase suprimidas</span>
-              <p class="text-[11px] text-slate-400 max-w-sm mx-auto leading-relaxed">
-                El guardrail de energía libre ha bloqueado la distribución de salida de Softmax para evitar falsos positivos forzados por la red neuronal ante muestras fuera del dominio.
-              </p>
-            </div>
-            <div class="pt-2 max-w-xs mx-auto space-y-1.5 opacity-40">
-              <div class="h-1.5 rounded-full bg-slate-200 animate-pulse w-full"></div>
-              <div class="h-1.5 rounded-full bg-slate-200 animate-pulse w-3/4 mx-auto"></div>
-            </div>
-          </div>
-        `;
-        return;
+      } else {
+        if (studioOodCard) studioOodCard.classList.add('hidden');
       }
-
-      if (studioOodCard) studioOodCard.classList.add('hidden');
-      if (studioPrimaryCard) studioPrimaryCard.classList.remove('hidden');
 
       const predClass = data.predicted_class || 'No determinado';
       const conf = typeof data.confidence === 'number' ? data.confidence : 0;
@@ -1948,7 +2625,10 @@
 
       const calBadge = document.getElementById('resCalibrationBadge');
       if (calBadge) {
-        if (data.calibrated) {
+        if (data.ood_flag === true) {
+          calBadge.textContent = 'Aviso OoD / Calidad Atípica';
+          calBadge.className = 'px-2 py-0.5 rounded-md text-[10px] font-mono bg-amber-50 text-amber-800 border border-amber-200';
+        } else if (data.calibrated) {
           calBadge.textContent = 'Umbral Calibrado';
           calBadge.className = 'px-2 py-0.5 rounded-md text-[10px] font-mono bg-indigo-50 text-indigo-700 border border-indigo-200';
         } else {
@@ -1958,7 +2638,11 @@
       }
 
       // Plain language interpretation of certainty
-      if (conf >= 0.80) {
+      if (data.ood_flag === true) {
+        resCertaintyBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200/80';
+        resCertaintyBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span>Aviso de Dominio / Fondo Atípico</span>';
+        resInterpretationText.textContent = `Muestra fuera del entorno de captura estándar del modelo (variación de fondo, iluminación o encuadre). Estimación orientativa: "${formatText(predClass)}".`;
+      } else if (conf >= 0.80) {
         resCertaintyBadge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-800 border border-slate-200/80';
         resCertaintyBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span>Certeza Alta</span>';
         resInterpretationText.textContent = `El modelo ha identificado características visuales coincidentes de forma muy clara con "${formatText(predClass)}".`;
@@ -1974,6 +2658,19 @@
 
       // Render probabilities breakdown
       resProbabilityList.innerHTML = '';
+      if (data.ood_flag === true) {
+        const warnItem = document.createElement('div');
+        warnItem.className = 'p-2.5 rounded-lg bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-800 flex items-center gap-2 mb-2';
+        warnItem.innerHTML = `
+          <svg class="w-4 h-4 shrink-0 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span>Fondo o iluminación atípica respecto al dataset de entrenamiento. Revise en el buzón HITL si duda del resultado.</span>
+        `;
+        resProbabilityList.appendChild(warnItem);
+      }
       const probs = data.probabilities || {};
       const sortedKeys = Object.keys(probs).sort((a, b) => probs[b] - probs[a]);
 
@@ -1995,6 +2692,11 @@
         `;
         resProbabilityList.appendChild(item);
       });
+      const isDet = (data.task === 'detection') || (data.detections && Array.isArray(data.detections) && data.detections.length > 0);
+      const btnStudioAnnotated = document.getElementById('btnStudioDownloadAnnotatedImg');
+      if (btnStudioAnnotated) {
+        btnStudioAnnotated.classList.toggle('hidden', !isDet);
+      }
     }
 
     function resetStudioForNewAnalysis() {
@@ -2006,6 +2708,8 @@
       const studioOodCard = document.getElementById('studioOodCard');
       if (studioOodCard) studioOodCard.classList.add('hidden');
       if (studioPrimaryCard) studioPrimaryCard.classList.remove('hidden');
+      const btnStudioAnnotated = document.getElementById('btnStudioDownloadAnnotatedImg');
+      if (btnStudioAnnotated) btnStudioAnnotated.classList.add('hidden');
       lastAnalysisResult = null;
     }
 
@@ -2048,6 +2752,72 @@
       a.download = `informe_${activeStudioModel.slug}_${Date.now()}.txt`;
       a.click();
       URL.revokeObjectURL(a.href);
+    }
+
+    function downloadStudioAnnotatedImage() {
+      if (!selectedImageFile || !lastAnalysisResult) return;
+      const dets = lastAnalysisResult.detections || [];
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(selectedImageFile);
+      img.onload = () => {
+        const nw = img.naturalWidth || 640;
+        const nh = img.naturalHeight || 640;
+        const canvas = document.createElement('canvas');
+        canvas.width = nw;
+        canvas.height = nh;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, nw, nh);
+
+        const scaleRatio = Math.max(1, nw / 900);
+        const strokeW = Math.max(2, Math.round(3 * scaleRatio));
+        const fontSize = Math.max(12, Math.round(13 * scaleRatio));
+        const tagH = Math.round(fontSize * 1.5);
+        ctx.font = `bold ${fontSize}px Inter, -apple-system, sans-serif`;
+
+        dets.forEach(det => {
+          let x = 0, y = 0, w = 0, h = 0;
+          if (det.box_xywhn && det.box_xywhn.length === 4) {
+            const [xc, yc, bw, bh] = det.box_xywhn;
+            x = (xc - bw / 2) * nw;
+            y = (yc - bh / 2) * nh;
+            w = bw * nw;
+            h = bh * nh;
+          } else if (det.box_xyxy && det.box_xyxy.length === 4 && det.image_width && det.image_height) {
+            x = (det.box_xyxy[0] / det.image_width) * nw;
+            y = (det.box_xyxy[1] / det.image_height) * nh;
+            w = ((det.box_xyxy[2] - det.box_xyxy[0]) / det.image_width) * nw;
+            h = ((det.box_xyxy[3] - det.box_xyxy[1]) / det.image_height) * nh;
+          }
+
+          ctx.strokeStyle = '#10b981';
+          ctx.lineWidth = strokeW;
+          ctx.strokeRect(x, y, w, h);
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.12)';
+          ctx.fillRect(x, y, w, h);
+
+          const confPct = Math.round((det.confidence || 0) * 100);
+          const tag = `${formatText(det.class_name)} ${confPct}%`;
+          const textW = ctx.measureText(tag).width + (10 * scaleRatio);
+          const tagY = Math.max(0, y - tagH);
+
+          ctx.fillStyle = '#064e3b';
+          ctx.fillRect(x, tagY, textW, tagH);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(tag, x + (5 * scaleRatio), tagY + (tagH * 0.72));
+        });
+
+        canvas.toBlob((blob) => {
+          URL.revokeObjectURL(objectUrl);
+          if (!blob) return;
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          const slug = activeStudioModel ? activeStudioModel.slug : 'deteccion';
+          a.download = `deteccion_${slug}_${Date.now()}_etiquetada.jpg`;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+        }, 'image/jpeg', 0.95);
+      };
+      img.src = objectUrl;
     }
 
     // Search input handler with debounce

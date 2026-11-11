@@ -1,0 +1,23 @@
+# KHAOS Hub - Federated AI & Vision Diagnostics Data Space
+
+> KHAOS Hub is an open, privacy-preserving MLOps platform for federated computer vision diagnostics, active learning with Human-in-the-Loop (HITL), and out-of-distribution (OoD) epistemic safety guardrails.
+
+## Capabilities & Architecture
+- **Logical Model Catalog:** Domain-agnostic computer vision models (`resnet18`, `efficientnet_v2_s`, `mobilenet_v3_large`) calibrated with temperature scaling and empirical class-specific decision thresholds.
+- **Out-of-Distribution (OoD) Epistemic Guardrail:** Free Energy / Dirichlet-calibrated energy score that suppresses overconfident softmax predictions when foreign or corrupted images are submitted.
+- **Zero-Leakage Federated Learning:** Privacy-first FedProx / FedAvg aggregation where raw training images never leave client machines; only HMAC-authenticated model gradients/weights are exchanged.
+- **Human-in-the-Loop (HITL) Active Curation:** Uncertainty-sampled verification queue where domain experts validate low-confidence predictions to continually improve base checkpoints.
+- **COCO Object Detection & Automated Crop Extraction:** Native support for multi-class bounding box annotation ingestion and automatic extraction into balanced classification splits.
+
+## Primary Endpoints
+- `GET /`: Model catalog, live diagnostic studio, and interactive multi-faceted filter interface.
+- `GET /models/{slug}`: Model technical datasheet, calibrated taxonomy thresholds, and cURL / Python integration snippets.
+- `POST /api/predict`: Real-time image inference with calibrated probabilities and OoD anomaly detection flags.
+- `POST /api/predict/batch-zip`: High-throughput asynchronous batch classification of image archives (.zip).
+- `GET /api/feedback/pending`: Queue of uncertainty-prioritized samples awaiting expert audit.
+- `POST /api/feedback/verify`: Expert validation of prediction ground truth.
+- `GET /api/master/status`: Asynchronous job runner status, FIFO execution queue, and live telemetry.
+- `POST /api/master/models/auto-fl`: Automated end-to-end training and catalog registration pipeline.
+- `GET /health`: System telemetry, active checkpoint SHA-256 digest, and operational readiness status.
+- `GET /llms.txt`: Machine-readable specification for autonomous agents and LLMs.
+
