@@ -131,10 +131,16 @@ def test_model_factory_multidataset() -> None:
     layer_mob = get_cam_target_layer(m_mob, "mobilenet_v3_small")
     assert layer_mob is not None
 
-    # Dataset 3: EfficientNet-B0 (3 classes)
+    # Dataset 3: EfficientNet-B0 and EfficientNet-V2-S (3 classes)
     m_eff = build_model("efficientnet_b0", num_classes=3)
     out_eff = m_eff(dummy_x)
     assert out_eff.shape == (2, 3)
+
+    m_eff_v2 = build_model("efficientnet_v2_s", num_classes=6)
+    out_eff_v2 = m_eff_v2(dummy_x)
+    assert out_eff_v2.shape == (2, 6)
+    layer_eff_v2 = get_cam_target_layer(m_eff_v2, "efficientnet_v2_s")
+    assert layer_eff_v2 is not None
 
     # Dataset 4: Timm ConvNeXt-Tiny (4 classes)
     m_conv = build_model("convnext_tiny", num_classes=4)

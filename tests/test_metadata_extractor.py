@@ -118,21 +118,24 @@ def test_narrative_variety_and_determinism():
 
 def test_domain_inference():
     # Agro
-    assert infer_domain(["Healthy", "Aculus Olearius", "Olive Peacock Spot"]) == "Agroalimentario & Agricultura"
-    assert infer_domain(["sano", "hoja_olivo_repilo"]) == "Agroalimentario & Agricultura"
+    assert infer_domain(["Healthy", "Aculus Olearius", "Olive Peacock Spot"]) == "Agricultura"
+    assert infer_domain(["sano", "hoja_olivo_repilo"]) == "Agricultura"
+
+    # Food
+    assert infer_domain(["almond", "peanuts", "walnuts"]) == "Alimentación"
 
     # Industry
-    assert infer_domain(["normal", "crack", "dent", "scratch"]) == "Industria & Manufactura"
-    assert infer_domain(["soldadura_buena", "soldadura_poro"]) == "Industria & Manufactura"
+    assert infer_domain(["normal", "crack", "dent", "scratch"]) == "Industria"
+    assert infer_domain(["soldadura_buena", "soldadura_poro"]) == "Industria"
 
     # Healthcare
-    assert infer_domain(["normal", "tumor", "skin_lesion"]) == "Biomedicina & Sanidad"
+    assert infer_domain(["normal", "tumor", "skin_lesion"]) == "Biomedicina"
 
     # Environment
-    assert infer_domain(["forest", "wildfire_smoke"]) == "Medio Ambiente & Recursos"
+    assert infer_domain(["forest", "wildfire_smoke"]) == "Medio Ambiente"
 
     # Generic
-    assert infer_domain(["clase_a", "clase_b"]) == "Visión Artificial"
+    assert infer_domain(["clase_a", "clase_b"]) == "General"
 
 
 def test_suggest_dataset_metadata_with_thumbnail(tmp_path: Path):
@@ -161,7 +164,7 @@ def test_suggest_dataset_metadata_with_thumbnail(tmp_path: Path):
 
     assert meta["suggested_title"] == "Detección de Olive Peacock Spot"
     assert meta["suggested_slug"] == "deteccion-de-olive-peacock-spot"
-    assert meta["suggested_domain"] == "Agroalimentario & Agricultura"
+    assert meta["suggested_domain"] == "Agricultura"
     assert "Olive Peacock Spot" in meta["suggested_description"]
     assert meta["thumbnail_b64"] is not None
     assert meta["thumbnail_b64"].startswith("data:image/webp;base64,")

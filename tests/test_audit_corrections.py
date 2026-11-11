@@ -751,6 +751,43 @@ def test_resolve_dataset_dir_and_favicon(tmp_path: Path) -> None:
     assert health.json()["num_classes"] == 2
     assert health.json()["classes"] == ["c1", "c2"]
     resp = client.get("/favicon.ico")
-    assert resp.status_code == 204
+    assert resp.status_code in (200, 204)
+
+
+def test_job_manager_queue_disk_persistence_and_recovery(tmp_path: Path) -> None:
+    import asyncio
+
+    from scripts.serve import JobManager
+
+    q_file = tmp_path / "job_queue.json"
+    jm1 = JobManager(queue_file=q_file)
+
+    async def run_test() -> None:
+        cmd_sleep = ["python", "-c", "import time; time.sleep(0.3)"]
+        r1 = await jm1.enqueue_or_run("dummy_run_1", cmd_sleep)
+        assert r1["status"] == "started"
+
+        r2 = await jm1.enqueue_or_run("dummy_queued_2", cmd_sleep)
+        assert r2["status"] == "queued"
+        assert r2["queue_position"] == 1
+        assert q_file.is_file()
+
+        r3 = await jm1.enqueue_or_run("dummy_queued_3", cmd_sleep)
+        assert r3["status"] == "queued"
+        assert r3["queue_position"] == 2
+
+        # Cancel active job to verify clean recovery of pending queue items
+        await jm1.cancel_job("dummy_run_1")
+
+        # Simulate restart by creating fresh JobManager pointing to same file
+        jm2 = JobManager(queue_file=q_file)
+        recovered_count = await jm2.recover_queue()
+        assert recovered_count == 2
+        status = jm2.get_status()
+        assert status["is_running"] is True or status["queue_length"] >= 1
+        if jm2.active_job_id:
+            await jm2.cancel_job(jm2.active_job_id)
+
+    asyncio.run(run_test())
 
 

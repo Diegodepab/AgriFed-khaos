@@ -225,24 +225,24 @@ class UserDatabaseManager:
             if row and row["cnt"] == 0:
                 default_accounts = [
                     (
-                        os.getenv("AGRIFED_ADMIN_USER", "admin").strip().lower(),
+                        (os.getenv("AGRIFED_ADMIN_USER") or "admin").strip().lower(),
                         "Administrador Principal",
-                        os.getenv("AGRIFED_ADMIN_EMAIL", "admin@khaos.local").strip().lower(),
-                        hash_password(os.getenv("AGRIFED_ADMIN_PASS", "admin123")),
+                        (os.getenv("AGRIFED_ADMIN_EMAIL") or "admin@khaos.local").strip().lower(),
+                        hash_password(os.getenv("AGRIFED_ADMIN_PASS") or "admin123"),
                         "admin",
                     ),
                     (
-                        os.getenv("AGRIFED_EXPERT_USER", "experto").strip().lower(),
+                        (os.getenv("AGRIFED_EXPERT_USER") or "experto").strip().lower(),
                         "Experto Agrónomo",
-                        os.getenv("AGRIFED_EXPERT_EMAIL", "experto@khaos.local").strip().lower(),
-                        hash_password(os.getenv("AGRIFED_EXPERT_PASS", "experto123")),
+                        (os.getenv("AGRIFED_EXPERT_EMAIL") or "experto@khaos.local").strip().lower(),
+                        hash_password(os.getenv("AGRIFED_EXPERT_PASS") or "experto123"),
                         "expert",
                     ),
                     (
-                        os.getenv("AGRIFED_DEFAULT_USER", "usuario").strip().lower(),
+                        (os.getenv("AGRIFED_DEFAULT_USER") or "usuario").strip().lower(),
                         "Usuario Agnóstico",
-                        os.getenv("AGRIFED_DEFAULT_EMAIL", "usuario@khaos.local").strip().lower(),
-                        hash_password(os.getenv("AGRIFED_DEFAULT_PASS", "usuario123")),
+                        (os.getenv("AGRIFED_DEFAULT_EMAIL") or "usuario@khaos.local").strip().lower(),
+                        hash_password(os.getenv("AGRIFED_DEFAULT_PASS") or "usuario123"),
                         "user",
                     ),
                 ]

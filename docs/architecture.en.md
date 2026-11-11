@@ -2,346 +2,306 @@
 
 > English documentation. Versión en español disponible en [docs/architecture.md](architecture.md).
 
-Technical specification and architectural design document for **AgriFed-KHAOS**, a modular Federated Learning (FL) framework optimized for distributed Computer Vision workloads.
+Technical specification, topology, and architectural design document for **AgriFed-KHAOS**, a modular framework for Federated Learning (FL), Computer Vision, and edge MLOps in agriculture and industrial visual quality assurance.
 
 ---
 
-## 1. Design Principles & SOLID Standards
+## 1. Design Principles & Engineering Standards
 
-The framework is architected according to modern software engineering and MLOps principles:
+The framework is architected according to modern software engineering, SOLID principles, and MLOps design patterns:
 
-1. **Domain-Agnostic Core:** The framework engine does not hardcode nor depend on any specific crop, botanical species, or visual pathology. It operates over arbitrary image tensors arranged in standard class directories (`ImageFolder`) or annotated dataset manifests.
-2. **Data-Centric Decoupling (Dependency Inversion Principle - DIP):** Dataset curation, quality filtering, and standard normalization are managed exclusively by upstream data engines like [`agrivision-khaos`](https://github.com/Diegodepab/agrivision-khaos). `AgriFed-KHAOS` assumes edge datasets are Gold Standard and focuses entirely on distributed optimization and robust parameter aggregation.
-3. **Adapter Pattern (Open/Closed Principle - OCP):** The [`BaseFLWrapper`](../src/agrifed_khaos/wrappers.py) abstraction decouples the federated transport runtime (Flower / NumPy arrays) from underlying deep learning backbones (PyTorch, Timm, Ultralytics YOLO).
-4. **Zero Data Leakage Contract:** Raw physical data (RGB images and local labels) strictly never leave the client's perimeter host. The network exclusively exchanges numerical parameter updates and cryptographic signatures.
+1. **Domain-Agnostic Core:**  
+   The core algorithmic engine does not hardcode or assume any specific crop or visual pathology. It operates over arbitrary vision tensors regardless of whether the task is leaf pathology, fruit grading, or industrial defect detection.
+2. **Zero-Config Universal Ingestion:**  
+   The user simply provides a dataset (local directory or compressed `.ZIP` file). The ingestion subsystem automatically detects the format (`ImageFolder`, `COCO JSON`, `Ultralytics YOLO`), profiles dataset health, and recommends the optimal architecture.
+3. **Adapter Pattern & Decoupling (OCP & DIP):**  
+   The [`BaseFLWrapper`](../src/agrifed_khaos/wrappers.py) abstraction decouples federated communication runtimes (Flower / NumPy arrays) from underlying deep learning backbones (PyTorch, Timm, Ultralytics YOLO).
+4. **Zero Data Leakage Contract:**  
+   Raw physical images and local annotations strictly never leave the perimeter infrastructure of edge client nodes. The network solely transports audited, cryptographically signed model parameters ($\Delta W$).
+5. **Strict Auditing & Byzantine Resilience:**  
+   No client update is merged into the global model without passing deterministic verification gates: closed schema matching, numeric finitude, L2 divergence bounds, and HMAC authentication.
+6. **Active Expert Validation Loop (Human-In-The-Loop / HITL):**  
+   High-uncertainty samples or anomalous inputs (detected via the Free Energy Out-of-Distribution guardrail) are captured in real time for expert certification and subsequent federated retraining rounds.
 
 ---
 
-## 2. System Topology & Multi-Client Architecture
+## 2. End-to-End Master Pipeline Diagram
+
+The following diagram presents the comprehensive, holistic view of AgriFed-KHAOS from data ingestion to federated deployment and active field evaluation:
 
 ```mermaid
 flowchart TD
-    subgraph MasterHost ["MASTER SERVER (Orchestrator & Service Provider)"]
-        W_Base["Official Baseline Model (models/base_model.pt)<br/>Auto-FL Aware / Hash SHA-256"]
-        Metadata["Lineage Registry (models/metadata.json)<br/>Immutable Round History"]
-        Gate["Quality & Security Gate (ParameterValidator)<br/>• Finiteness (no NaNs/Infs)<br/>• Strict Structural Schema<br/>• Absolute L2 Bound: ||ΔW||₂ ≤ τ<br/>• Relative L2 Bound: ||ΔW||₂ / ||W_base||₂ ≤ τ_rel"]
-        Aggregator["Multi-Client Aggregator FedAvgM / FedProx<br/>ΔW_fed = Σ (n_k / N) · (W_k - W_base)<br/>W_global = W_base + η · V_t"]
-        W_Global["Updated Global Model (models/global_model.pt)"]
-        REST_API["REST Inference API (scripts/serve.py)<br/>• GET /health<br/>• GET /download-model<br/>• POST /predict<br/>• POST /submit-update"]
+    subgraph S1 ["1. UNIVERSAL INGESTION & PROFILING (Zero-Config)"]
+        RawData["Input Dataset (Directory or .ZIP archive)"] --> Inspector["Universal Dataset Inspector\n(scripts/serve.py + src/agrifed_khaos/coco.py)"]
+        Inspector --> Discrim{"Heuristic Format Discriminator"}
+        Discrim -- "labels.json / instances_*.json" --> COCO_Mod["COCO Parser Engine\n(src/agrifed_khaos/coco.py)"]
+        Discrim -- "data.yaml + images/ + labels/" --> YOLO_Mod["YOLO Parser Engine\n(src/agrifed_khaos/yolo.py)"]
+        Discrim -- "Class Subdirectories" --> Class_Mod["ImageFolder Classifier Engine\n(src/agrifed_khaos/data.py)"]
+        
+        COCO_Mod --> HealthCheck["Health & Integrity Profiler\n• Corrupted files check\n• Exact MD5 duplicates\n• Scale resolution variance"]
+        YOLO_Mod --> HealthCheck
+        Class_Mod --> HealthCheck
     end
 
-    subgraph Client1Host ["ACTOR 1: CONSUMER EVALUATOR CLIENT (REST)"]
-        C1_Data["Local Field Photos"]
-        C1_Curl["Lightweight HTTP Client (curl / Web / App)<br/>Zero ML dependencies / No PyTorch"]
+    subgraph S2 ["2. STRATEGIC DISPATCH & AUTO-FL"]
+        HealthCheck --> Strategy{"Selected Strategy"}
+        Strategy -- "Direct Spatial Detection" --> Prep_Det["YOLO / Bounding Box Preparation"]
+        Strategy -- "Auto-Crop for Classification" --> AutoCrop["Auto-Crop Engine\n(Patch extraction with context padding)"]
+        Strategy -- "Direct Image Classification" --> Prep_Class["Canonical ImageFolder Structure"]
+
+        AutoCrop --> Prep_Class
+
+        Prep_Det --> SelectorDet["ModelSelector (Detection)\n• Edge CPU: SSDLite MobileNetV3 / YOLOv11n\n• Server GPU: Faster R-CNN"]
+        Prep_Class --> SelectorClass["ModelSelector (Classification)\n• cpu-low: MobileNetV3 / ResNet-18\n• cpu-high: EfficientNet-B0\n• gpu: EfficientNet-V2-S / ConvNeXt"]
     end
 
-    subgraph ClientNodes ["ACTOR 2: ON-PREMISE TRAINER CLIENTS (K COOPERATIVES)"]
-        CK_PrivateData["Private Local Datasets (n₁, ..., n_K)<br/>(100% On-Premise)"]
-        CK_Trainer["scripts/client_trainer.py<br/>• FedProx Optimization (μ)<br/>• Frozen BatchNorm Statistics<br/>• Per-Layer Adaptive RMS Noise"]
-        CK_Params["Exported Client k Artifacts:<br/>client_k.pt (Tensors, 0B Images)<br/>client_k.meta.json (SHA-256 + n_k + HMAC)"]
+    subgraph S3 ["3. TRAINING & FEDERATED ORCHESTRATION"]
+        SelectorClass --> BaseTrain["Base Model Trainer (scripts/train_base.py)\n• Frozen BN Statistics\n• Balanced Cross-Entropy / Focal Loss\n• Self-Contained Checkpoint Bundle (.pt)"]
+        SelectorDet --> BaseTrainDet["Detection Trainer (scripts/train_detection.py)\n• CIoU / GIoU Box Loss\n• mAP@50 / mAP@50:95 Evaluation"]
+
+        BaseTrain --> MasterOrch["Master Host Orchestrator\nmodels/catalog.json + models/metadata.json"]
+        BaseTrainDet --> MasterOrch
+
+        MasterOrch -->|"Distribute W_base (SHA-256)"| Clients["Perimeter Edge Nodes (K Cooperatives)\nscripts/client_trainer.py\n• FedProx Proximal Loss (μ)\n• Adaptive RMS Noise Perturbation\n• Parameter Export ΔW (0B Images)"]
+
+        Clients -->|"Parameter Updates ΔW + HMAC"| SecGate["Quality & Security Gate\n• Finiteness (No NaNs/Infs)\n• Absolute L2 Bound ||ΔW||₂ ≤ τ\n• Relative L2 Bound ||ΔW||₂/||W_base||₂ ≤ τ_rel\n• HMAC-SHA256 authenticating num_samples"]
+
+        SecGate --> Aggregator["Sample-Weighted FedOpt + FedAvgM Aggregator\nΔW_fed = Σ (n_k / N) · ΔW_k\nV_t = β · V_{t-1} + ΔW_fed\nW_global = W_base + η · V_t"]
+        Aggregator --> GlobalModel["Updated Global Model\nmodels/global_model.pt"]
     end
 
-    C1_Data --> C1_Curl
-    C1_Curl -->|"1. Remote inference POST /predict"| REST_API
-    REST_API -->|"Diagnostic + Calibrated Confidence"| C1_Curl
+    subgraph S4 ["4. SERVING, INFERENCE & EXPERT ACTIVE LEARNING (HITL)"]
+        GlobalModel --> Serving["REST Inference Engine (scripts/serve.py)\n• GET /health\n• POST /predict (Single image)\n• POST /api/predict/batch (ZIP batches)"]
 
-    W_Base -->|"2. Download baseline weights"| CK_Trainer
-    CK_PrivateData --> CK_Trainer
-    CK_Trainer --> CK_Params
-    CK_Params -->|"3. Stream parameter tensors"| Gate
+        Serving --> Guardrail{"Zero-Leakage OoD Guardrail\n(Free Energy E(x; T))"}
+        Guardrail -- "In-Distribution (Energy ≤ τ)" --> OutputPred["Calibrated OvR Inference\n• Rescaled probabilities\n• Bounding box overlay canvas\n• Grad-CAM heatmaps"]
+        Guardrail -- "Out-of-Distribution / Anomaly" --> OoDAlert["OoD Anomaly Flag\nSoftmax SUPPRESSED for reliability"]
 
-    Gate -->|"4. Validated and filtered clients"| Aggregator
-    Aggregator --> W_Global
-    Aggregator --> Metadata
-    W_Global --> REST_API
+        OutputPred --> HITLQueue["HITL Active Learning Queue (src/agrifed_khaos/hitl.py)\n• Thread-safe atomic persistence (enqueue_sync)\n• Uncertainty sampling (Margin Sampling)"]
+        OoDAlert --> HITLQueue
+
+        HITLQueue --> ExpertUI["Expert Agronomist Panel (/expert)\n• Pathology certification\n• Ground-truth label correction for next FL round"]
+    end
 ```
 
 ---
 
-## 3. Key Architectural Components
-
-### A. Auto-FL Model Selector (`ModelSelector`)
-
-Located in [`src/agrifed_khaos/hardware.py`](../src/agrifed_khaos/hardware.py), `ModelSelector` resolves the initial baseline architecture based on hardware constraints:
-
-* **Hardware Probing:** Inspects CPU cores, available RAM, and CUDA VRAM.
-* **Tier Assignment:**
-  - `cpu-low`: Constrained edge devices $\rightarrow$ `mobilenetv4_conv_small` / `resnet18`.
-  - `cpu-high`: Multi-core compute servers $\rightarrow$ `resnet50`.
-  - `gpu`: Dedicated GPU workstations $\rightarrow$ `convnext_tiny`.
-* **Heuristic Sample Capping:** Imposes balanced limits (e.g., `--max-samples 1800`) to guarantee fast convergence on CPU without thermal throttling.
+## 3. Subsystem Architectural Breakdown
 
 ---
 
-### B. BatchNorm Freezing on Edge Clients (`freeze_batchnorm_layers`)
+### Subsystem 1: Universal Data Ingestion, Format Detection & Health Profiling
 
-In federated vision setups with extreme Non-IID skew across cooperatives:
+The ingestion layer enables users to upload heterogeneous vision datasets while the system automatically discovers the structure and proposes the best processing path.
 
-* **Running Statistics Freezing:** During local client fine-tuning, all `nn.BatchNorm2d` layers have `.eval()` locked. `running_mean` and `running_var` are frozen to preserve general spatial representations learned on the baseline model.
-* **Affine Parameter Adaptability:** Trainable affine weights (`bn.weight`, `bn.bias` with `requires_grad=True`) adapt normally during optimization.
-* **Server Invariance:** The aggregation script [`scripts/aggregate.py`](../scripts/aggregate.py) preserves the baseline normalization buffers bit-by-bit in `models/global_model.pt`.
+```mermaid
+flowchart TD
+    Upload["Local Path or ZIP Upload\n(POST /api/master/datasets/upload)"] --> InspectEntry["inspect_dataset_directory(req)\n(scripts/serve.py)"]
+    
+    InspectEntry --> CheckYOLO{"is_yolo_dataset?"}
+    CheckYOLO -- "Yes (data.yaml + labels/)" --> InspectYOLO["inspect_yolo_dataset()\n(src/agrifed_khaos/yolo.py)"]
+    
+    CheckYOLO -- "No" --> CheckCOCO{"is_coco_dataset?"}
+    CheckCOCO -- "Yes (labels.json / annotations)" --> InspectCOCO["inspect_coco_dataset()\n(src/agrifed_khaos/coco.py)"]
+    
+    CheckCOCO -- "No" --> CheckImgFolder{"ImageFolder structure?"}
+    CheckImgFolder -- "Yes (class subdirectories)" --> InspectFolder["find_dataset_class_dir()\n(src/agrifed_khaos/data.py)"]
+    CheckImgFolder -- "No" --> UnlabeledError["Error: No classes or annotations found.\nFolder organization guidelines."]
+    
+    InspectCOCO --> COCOExtract{"Available Action in UI"}
+    COCOExtract -- "Mode 1: Spatial Detection" --> COCO2YOLO["coco_to_yolo()\nGenerates data.yaml & normalized coordinates"]
+    COCOExtract -- "Mode 2: Fruit Classification" --> CropEngine["coco_to_classification_crops()\nBounding box extraction with context padding"]
+    
+    CropEngine --> NewFolder["Generated Crop Dataset\ndata/uploads/crops_<id>/train/<class>/*.jpg"]
+    NewFolder --> InspectFolder
 
----
+    InspectYOLO --> HealthEngine["profile_dataset_health_sync()"]
+    InspectCOCO --> HealthEngine
+    InspectFolder --> HealthEngine
 
-### C. FedProx Regularization and Proximal Loss Function
+    HealthEngine --> HealthReport["Health Score (0 - 100):\n• corrupted_count (unreadable headers)\n• duplicates_count (MD5 match -> Data Leakage)\n• resolution_warning (scale variance)"]
+```
 
-To mitigate client drift induced by localized Non-IID distributions, client training minimizes the **FedProx** proximal objective:
-
-$$
-\mathcal{L}_{\text{prox}}(W; W_{\text{ref}}) = \mathcal{L}_{\text{CE}}(W; X, Y) + \frac{\mu}{2} \sum_{l=1}^{L} \| W_l - W_{l,\text{ref}} \|_2^2
-$$
-
-Where $\mu \ge 0$ is the proximal penalty hyperparameter (default: $0.01$) and $W_{\text{ref}}$ is the global baseline anchor.
-
----
-
-### D. Security Gate & Divergence Metrics (`ParameterValidator`)
-
-Every incoming parameter vector is audited deterministically through three security gates:
-
-1. **Closed Structural Schema:** Exact tensor key matching:
-   - Head-Only Schema: strictly classifier tensors (`fc.*`, `classifier.*`).
-   - Full-Model Schema: all baseline model tensors with zero missing or extraneous keys.
-2. **Numerical Finiteness:** Absolute absence of non-finite values (`NaN` or `Inf`).
-3. **Absolute L2 Divergence Gate:**
-
-   $$
-   \|\Delta W\|_2 = \sqrt{\sum (W^{\text{client}} - W^{\text{base}})^2} \le \tau \quad (\text{default } \tau = 150.0)
-   $$
-
-4. **Relative L2 Divergence Gate (`max_relative_norm`):**
-
-   $$
-   \delta_{\text{rel}} = \frac{\|\Delta W\|_2}{\max(\|W_{\text{base}}\|_2, 10^{-8})} \le \tau_{\text{rel}}
-   $$
-
-   Safeguards `--head-only` models against disproportionate rotational drift across compact parameter subsets (~4,600 weights), where an absolute bound of 150.0 would be insufficient.
-
----
-
-### E. Adaptive Per-Layer RMS Perturbation (`apply_adaptive_rms_noise`)
-
-To mitigate reconstruction risks and gradient inversion attacks (*Deep Leakage from Gradients*), clients can inject Gaussian noise scaled by the Root Mean Square (RMS) of each layer's magnitude:
-
-$$
-\text{rms}(p) = \max\left(\frac{\|p\|_2}{\sqrt{p.\text{numel}()}}, 10^{-4}\right)
-$$
-
-$$
-W_{\text{export}} = W_{\text{local}} + \mathcal{N}(0, \mathbf{I}) \cdot \sigma \cdot \text{rms}(p)
-$$
-
-Where $\sigma$ corresponds to `--noise-std`. This guarantees a uniform signal-to-noise ratio per layer, preventing destruction of low-magnitude tensors such as `bias`.
+#### Technical Capabilities:
+1. **Automated COCO Discovery (`src/agrifed_khaos/coco.py`):**
+   * Recursively scans directories up to depth 3 for JSON descriptors (`labels.json`, `instances_*.json`, `annotations.json`).
+   * Validates schema signatures (`categories`, `images`, `annotations`).
+   * Automatically resolves sibling image folders (`images/`, split directories, or adjacent images).
+2. **Auto-Crop Engine (`coco_to_classification_crops`):**
+   * Extracts individual object instances with configurable visual context padding ($\text{padding} = 5\%$).
+   * Filters noise boxes below minimum resolution thresholds ($\text{min\_box\_size} \ge 24\text{ px}$).
+   * Organizes generated crops into canonical `ImageFolder` hierarchies ready for any classifier backbone.
+3. **Anti-Data-Leakage Protection:**
+   * Streams 64KB chunked MD5 binary hashes to prevent identical image leakage between train and test partitions.
 
 ---
 
-### F. Multi-Client Sample-Weighted Aggregation (`FedOpt`)
+### Subsystem 2: Autonomous Architecture Selection (Auto-FL Aware)
 
-[`scripts/aggregate.py`](../scripts/aggregate.py) supports concurrent multi-client updates (`--client-weights c1.pt c2.pt ...`):
+In federated settings, master server capabilities do not dictate model complexity; the bottleneck is edge client compute. [`ModelSelector`](../src/agrifed_khaos/hardware.py) jointly optimizes architecture based on client tier and dataset characteristics:
 
-1. **Sample Proportional Weighting:**
-   Given $K$ approved clients with local sample counts $n_1, \dots, n_K$ and aggregate mass $N = \sum_{k=1}^K n_k$:
+```mermaid
+classDiagram
+    class HardwareProfile {
+        +str device_type
+        +str device_name
+        +int cpu_count
+        +float memory_ram_gb
+        +int gpu_count
+        +float gpu_memory_vram_gb
+        +bool has_mixed_precision_fp16
+        +detect() HardwareProfile
+    }
 
-   $$
-   \Delta W_{\text{fed}} = \sum_{k=1}^{K} \frac{n_k}{N} (W_k - W_{\text{base}})
-   $$
+    class ArchitectureRecommendation {
+        +str recommended_arch
+        +str target_client_tier
+        +int recommended_batch_size
+        +str recommended_tl_strategy
+        +str recommended_augmentation
+        +str reason
+    }
 
-   $$
-   W_{\text{global}} = W_{\text{base}} + \eta \cdot \Delta W_{\text{fed}}
-   $$
+    class ModelSelector {
+        +recommend(target_client_tier, total_images, num_classes) ArchitectureRecommendation
+    }
 
-2. **HMAC Cryptographic Tamper-Proofing for `num_samples`:**
-   The sample count $n_k$ is signed within the manifest's HMAC-SHA256 signature using a canonical delimited payload:
+    ModelSelector --> HardwareProfile : inspects profile
+    ModelSelector --> ArchitectureRecommendation : generates recommendation
+```
 
-   ```text
-   HMAC-SHA256(key, "sha256=" + H_c + "|base_sha256=" + H_b + "|scope=" + S + "|client_id=" + ID + "|num_samples=" + n_k)
-   ```
+#### Architecture Recommendation Matrix:
 
-   This prevents malicious or compromised edge nodes from artificially inflating their aggregation weight $n_k$.
-3. **Byzantine Fault Resilience (`--skip-invalid-clients`):**
-   If an uploaded client fails any verification check, the server logs an alert, discards the anomalous node, and executes aggregation across all valid clients.
+| Client Tier (`target_client_tier`) | Task | Sample Volume ($N$) | Recommended Architecture | Transfer Learning Strategy | Augmentation Strategy |
+|---|---|---|---|---|---|
+| **`cpu-low`** | Classification | $N < 1,000$ | `resnet18` (~11.7M) | Linear Probing (`head_only`) | Basic (Flips + Crops) |
+| **`cpu-low`** | Classification | $1,000 \le N \le 5,000$ | `mobilenet_v3_large` (~5.4M) | Partial Fine-Tuning (`partial`) | Basic |
+| **`cpu-low`** | Detection | Any $N$ | `ssdlite320_mobilenet_v3_large` | Frozen backbone | Multi-Scale Rescale |
+| **`cpu-high`** | Classification | $1,000 \le N \le 5,000$ | `efficientnet_b0` (~5.3M) | Partial Fine-Tuning (`partial`) | Basic |
+| **`cpu-high`** | Detection | Any $N$ | `yolo11n` (~2.6M) | Head Fine-Tuning | Mosaic + HSV Augment |
+| **`gpu`** | Classification | $N > 5,000$ | `efficientnet_v2_s` (~21.5M) | Partial Fine-Tuning (`partial`) | Heavy `RandAugment` |
+| **`gpu`** | Detection | $N > 5,000$ | `fasterrcnn_resnet50_fpn_v2` | FPN + RoI Heads | Multi-Scale Heavy |
 
 ---
 
-## 4. Complete Federated Sequence Diagram
+### Subsystem 3: Federated Lifecycle, Security Gates & Sample-Weighted Aggregation
+
+The federated learning lifecycle ensures strict data containment and Byzantine fault tolerance across four phases:
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor C1 as Client 1 (External Evaluator)
-    participant Server as Master Server (API & Gate)
-    actor CA as Cooperative A (n_A = 80 samples)
-    actor CB as Cooperative B (n_B = 20 samples)
+    actor C_Ext as External Consumer (App/Web)
+    participant Master as Master Server (serve.py)
+    participant SecGate as Quality & Security Gate (federated_ops.py)
+    participant Aggregator as FedOpt / FedAvgM Aggregator (aggregate.py)
+    actor CoopA as Cooperative A (n_A = 120 samples)
+    actor CoopB as Cooperative B (n_B = 30 samples)
 
-    Note over Server: Initial State: models/base_model.pt (Hash: H_base)
+    Note over Master: State T0: base_model.pt (SHA-256: H_base)
     
     rect rgb(245, 248, 255)
-    Note over C1,Server: PHASE A: Pre-Collaboration Remote Inference (T0)
-    C1->>Server: POST /predict with field_photo.jpg
-    Server->>Server: Run inference on baseline W_base
-    Server-->>C1: Predicted class + T0 confidence
+    Note over C_Ext,Master: PHASE 1: Remote Baseline Inference (T0)
+    C_Ext->>Master: POST /predict (leaf_photo.jpg)
+    Master->>Master: Calibrated inference using W_base
+    Master-->>C_Ext: Predicted class + Nominal confidence T0
     end
 
     rect rgb(255, 250, 245)
-    Note over Server,CB: PHASE B: On-Premise Multi-Client Private Training
-    Server->>CA: Download base_model.pt (Verify lineage H_base)
-    Server->>CB: Download base_model.pt (Verify lineage H_base)
-    Note over CA: CA trains locally (80 photos, Frozen BN, Head-Only)<br/>Exports client_A.pt and client_A.meta.json
-    Note over CB: CB trains locally (20 photos, Frozen BN, Head-Only)<br/>Exports client_B.pt and client_B.meta.json
-    CA->>Server: Upload client_A.pt (0B images)
-    CB->>Server: Upload client_B.pt (0B images)
+    Note over Master,CoopB: PHASE 2: Multi-Client On-Premise Training
+    Master->>CoopA: Download W_base + metadata (H_base verified)
+    Master->>CoopB: Download W_base + metadata (H_base verified)
+    Note over CoopA: Local training (Frozen BN, FedProx μ, RMS Noise)<br/>Export client_A.pt (0B images) and client_A.meta.json
+    Note over CoopB: Local training (Frozen BN, FedProx μ, RMS Noise)<br/>Export client_B.pt (0B images) and client_B.meta.json
+    CoopA->>Master: POST /submit-update (client_A.pt + HMAC)
+    CoopB->>Master: POST /submit-update (client_B.pt + HMAC)
     end
 
     rect rgb(245, 255, 245)
-    Note over Server: PHASE C: Security Auditing & Weighted Aggregation
-    Server->>Server: ParameterValidator audits CA and CB (Finiteness, Absolute/Relative L2)
-    Server->>Server: Weighted Aggregation: ΔW = 0.8·ΔW_A + 0.2·ΔW_B
-    Server->>Server: Apply FedAvgM server momentum: W_global = W_base + η·V_t
-    Server->>Server: Re-calibrate One-vs-Rest thresholds and save models/global_model.pt
+    Note over Master,Aggregator: PHASE 3: Strict Auditing & Weighted Aggregation
+    Master->>SecGate: Audit parameters from CoopA and CoopB
+    Note over SecGate: 1. Finiteness check (no NaNs/Infs)<br/>2. Absolute L2 bound ||ΔW||₂ ≤ 150.0<br/>3. Relative L2 bound ||ΔW||₂/||W_base||₂ ≤ 1.5<br/>4. HMAC verification covering n_k
+    SecGate-->>Aggregator: Approved updates (CoopA: 80%, CoopB: 20%)
+    Aggregator->>Aggregator: FedOpt: ΔW_fed = (120/150)·ΔW_A + (30/150)·ΔW_B
+    Aggregator->>Aggregator: FedAvgM: V_t = 0.9·V_{t-1} + ΔW_fed
+    Aggregator->>Aggregator: W_global = W_base + η·V_t
+    Aggregator->>Master: Atomically write models/global_model.pt and update catalog.json
     end
 
     rect rgb(245, 248, 255)
-    Note over C1,Server: PHASE D: Post-Collaboration Remote Inference (T1)
-    C1->>Server: POST /predict with field_photo.jpg
-    Server->>Server: Run inference on updated global model W_global
-    Server-->>C1: Enhanced diagnostic + Higher T1 confidence
+    Note over C_Ext,Master: PHASE 4: Improved Remote Inference (T1)
+    C_Ext->>Master: POST /predict (leaf_photo.jpg)
+    Master->>Master: Inference with updated global model W_global
+    Master-->>C_Ext: Superior accuracy & higher confidence T1
     end
 ```
 
----
+#### Mathematical Formulations:
 
-## 5. Mathematical & Operational Precision Rules
-
-### A. Self-Contained Checkpoint Bundles
-
-To eliminate fragile external manifest paths, `.pt` checkpoints are serialized as self-contained structured dictionaries:
-```python
-{
-    "state_dict": OrderedDict[str, torch.Tensor],
-    "metadata": {
-        "architecture": "resnet18",
-        "num_classes": C,
-        "classes": ["class_0", ..., "class_{C-1}"],
-        "img_size": 224,
-        "calibrated_thresholds": {"class_0": 0.45, ...}  # optional
-    }
-}
-```
-[`load_checkpoint_bundle`](../src/agrifed_khaos/models.py) and [`save_checkpoint_bundle`](../src/agrifed_khaos/models.py) maintain transparent backward-compatibility with raw state dicts applying strict safe deserialization (`weights_only=True` by default), neutralizing arbitrary code injection vectors (CWE-502) in federated checkpoints.
-
-### B. Canonical Remapping & Missing Class Guardrail
-1. **Canonical Remapping:** `torchvision.datasets.ImageFolder` assigns indices `0..K-1` alphabetically to local directories. If a client possesses only a subset of classes, these indices diverge from the baseline model. [`client_trainer.py`](../scripts/client_trainer.py) explicitly remaps `dataset.targets` against the canonical sequence `base_meta["classes"]`.
-2. **Hard Projection Post-Step:** For absent classes in a local batch, zero gradients are insufficient due to momentum buffers and FedProx regularization. Following each `optimizer.step()`, parameters are hard-projected:
-
+1. **Local Proximal Regularization (FedProx):**
    $$
-   W_{\text{head}}[\text{missing}, :] \leftarrow W_{\text{base}}[\text{missing}, :]
+   \mathcal{L}_{\text{prox}}(W; W_{\text{base}}) = \mathcal{L}_{\text{CE}}(W; X, Y) + \frac{\mu}{2} \sum_{l=1}^{L} \| W_l - W_{l,\text{base}} \|_2^2
    $$
-
+2. **Relative L2 Divergence Gate:**
    $$
-   b_{\text{head}}[\text{missing}] \leftarrow b_{\text{base}}[\text{missing}]
+   \delta_{\text{rel}} = \frac{\|\Delta W\|_2}{\max(\|W_{\text{base}}\|_2, 10^{-8})} \le \tau_{\text{rel}} \quad (\text{default } \tau_{\text{rel}} = 1.5)
    $$
-
-   Guaranteeing exact numerical invariance ($\Delta W = 0$) across unrepresented neurons.
-
-### C. Dynamic Class Expansion (`--allow-new-classes`)
-When an edge client discovers novel pathologies unobserved by the baseline model:
-1. **Deterministic CRC32 Initialization:** Rather than relying on global RNG seeds that desynchronize between client and server, each parameter row for emerging class $c$ is initialized via:
-
+3. **Multi-Client Aggregation with Server Momentum (FedAvgM):**
    $$
-   \text{seed} = \text{CRC32}(c.\text{encode}()) \pmod{2^{31}-1}
+   \Delta W_{\text{fed}} = \sum_{k=1}^{K} \frac{n_k}{N} (W_k - W_{\text{base}})
    $$
-
-   Both [`expand_model_classifier`](../src/agrifed_khaos/models.py) (client) and [`expand_state_dict_classifier`](../src/agrifed_khaos/models.py) (server) generate identical Kaiming Uniform initial weights, ensuring the security gate evaluates solely the client's genuine gradient updates.
-2. **Nominal Alignment:** In [`aggregate.py`](../scripts/aggregate.py), `align_client_head` aligns classifier rows by nominal class name (`target_idx = union_classes.index(cls)`), gracefully supporting concurrent disjoint expansions.
-
-### D. Parameter Perturbation (Gaussian Mechanism on ΔW) & FedAvgM
-1. **Global L2 Gaussian Mechanism:** In [`TorchModuleWrapper`](../src/agrifed_khaos/wrappers.py) and [`client_trainer.py`](../scripts/client_trainer.py), concatenated trainable tensors are clipped when update norm exceeds threshold $C_{\text{clip}}$:
-
-   $$
-   \|\Delta W\|_2 > C_{\text{clip}}
-   $$
-
-   Applying the clipping transformation:
-
-   $$
-   \Delta W \leftarrow \Delta W \cdot \min\left(1, \frac{C_{\text{clip}}}{\|\Delta W\|_2}\right)
-   $$
-
-   And injecting calibrated Gaussian noise:
-
-   $$
-   \mathcal{N}\left(0, \sigma^2 C_{\text{clip}}^2 \mathbf{I}\right)
-   $$
-
-   With normalization buffers explicitly exempted to avoid corrupting BatchNorm running means and variances.
-   *(Methodological note: This mechanism heuristically perturbs shared parameters against direct inversion; it does not compute a formal analytical $(\epsilon, \delta)$ guarantee via Rényi/Moments accountants).*
-
-2. **FedAvgM (Server Momentum) with Cryptographic Lineage:** [`aggregate.py`](../scripts/aggregate.py) implements server momentum to dampen client drift under non-IID data distributions (Hsu et al., 2019):
-
    $$
    V_t = \beta V_{t-1} + \Delta W_{\text{fed}}, \quad W_{\text{global}} = W_{\text{base}} + \eta V_t
    $$
 
-   * **Configuration & Tuning:** The factor $\beta = 0.9$ is the standard empirical benchmark, but constitutes a tunable hyperparameter (`--server-momentum`). In pilot trials, validating values across $\beta \in \{0.0, 0.5, 0.9\}$ against `delta_norm` stability and regression guardrails is recommended.
-   * **Momentum Buffer Provenance:** `server_momentum.pt` is stored as a versioned bundle (`format_version: 2`) binding velocity to model architecture, classes, and cryptographic hashes `parent_base_sha256` and `produced_global_sha256`. If an aggregation runs on a base model diverging from historical lineage, the aggregator alerts and resets velocity to zero, preventing stale momentum cross-contamination across disparate experiments.
-   * **Post-Commit Persistence:** The momentum velocity buffer is written atomically (via temp file and `os.replace`) **strictly after** the candidate global model checkpoint is committed and verified on disk.
+---
 
-### E. Multiclass One-vs-Rest Calibration & Calibrated Inference
-1. **OvR Calibration in `evaluate.py`:** Discovers operating threshold $\tau_c^*$ maximizing the F1-Score / Youden's Index for each of the $C$ classes independently on a validation split (`dataset/val`).
-2. **Calibrated Score Scaling in `serve.py`:** Within `/predict`, class probabilities are scaled:
+### Subsystem 4: Inference Serving, OoD Guardrail & Human-In-The-Loop (HITL)
 
-   $$
-   s_c = \frac{p_c}{\max(\tau_c^*, 10^{-6})}, \quad \hat{y} = \arg\max_{c} s_c
-   $$
+To safeguard model trustworthiness against unrepresented visual domains, inference decouples confidence estimation using a **Free Energy Guardrail**:
 
-   Ensuring balanced diagnostic sensitivity for severely imbalanced minority classes.
-
-### F. Concurrent Atomic Update Ingestion
-To maintain integrity during concurrent multi-client uploads:
-1. **Per-Client Serialization:** [`serve.py`](../scripts/serve.py) manages a dedicated asynchronous lock (`asyncio.Lock`) per `client_id`, serializing updates from the same collaborator and eliminating race conditions.
-2. **Immutable Atomic Directory:** Each update is staged in a temporary directory `.staging_{stamp}` and published atomically via `os.replace` to `models/client_updates/updates/{client_id}/{stamp}/`. Both files (`parameters.pt` and `parameters.meta.json`) become visible simultaneously at the POSIX filesystem level.
-3. **Compatibility:** Pointers at `{client_id}_parameters.pt` are maintained atomically, and immutable versioned copies are preserved in `archive/`.
+```mermaid
+flowchart LR
+    ImgInput["Input Image (Single or ZIP Batch)"] --> Forward["Forward Pass in Neural Network\n(Backbone + Head)"]
+    
+    Forward --> Logits["Unnormalized Logits z = (z₁, ..., z_C)"]
+    
+    Logits --> FreeEnergy["Free Energy Function:\nE(x; T) = -T · ln Σ exp(z_c / T)\n(T = 1.0 by default)"]
+    
+    FreeEnergy --> GateOoD{"E(x; T) > Calibrated Threshold τ_energy?"}
+    
+    GateOoD -- "Yes (Anomaly / Out-of-Distribution)" --> FlagOoD["ood_flag = true\n• Softmax SUPPRESSED (Zero-Leakage)\n• Assigned label: Unknown / Anomaly\n• Confidence: 0.0"]
+    
+    GateOoD -- "No (In-Distribution)" --> OvRCalib["One-vs-Rest (OvR) Calibration:\ns_c = Softmax(z_c) / τ_c*\nPrediction = argmax(s_c)"]
+    
+    FlagOoD --> HITLCheck{"save_for_training == true?"}
+    OvRCalib --> MarginCheck{"Uncertainty Margin:\n(p_top1 - p_top2) < 0.15"}
+    
+    MarginCheck -- "Yes (Uncertain Case)" --> HITLCheck
+    MarginCheck -- "No (Confident Prediction)" --> ClientResponse["JSON Response / ZIP Download"]
+    
+    HITLCheck -- "Yes" --> EnqueueSync["active_hitl.enqueue_sync()\nAtomic multi-thread write to pending queue"]
+    HITLCheck -- "No" --> ClientResponse
+    
+    EnqueueSync --> ExpertReview["Agronomist Panel (/expert)\n• Visual inspection of uncertain cases\n• Diagnosis certification / correction\n• Export to local dataset for next FL round"]
+```
 
 ---
 
-## 5. Threat Model & Privacy Boundaries
+## 4. Threat Model & Security Boundaries
 
-To maintain rigorous technical and academic transparency, we specify system guarantees and out-of-scope boundaries:
+To maintain rigorous transparency, formal security guarantees and out-of-scope boundaries are explicitly specified:
 
-### A. In-Scope Guarantees
-* **Zero Raw Data Sharing:** Training images and labels never leave edge nodes (`0 bytes` of multimedia transferred).
-* **Minimized Surface Area (Head-Only):** In `--head-only` mode, 100% of the convolutional feature extractor remains frozen; only the final linear classification matrix ($\approx 18\text{ KB}$) is exported, preventing deep activation inversion attacks.
-* **Local Heuristic Perturbation:** L2 clipping ($C_{\text{clip}}$) and Gaussian injection ($\sigma$) onto $\Delta W$ perturb updates prior to egress.
-* **Cryptographic Authenticity & Integrity:** In-memory SHA-256 digests and HMAC-SHA256 signatures with pre-shared keys verify updates were neither tampered with in transit nor generated by unauthorized clients.
+### A. Covered In-Scope Guarantees
+* **Zero Raw Media Leakage:** Training images and labels never leave client infrastructure (`0 bytes` of media transferred).
+* **Minimal Attack Surface (Head-Only):** In classifier fine-tuning (`--head-only`), 100% of the convolutional extractor remains untouched; only the linear classification matrix is exported ($\approx 18\text{ KB}$), preventing activation inversion attacks.
+* **Local Heuristic Perturbation:** L2 clipping ($C_{\text{clip}}$) and adaptive RMS noise ($\sigma \cdot \text{RMS}$) distort exported gradients before leaving client nodes.
+* **Deterministic Cryptographic Integrity:** In-memory SHA-256 digests and HMAC-SHA256 signatures certify parameters were not altered in transit.
 
-### B. Known Limitations & Out-of-Scope Boundaries
-1. **Absence of Cryptographic Secure Multi-Party Aggregation (SecAgg):**
-   The central orchestrator receives isolated parameter updates $\Delta W_k$ in cleartext prior to aggregation. The orchestrator is assumed to be **authorized and honest**. A compromised or malicious server could inspect isolated client weights. Cryptographic SecAgg protocols (e.g. Bonawitz et al., 2017) based on secret sharing or homomorphic encryption are out of scope.
-2. **No Formal $(\epsilon, \delta)$ Differential Privacy Guarantee:**
-   Gaussian parameter perturbation is a local heuristic defense. The framework does not include formal privacy accounting (such as Rényi DP or Moments Accountant) calibrated against dataset cardinality, batch subsampling ratio, and global epoch count.
-3. **Scope of HMAC Signatures:**
-   HMAC signatures provide origin authentication and tamper evidence; **they do not provide data encryption or confidentiality**.
-4. **Transport Layer Security (TLS/HTTPS Required in Production):**
-   `Authorization: Bearer <token>` and `X-Client-HMAC` headers travel in plaintext over HTTP. In production or untrusted networks, the service must be deployed with native TLS (`--ssl-certfile` and `--ssl-keyfile` in [`serve.py`](../scripts/serve.py)) or behind an HTTPS reverse proxy (Nginx, Caddy, or Traefik).
-
-```nginx
-# Recommended Nginx Reverse Proxy with TLS termination
-server {
-    listen 443 ssl http2;
-    server_name agrifed.my-organization.org;
-
-    ssl_certificate /etc/letsencrypt/live/agrifed/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/agrifed/privkey.pem;
-
-    client_max_body_size 60M; # Accommodates parameter tensors and manifests
-
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
-    }
-}
-```
-
+### B. Out-of-Scope Known Boundaries
+1. **Absence of Secure Multi-Party Computation (SecAgg):**  
+   The master server receives parameter updates $\Delta W_k$ individually before aggregation. The server is assumed **authorized and trusted**. Distributed homomorphic aggregation without prior decryption is not implemented.
+2. **No Formal $(\epsilon, \delta)$ Differential Privacy Guarantee:**  
+   Gaussian noise perturbation provides heuristic defense against gradient inversion; it does not compute a formal Rényi DP privacy budget.
+3. **Transport Layer Security (TLS/HTTPS Required in Production):**  
+   Outside isolated local testbeds, production deployments must run HTTPS via FastAPI native TLS certificates or through a reverse proxy (Nginx, Caddy, or Traefik).

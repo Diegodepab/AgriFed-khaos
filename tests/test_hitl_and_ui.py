@@ -226,8 +226,9 @@ def test_serve_model_selection_and_lru_cache(tmp_path: Path) -> None:
 
 
 def test_master_job_manager_status_and_lock() -> None:
-    """Test JobManager execution, conflict rejection (HTTP 409), and status polling."""
+    """Test JobManager FIFO queue execution, non-blocking enqueuing, cancellation, and status polling."""
     import asyncio
+    import sys
 
     from scripts.serve import JobManager
 
@@ -237,33 +238,81 @@ def test_master_job_manager_status_and_lock() -> None:
         assert not jm.is_running
         status = jm.get_status()
         assert status["is_running"] is False
+        assert status["queue_length"] == 0
 
         # Launch quick command
-        test_cmd = [
-            "python3",
+        test_cmd_1 = [
+            sys.executable,
             "-c",
-            "import time; print('hello from test'); time.sleep(0.2)",
+            "import time; print('hello from job 1'); time.sleep(0.2)",
         ]
-        await jm.run_command("test_echo", test_cmd)
+        res1 = await jm.enqueue_or_run("job_1", test_cmd_1)
+        assert res1["status"] == "started"
+        assert res1["queue_position"] == 0
         assert jm.is_running
         st_running = jm.get_status()
         assert st_running["is_running"] is True
-        assert st_running["action"] == "test_echo"
+        assert st_running["action"] == "job_1"
 
-        # Attempt concurrent run -> must raise RuntimeError
-        with pytest.raises(RuntimeError, match="already actively running"):
-            await jm.run_command("conflict", ["echo", "fail"])
+        # Attempt concurrent run -> must NOT fail or throw 409; must enqueue smoothly
+        test_cmd_2 = [
+            sys.executable,
+            "-c",
+            "import time; print('hello from job 2'); time.sleep(0.1)",
+        ]
+        res2 = await jm.enqueue_or_run("job_2", test_cmd_2)
+        assert res2["status"] == "queued"
+        assert res2["queue_position"] == 1
 
-        # Wait for termination
-        for _ in range(20):
+        test_cmd_3 = [
+            sys.executable,
+            "-c",
+            "print('hello from job 3')",
+        ]
+        res3 = await jm.enqueue_or_run("job_3", test_cmd_3)
+        assert res3["status"] == "queued"
+        assert res3["queue_position"] == 2
+
+        st_queued = jm.get_status()
+        assert st_queued["queue_length"] == 2
+
+        # Cancel job_3 from queue
+        cancel_res3 = await jm.cancel_job(res3["job_id"])
+        assert cancel_res3["cancelled"] is True
+        assert cancel_res3["type"] == "queued_removed"
+        assert jm.get_status()["queue_length"] == 1
+
+        # Wait for job 1 and then job 2 to finish sequentially
+        for _ in range(40):
             await asyncio.sleep(0.05)
-            if not jm.is_running:
+            if not jm.is_running and len(jm.queue) == 0:
                 break
 
         assert not jm.is_running
         assert jm.last_exit_code == 0
         logs = "\n".join(jm.logs)
-        assert "hello from test" in logs
+        assert "hello from job 1" in logs
+        assert "hello from job 2" in logs
+
+        # Test cancel running job
+        slow_cmd = [
+            sys.executable,
+            "-c",
+            "import time; time.sleep(5)",
+        ]
+        res4 = await jm.enqueue_or_run("job_4_slow", slow_cmd)
+        assert res4["status"] == "started"
+        assert jm.is_running
+
+        cancel_res4 = await jm.cancel_job("job_4_slow")
+        assert cancel_res4["cancelled"] is True
+        assert cancel_res4["type"] == "running_terminated"
+
+        for _ in range(20):
+            await asyncio.sleep(0.05)
+            if not jm.is_running:
+                break
+        assert not jm.is_running
 
     asyncio.run(_test_flow())
 
@@ -469,6 +518,752 @@ def test_design_system_and_refactored_ui_architecture(
     assert 'id="hitlSortSelect"' in r_exp.text
     assert "calidad_insuficiente" in r_exp.text
     assert "sintoma_ambiguo" in r_exp.text
+    assert "renderDetectionCard" in r_exp.text
+    assert "toggleDrawMode" in r_exp.text
+    assert "submitDetectionValidation" in r_exp.text
+    assert "confirmEmptyDetectionItem" in r_exp.text
+
+    # 7. Modality (Detection vs Classification) UI Badges & Filters
+    assert 'id="archModalityBadge"' in r_studio.text
+    assert "Detección de Objetos (Bounding Boxes)" in r_studio.text
+    assert "Clasificación de Imagen (Diagnóstico Global)" in r_studio.text
+    assert 'id="taskFilterDetection"' in r_master.text
+    assert 'id="taskFilterClassification"' in r_master.text
+    assert 'id="facetTaskSelect"' in r_cat.text
+    assert "Modalidad de Visión" in r_cat.text
+
+
+def test_hitl_detection_queue_and_yolo_export(tmp_path: Path) -> None:
+    """Test object detection HITL flow: enqueue with detections, verify_detection (YOLO), negative images, and stats."""
+    import asyncio
+
+    mgr = HITLQueueManager(root_dir=tmp_path / "hitl_queue")
+
+    async def _run() -> None:
+        # 1. Enqueue detection sample with boxes
+        raw_boxes = [
+            {"class_name": "Tuberculosis", "box_xywhn": [0.5, 0.4, 0.2, 0.3], "confidence": 0.88},
+            {"class_name": "BlackScale", "box_xywhn": [0.8, 0.7, 0.15, 0.25], "confidence": 0.65},
+        ]
+        item1 = await mgr.enqueue(
+            image_bytes=b"fake_jpeg_bytes_det_1",
+            filename="olive_det_1.jpg",
+            model_name="yolo_olivo.pt",
+            predicted_class="Tuberculosis",
+            confidence=0.88,
+            probabilities={"Tuberculosis": 0.88, "BlackScale": 0.65},
+            model_slug="yolo-olivo",
+            detections=raw_boxes,
+        )
+        assert item1.detections is not None
+        assert len(item1.detections) == 2
+        assert item1.detections[0].class_name == "Tuberculosis"
+        assert item1.detections[0].box_xywhn == [0.5, 0.4, 0.2, 0.3]
+
+        # 2. Enqueue second detection sample for negative image verification
+        item2 = await mgr.enqueue(
+            image_bytes=b"fake_jpeg_bytes_det_2",
+            filename="olive_det_2.jpg",
+            model_name="yolo_olivo.pt",
+            predicted_class="Sin detecciones",
+            confidence=0.10,
+            probabilities={},
+            model_slug="yolo-olivo",
+            detections=[],
+        )
+
+        # 3. Verify item1 with detection boxes
+        verified_classes = ["Tuberculosis", "BlackScale", "Anthracnose"]
+        res1 = await mgr.verify_detection(
+            item_id=item1.item_id,
+            boxes=[
+                {"class_name": "Tuberculosis", "box_xywhn": [0.51, 0.41, 0.22, 0.31]},
+                {"class_name": "Anthracnose", "box_xywhn": [0.1, 0.2, 0.05, 0.05]},
+            ],
+            class_names=verified_classes,
+            reviewer="expert_dr_olive",
+            notes="Added undetected Anthracnose lesion",
+        )
+        assert res1["status"] == "verified"
+        assert res1["task"] == "detection"
+        assert len(res1["verified_boxes"]) == 2
+
+        # Check YOLO filesystem structure
+        v_dir = tmp_path / "hitl_queue" / "yolo-olivo" / "verified"
+        assert (v_dir / "images" / f"{item1.item_id}.jpg").is_file()
+        label_file1 = v_dir / "labels" / f"{item1.item_id}.txt"
+        assert label_file1.is_file()
+        lines = label_file1.read_text(encoding="utf-8").strip().splitlines()
+        assert len(lines) == 2
+        # Tuberculosis is class 0, Anthracnose is class 2
+        assert lines[0].startswith("0 0.510000 0.410000 0.220000 0.310000")
+        assert lines[1].startswith("2 0.100000 0.200000 0.050000 0.050000")
+
+        # Check dataset.yaml and data.yaml
+        assert (v_dir / "dataset.yaml").is_file()
+        yaml_content = (v_dir / "dataset.yaml").read_text(encoding="utf-8")
+        assert "train: images" in yaml_content
+        assert "0: Tuberculosis" in yaml_content
+        assert "1: BlackScale" in yaml_content
+        assert "2: Anthracnose" in yaml_content
+
+        # 4. Verify item2 as negative (background) image with empty boxes
+        res2 = await mgr.verify_detection(
+            item_id=item2.item_id,
+            boxes=[],
+            class_names=verified_classes,
+            reviewer="expert_dr_olive",
+            notes="Confirmed background leaf with no diseases",
+        )
+        assert res2["status"] == "verified"
+        assert res2["verified_boxes"] == []
+        label_file2 = v_dir / "labels" / f"{item2.item_id}.txt"
+        assert label_file2.is_file()
+        assert label_file2.stat().st_size == 0  # 0 bytes empty label for YOLO negative
+
+        # 5. Check queue statistics
+        stats = await mgr.stats(model_slug="yolo-olivo")
+        assert stats["pending"] == 0
+        assert stats["verified_total"] == 2
+        assert stats["verified_negative_count"] == 1
+        assert stats["verified_by_class"]["Tuberculosis"] == 1
+        assert stats["verified_by_class"]["Anthracnose"] == 1
+
+    asyncio.run(_run())
+
+
+def test_api_feedback_verify_detection_and_retraining(hitl_env: tuple[Path, Path, Path]) -> None:
+    """Test API endpoint POST /api/feedback/verify/{id} for detection and POST /api/master/train-hitl."""
+    import asyncio
+
+    model_p, meta_p, hitl_dir = hitl_env
+    app = create_app(str(model_p), str(meta_p))
+    mgr = HITLQueueManager(root_dir=hitl_dir)
+    app.state.hitl = mgr
+    client = TestClient(app)
+
+    # Enqueue a detection sample directly
+    item = mgr.enqueue_sync(
+        image_bytes=b"dummy_olive_bytes",
+        filename="det_api_test.jpg",
+        model_name="test_det",
+        predicted_class="Tuberculosis",
+        confidence=0.75,
+        probabilities={"Tuberculosis": 0.75},
+        model_slug="test-det-model",
+        detections=[{"class_name": "Tuberculosis", "box_xywhn": [0.4, 0.4, 0.2, 0.2]}],
+    )
+
+    # 1. Verify via JSON POST payload
+    verify_resp = client.post(
+        f"/api/feedback/verify/{item.item_id}",
+        json={
+            "boxes": [
+                {"class_name": "Tuberculosis", "box_xywhn": [0.42, 0.42, 0.25, 0.25]}
+            ],
+            "reviewer": "qa_tester",
+            "notes": "Verified bounding box",
+        },
+    )
+    assert verify_resp.status_code == 200, verify_resp.text
+    data = verify_resp.json()
+    assert data["status"] == "verified"
+    assert data["task"] == "detection"
+    assert len(data["verified_boxes"]) == 1
+
+    # 2. Trigger HITL retraining for detection
+    train_resp = client.post(
+        "/api/master/train-hitl",
+        params={"model_slug": "test-det-model"},
+    )
+    assert train_resp.status_code == 202
+    train_data = train_resp.json()
+    assert train_data["pipeline"] == ["train_detection.py"]
+
+
+def test_three_button_client_workspace_end_to_end(hitl_env: tuple[Path, Path, Path]) -> None:
+    """Test the 3-button Client Studio: class folder uploads, local retrain (Btn 1), local vs global test (Btn 2), and federation (Btn 3)."""
+    from agrifed_khaos.catalog import LogicalModelEntry, ModelCatalogManager
+
+    model_p, meta_p, hitl_dir = hitl_env
+    models_root = model_p.parent
+
+    # Register test model in catalog inside tmp_path
+    catalog_path = models_root / "catalog.json"
+    cm = ModelCatalogManager(catalog_path=str(catalog_path), models_dir=str(models_root))
+    cm.upsert_entry(
+        LogicalModelEntry(
+            slug="test-model",
+            title="Test Olive Model",
+            domain="Olivo",
+            architecture="resnet18",
+            classes=["sana", "repilo"],
+            num_classes=2,
+            active_checkpoint=model_p.name,
+            versions=[model_p.name],
+        )
+    )
+
+    app = create_app(str(model_p), str(meta_p))
+    app.state.hitl = HITLQueueManager(root_dir=hitl_dir)
+    app.state.catalog = cm
+    client = TestClient(app)
+
+    # 0. Verify PWA Web App manifest
+    manifest_res = client.get("/manifest.json")
+    assert manifest_res.status_code == 200
+    assert manifest_res.json()["display"] == "standalone"
+
+    # 1. Initial Client Workspace (Cliente 1)
+    ws_res = client.get("/api/expert/models/test-model/client-workspace?client_id=cliente_01")
+    assert ws_res.status_code == 200
+    ws_data = ws_res.json()
+    assert ws_data["slug"] == "test-model"
+    assert ws_data["client_id"] == "cliente_01"
+    assert ws_data["local_model"]["exists"] is False
+
+    # 2. Upload photos into class folders ("sana" and "repilo")
+    img_sana = io.BytesIO()
+    Image.new("RGB", (64, 64), color=(30, 180, 40)).save(img_sana, format="JPEG")
+    img_sana.seek(0)
+
+    img_repilo = io.BytesIO()
+    Image.new("RGB", (64, 64), color=(180, 40, 30)).save(img_repilo, format="JPEG")
+    img_repilo.seek(0)
+
+    up1 = client.post(
+        "/api/expert/models/test-model/upload-class-samples",
+        data={"client_id": "cliente_01", "class_name": "sana"},
+        files=[("files", ("hoja_sana.jpg", img_sana, "image/jpeg"))],
+    )
+    assert up1.status_code == 200
+    assert up1.json()["uploaded_count"] == 1
+
+    up2 = client.post(
+        "/api/expert/models/test-model/upload-class-samples",
+        data={"client_id": "cliente_01", "class_name": "repilo"},
+        files=[("files", ("hoja_repilo.jpg", img_repilo, "image/jpeg"))],
+    )
+    assert up2.status_code == 200
+    assert up2.json()["uploaded_count"] == 1
+
+    # 3. Button 1: Retrain Local Model for cliente_01
+    retrain_res = client.post(
+        "/api/expert/models/test-model/retrain-local?client_id=cliente_01&epochs=1"
+    )
+    assert retrain_res.status_code == 200, retrain_res.text
+    retrain_data = retrain_res.json()
+    assert retrain_data["success"] is True
+    assert retrain_data["local_model"]["num_samples"] >= 2
+
+    # 4. Button 2: Test & Compare Local Model vs Global Model
+    test_img = io.BytesIO()
+    Image.new("RGB", (64, 64), color=(30, 180, 40)).save(test_img, format="JPEG")
+    test_img.seek(0)
+
+    cmp_res = client.post(
+        "/api/expert/models/test-model/test-local",
+        data={"client_id": "cliente_01"},
+        files={"file": ("test_leaf.jpg", test_img, "image/jpeg")},
+    )
+    assert cmp_res.status_code == 200, cmp_res.text
+    cmp_data = cmp_res.json()
+    assert cmp_data["has_local_model"] is True
+    assert "predicted_class" in cmp_data["global_model"]["result"]
+    assert "predicted_class" in cmp_data["local_model"]["result"]
+
+    # 5. Button 3: Federate to Central Service, promote version, and sync back to client
+    fed_res = client.post(
+        "/api/expert/models/test-model/federate?client_id=cliente_01&include_other_ready_clients=true"
+    )
+    assert fed_res.status_code == 200, fed_res.text
+    fed_data = fed_res.json()
+    assert fed_data["success"] is True
+    assert fed_data["new_version_id"].startswith("v")
+    assert fed_data["client_synced"] is True
+
+
+def test_user_auth_profile_and_admin_privacy_crud(hitl_env: tuple[Path, Path, Path]) -> None:
+    """Test SQLite user DB, roles (admin/expert/user), header profile update, and admin email privacy."""
+    from agrifed_khaos.catalog import LogicalModelEntry, ModelCatalogManager
+
+    model_p, meta_p, hitl_dir = hitl_env
+    models_root = model_p.parent
+    cm = ModelCatalogManager(catalog_path=str(models_root / "catalog.json"), models_dir=str(models_root))
+    cm.upsert_entry(
+        LogicalModelEntry(
+            slug="test-model",
+            title="Test Olive Model",
+            domain="Olivo",
+            architecture="resnet18",
+            classes=["sana", "repilo"],
+            num_classes=2,
+            active_checkpoint=model_p.name,
+            versions=[model_p.name],
+        )
+    )
+
+    app = create_app(str(model_p), str(meta_p))
+    app.state.hitl = HITLQueueManager(root_dir=hitl_dir)
+    app.state.catalog = cm
+    client = TestClient(app)
+
+    # 1. Verify /expert HTML no longer has the synthetic Cliente 1..10 selector
+    exp_html = client.get("/models/test-model/expert").text
+    assert "clientNodeSelector" not in exp_html
+    assert "tenClientsVisualGrid" not in exp_html
+    assert "workspaceOwnerBadge" in exp_html
+
+    # 2. Unauthenticated admin call must be rejected with 401
+    unauth_list = client.get("/api/admin/users")
+    assert unauth_list.status_code == 401
+
+    # 3. Login as seeded admin
+    login_admin = client.post(
+        "/api/auth/login",
+        json={"username": "admin", "password": "admin123"},
+    )
+    assert login_admin.status_code == 200
+    admin_me = client.get("/api/auth/me").json()
+    assert admin_me["authenticated"] is True
+    assert admin_me["user"]["role"] == "admin"
+    assert admin_me["user"]["email"] == "admin@khaos.local"  # Self sees own email
+
+    # 4. Admin lists users -> MUST NOT contain 'email' key for any user
+    users_res = client.get("/api/admin/users")
+    assert users_res.status_code == 200
+    users_list = users_res.json()["users"]
+    assert len(users_list) >= 3
+    for u in users_list:
+        assert "email" not in u
+
+    # 5. Admin creates a new Expert user (validating required full_name, email, role)
+    create_res = client.post(
+        "/api/admin/users",
+        json={
+            "username": "dra_elena",
+            "full_name": "Dra. Elena Gómez",
+            "email": "elena.gomez@olivar.es",
+            "role": "expert",
+        },
+    )
+    assert create_res.status_code == 201, create_res.text
+    created_payload = create_res.json()
+    assert "email" not in created_payload["user"]
+    elena_id = created_payload["user"]["id"]
+    first_pwd = created_payload["generated_password"]
+    assert len(first_pwd) >= 8
+
+    # 6. Duplicate email or username must be rejected with 400
+    dup_email = client.post(
+        "/api/admin/users",
+        json={
+            "username": "otra_elena",
+            "full_name": "Otra Elena",
+            "email": "elena.gomez@olivar.es",
+            "role": "user",
+        },
+    )
+    assert dup_email.status_code == 400
+
+    # 7. Admin generates a new password for Dra. Elena without seeing her email
+    reset_res = client.post(f"/api/admin/users/{elena_id}/reset-password", json={})
+    assert reset_res.status_code == 200
+    reset_data = reset_res.json()
+    assert "email" not in reset_data["user"]
+    new_pwd = reset_data["generated_password"]
+    assert new_pwd != first_pwd
+
+    # 8. Login as Dra. Elena with the admin-generated password
+    client.post("/api/auth/logout")
+    login_elena = client.post(
+        "/api/auth/login",
+        json={"username": "dra_elena", "password": new_pwd},
+    )
+    assert login_elena.status_code == 200
+
+    # 9. Dra. Elena cannot access Admin user list (403 Forbidden)
+    forbidden_res = client.get("/api/admin/users")
+    assert forbidden_res.status_code == 403
+
+    # 10. Dra. Elena updates her own username and password from the Header Profile endpoint
+    prof_res = client.patch(
+        "/api/auth/profile",
+        json={
+            "username": "elena_experta",
+            "current_password": new_pwd,
+            "new_password": "MiNuevaPasswordSegura99!",
+        },
+    )
+    assert prof_res.status_code == 200, prof_res.text
+    prof_user = prof_res.json()["user"]
+    assert prof_user["username"] == "elena_experta"
+    assert prof_user["email"] == "elena.gomez@olivar.es"  # Own profile shows email
+
+    # 11. Workspace in /expert automatically uses her authenticated username ('elena_experta')
+    ws_elena = client.get("/api/expert/models/test-model/client-workspace")
+    assert ws_elena.status_code == 200
+    assert ws_elena.json()["client_id"] == "elena_experta"
+
+
+def test_login_page_and_rbac_view_protection(hitl_env: tuple[Path, Path, Path]) -> None:
+    """Test dedicated /login screen and role-based page route access rules."""
+    model_p, meta_p, hitl_dir = hitl_env
+    models_dir = model_p.parent
+    from agrifed_khaos.catalog import LogicalModelEntry, ModelCatalogManager
+
+    cm = ModelCatalogManager(catalog_path=str(models_dir / "catalog.json"), models_dir=str(models_dir))
+    cm.upsert_entry(
+        LogicalModelEntry(
+            slug="test-rbac-model",
+            title="RBAC Test Model",
+            domain="Olivo",
+            architecture="resnet18",
+            classes=["sana", "repilo"],
+            num_classes=2,
+            active_checkpoint=model_p.name,
+            versions=[model_p.name],
+        )
+    )
+
+    app = create_app(str(model_p), str(meta_p))
+    app.state.hitl = HITLQueueManager(root_dir=hitl_dir)
+    app.state.catalog = cm
+
+    # 1. Unauthenticated client with browser user-agent
+    browser_headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}
+    client = TestClient(app, headers=browser_headers)
+
+    # 1a. GET /login returns 200 with dedicated production login view (no demo cards)
+    r_login = client.get("/login")
+    assert r_login.status_code == 200
+    assert "Iniciar Sesión" in r_login.text
+    assert "Crear Cuenta" in r_login.text
+    assert "formLogin" in r_login.text
+    assert "formRegister" in r_login.text
+    assert "roleCard_admin" not in r_login.text
+    assert "PERFILES DE ACCESO DISPONIBLES" not in r_login.text
+    assert "Matriz de Accesos por Rol" not in r_login.text
+
+    # 1b. Unauthenticated browser accessing /expert, /master or /accounts is redirected to /login
+    r_unauth_exp = client.get("/expert", follow_redirects=False)
+    assert r_unauth_exp.status_code == 303
+    assert r_unauth_exp.headers["location"] == "/login?next=/expert"
+
+    r_unauth_master = client.get("/master", follow_redirects=False)
+    assert r_unauth_master.status_code == 303
+    assert r_unauth_master.headers["location"] == "/login?next=/master"
+
+    r_unauth_accounts = client.get("/accounts", follow_redirects=False)
+    assert r_unauth_accounts.status_code == 303
+    assert r_unauth_accounts.headers["location"] == "/login?next=/accounts"
+
+    # 1c. Agnostic views are accessible without authentication, with header mount slot
+    r_root = client.get("/")
+    assert r_root.status_code == 200
+    assert "khHeaderProfileMount" in r_root.text
+
+    r_consumer = client.get("/models/test-rbac-model")
+    assert r_consumer.status_code == 200
+    assert "khHeaderProfileMount" in r_consumer.text
+
+    # 2. Login as 'usuario' (Agnostic User)
+    login_user = client.post("/api/auth/login", json={"username": "usuario", "password": "usuario123"})
+    assert login_user.status_code == 200
+
+    # User can access models and consume them
+    assert client.get("/").status_code == 200
+    assert client.get("/models/test-rbac-model").status_code == 200
+
+    # User CANNOT access /expert, /master or /accounts (403 Forbidden with Access Denied page)
+    r_user_exp = client.get("/expert")
+    assert r_user_exp.status_code == 403
+    assert "Acceso Restringido" in r_user_exp.text
+    assert "@usuario" in r_user_exp.text
+
+    r_user_master = client.get("/master")
+    assert r_user_master.status_code == 403
+    assert "Acceso Restringido" in r_user_master.text
+
+    r_user_acc = client.get("/accounts")
+    assert r_user_acc.status_code == 403
+    assert "Acceso Restringido" in r_user_acc.text
+
+    # 3. Login as 'experto' (Agronomist Expert)
+    client.post("/api/auth/logout")
+    login_expert = client.post("/api/auth/login", json={"username": "experto", "password": "experto123"})
+    assert login_expert.status_code == 200
+
+    # Expert can access models and /expert
+    assert client.get("/").status_code == 200
+    assert client.get("/models/test-rbac-model").status_code == 200
+    r_exp_page = client.get("/expert")
+    assert r_exp_page.status_code == 200
+
+    # Expert CANNOT access /master or /accounts (403 Forbidden)
+    r_exp_master = client.get("/master")
+    assert r_exp_master.status_code == 403
+    assert "Acceso Restringido" in r_exp_master.text
+
+    r_exp_acc = client.get("/accounts")
+    assert r_exp_acc.status_code == 403
+    assert "Acceso Restringido" in r_exp_acc.text
+
+    # 4. Login as 'admin' (Administrator)
+    client.post("/api/auth/logout")
+    login_adm = client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
+    assert login_adm.status_code == 200
+
+    # Admin can access everything
+    assert client.get("/").status_code == 200
+    assert client.get("/models/test-rbac-model").status_code == 200
+    assert client.get("/expert").status_code == 200
+    assert client.get("/master").status_code == 200
+    assert client.get("/accounts").status_code == 200
+
+
+def test_user_registration_approval_workflow_and_policies(
+    hitl_env: tuple[Path, Path, Path],
+) -> None:
+    """Test user self-registration, admin pending approval, banning, and registration policies."""
+    model_p, meta_p, hitl_dir = hitl_env
+    app = create_app(str(model_p), str(meta_p))
+    app.state.hitl = HITLQueueManager(root_dir=hitl_dir)
+    client = TestClient(app)
+
+    # 1. Self-register a new user (default policy requires admin approval)
+    reg_res = client.post(
+        "/api/auth/register",
+        json={
+            "full_name": "Dr. Carlos Agrónomo",
+            "username": "carlos_agri",
+            "email": "carlos@finca-olivos.es",
+            "password": "PasswordSegura2026!",
+        },
+    )
+    assert reg_res.status_code == 201, reg_res.text
+    reg_data = reg_res.json()
+    assert reg_data["success"] is True
+    assert reg_data["requires_approval"] is True
+    assert "pendiente de aprobación" in reg_data["message"]
+
+    # 2. Attempt login as pending user -> must be rejected with 401 informing pending status
+    pend_login = client.post(
+        "/api/auth/login",
+        json={"username": "carlos_agri", "password": "PasswordSegura2026!"},
+    )
+    assert pend_login.status_code == 401
+    assert "pendiente de validación" in pend_login.json()["detail"]
+
+    # 3. Admin logs in and checks pending accounts
+    client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
+    pending_res = client.get("/api/admin/accounts/pending")
+    assert pending_res.status_code == 200
+    pending_list = pending_res.json()["pending_users"]
+    carlos_entry = next((u for u in pending_list if u["username"] == "carlos_agri"), None)
+    assert carlos_entry is not None
+    assert carlos_entry["status"] == "pending"
+    carlos_id = carlos_entry["id"]
+
+    # 4. Admin approves Carlos and assigns role 'expert'
+    approve_res = client.post(
+        f"/api/admin/accounts/pending/{carlos_id}/approve",
+        json={"role": "expert"},
+    )
+    assert approve_res.status_code == 200
+    assert approve_res.json()["user"]["role"] == "expert"
+    assert approve_res.json()["user"]["status"] == "active"
+
+    # 5. Carlos can now log in successfully and access /expert
+    client.post("/api/auth/logout")
+    carlos_login = client.post(
+        "/api/auth/login",
+        json={"username": "carlos_agri", "password": "PasswordSegura2026!"},
+    )
+    assert carlos_login.status_code == 200
+    carlos_user = carlos_login.json()["user"]
+    assert carlos_user["role"] == "expert"
+
+    # Carlos has access to /expert
+    assert client.get("/expert").status_code == 200
+
+    # 6. Admin bans Carlos account
+    client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
+    ban_res = client.post(f"/api/admin/accounts/{carlos_id}/ban")
+    assert ban_res.status_code == 200
+    assert ban_res.json()["user"]["status"] == "banned"
+
+    # 7. Carlos can no longer log in (401 Account Banned)
+    client.post("/api/auth/logout")
+    banned_login = client.post(
+        "/api/auth/login",
+        json={"username": "carlos_agri", "password": "PasswordSegura2026!"},
+    )
+    assert banned_login.status_code == 401
+    assert "suspendida o bloqueada" in banned_login.json()["detail"]
+
+    # 8. Admin configures banned email wildcard domain pattern
+    client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
+    add_ban_res = client.post(
+        "/api/admin/banned-entries",
+        json={"pattern": "@tempmail.com", "reason": "Dominio temporal no verificado"},
+    )
+    assert add_ban_res.status_code == 201
+
+    # Attempting to register with banned domain is blocked with 400
+    client.post("/api/auth/logout")
+    spammer_reg = client.post(
+        "/api/auth/register",
+        json={
+            "full_name": "Spam User",
+            "username": "spammer99",
+            "email": "hacker@tempmail.com",
+            "password": "Password123!",
+        },
+    )
+    assert spammer_reg.status_code == 400
+    assert "no está permitido" in spammer_reg.json()["detail"]
+
+    # 9. Admin modifies policy to allow auto-approval
+    client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
+    pol_update = client.post(
+        "/api/admin/policies",
+        json={"require_admin_approval": False},
+    )
+    assert pol_update.status_code == 200
+    assert pol_update.json()["policies"]["require_admin_approval"] is False
+
+    # New user registers and is active immediately
+    client.post("/api/auth/logout")
+    auto_reg = client.post(
+        "/api/auth/register",
+        json={
+            "full_name": "Ana Directa",
+            "username": "ana_directa",
+            "email": "ana@cooperativa.es",
+            "password": "PasswordDirecta123!",
+        },
+    )
+    assert auto_reg.status_code == 201
+    assert auto_reg.json()["requires_approval"] is False
+
+    # Ana logs in immediately without waiting
+    ana_login = client.post(
+        "/api/auth/login",
+        json={"username": "ana_directa", "password": "PasswordDirecta123!"},
+    )
+    assert ana_login.status_code == 200
+
+
+def test_hitl_multi_expert_voting_and_consensus(hitl_env: tuple[Path, Path, Path]) -> None:
+    """Test multi-expert voting traceability, dispute detection, consensus, and consolidation."""
+    model_path, meta_path, hitl_dir = hitl_env
+    app = create_app(str(model_path), str(meta_path))
+    hitl = HITLQueueManager(root_dir=hitl_dir)
+    app.state.hitl = hitl
+
+    client = TestClient(app)
+
+    # 1. Enqueue a pending item
+    dummy_img = b"\xff\xd8\xff\xe0\x00\x10JFIF" + b"\x00" * 200
+    meta = hitl.enqueue_sync(
+        image_bytes=dummy_img,
+        filename="hoja_ambigua.jpg",
+        model_name="mangofruit.pt",
+        model_slug="mangofruit-v1-0",
+        predicted_class="antracnosis",
+        confidence=0.54,
+    )
+    item_id = meta.item_id
+
+    # Initial check: 0 votes -> consensus_status == "none"
+    pending_res = client.get("/api/feedback/pending?model_slug=mangofruit-v1-0")
+    assert pending_res.status_code == 200
+    items = pending_res.json()["items"]
+    target_item = next(it for it in items if it["item_id"] == item_id)
+    assert target_item["votes_count"] == 0
+    assert target_item["consensus_status"] == "none"
+
+    # 2. Expert 1 votes "sana"
+    vote1_res = client.post(
+        f"/api/feedback/vote/{item_id}",
+        json={
+            "reviewer": "agronomo_jaen",
+            "decision": "verified",
+            "class_name": "sana",
+            "notes": "Lesión superficial no fúngica",
+        },
+    )
+    assert vote1_res.status_code == 200
+    assert vote1_res.json()["votes_count"] == 1
+
+    # Check consensus after 1 vote -> consensus on "sana"
+    pending_res = client.get("/api/feedback/pending?model_slug=mangofruit-v1-0")
+    target_item = next(it for it in pending_res.json()["items"] if it["item_id"] == item_id)
+    assert target_item["votes_count"] == 1
+    assert target_item["consensus_status"] == "consensus"
+    assert "sana" in target_item["consensus_label"]
+
+    # 3. Expert 2 votes "antracnosis" -> Dispute / En Discusión
+    vote2_res = client.post(
+        f"/api/feedback/vote/{item_id}",
+        json={
+            "reviewer": "patologo_cordoba",
+            "decision": "verified",
+            "class_name": "antracnosis",
+            "notes": "Borde necrótico característico",
+        },
+    )
+    assert vote2_res.status_code == 200
+    assert vote2_res.json()["votes_count"] == 2
+
+    pending_res = client.get("/api/feedback/pending?model_slug=mangofruit-v1-0")
+    target_item = next(it for it in pending_res.json()["items"] if it["item_id"] == item_id)
+    assert target_item["votes_count"] == 2
+    assert target_item["consensus_status"] == "disputed"
+    assert "En Discusión" in target_item["consensus_label"]
+
+    # 4. Expert 3 votes "antracnosis", and Expert 1 updates their vote to "antracnosis"
+    client.post(
+        f"/api/feedback/vote/{item_id}",
+        json={
+            "reviewer": "experto_sevilla",
+            "decision": "verified",
+            "class_name": "antracnosis",
+        },
+    )
+    client.post(
+        f"/api/feedback/vote/{item_id}",
+        json={
+            "reviewer": "agronomo_jaen",
+            "decision": "verified",
+            "class_name": "antracnosis",
+            "notes": "Rectifico tras analizar con lupa",
+        },
+    )
+
+    pending_res = client.get("/api/feedback/pending?model_slug=mangofruit-v1-0")
+    target_item = next(it for it in pending_res.json()["items"] if it["item_id"] == item_id)
+    assert target_item["votes_count"] == 3
+    assert target_item["consensus_status"] == "consensus"
+    assert "antracnosis" in target_item["consensus_label"]
+
+    # 5. Consolidate to verified dataset
+    ver_res = client.post(
+        f"/api/feedback/verify/{item_id}?verified_class=antracnosis",
+        json={"reviewer": "agronomo_jaen"},
+    )
+    assert ver_res.status_code == 200
+    assert ver_res.json()["status"] == "verified"
+    assert ver_res.json()["verified_class"] == "antracnosis"
+    # Preserves vote traceability in verified item metadata
+    assert len(ver_res.json()["votes"]) == 3
+
+
+
+
+
+
 
 
 

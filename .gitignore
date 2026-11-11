@@ -32,38 +32,64 @@ env/
 .ruff_cache/
 .coverage
 htmlcov/
+lh-*.json
 
 # Environment Variables & Secrets
 .env
-.env.local
+.env.*
+!.env.example
 *.pem
 *.key
+*.cert
+*.crt
+id_rsa
+id_ecdsa
+id_ed25519
 
-# Model Weights & Large Binary Checkpoints
+# Model Weights & Binary Checkpoints (Global)
 *.pt
 *.pth
 *.ckpt
 *.bin
 *.onnx
-models/*.pt
-models/*.pth
-models/*.json
-models/*.meta.json
+*.safetensors
+*.engine
+*.tflite
+*.h5
 *.meta.json
+yolo*.pt
+
+# Models directory: ignore all generated weights, previews, samples, reports, runs, and queues
+models/*
 !models/.gitkeep
 !models/catalog.json
-models/hitl_queue/
-referencia/
+!models/metadata.json
+!models/client_parameters.meta.json
+!models/thumbnails/
+!models/thumbnails/**
 
-# Logs, Reports and Artifacts
+# Logs, Reports and Ephemeral Artifacts
 runs/
 reports/
 artifacts/
 *.log
+*.tmp
+*.part
+*.swp
+*~
 
-# Datasets & Local Mounts
+# Datasets, Raw Data & Large Bundles
 dataset/
 data/
+detection/
+referencia/
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+*.coco/
 
 # OS generated
 .DS_Store

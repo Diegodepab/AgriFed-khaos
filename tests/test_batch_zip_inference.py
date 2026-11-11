@@ -1,5 +1,6 @@
 """Tests for Batch Inference (ZIP upload) endpoint and UX contracts."""
 
+import asyncio
 import csv
 import io
 import zipfile
@@ -9,6 +10,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from agrifed_khaos.catalog import LogicalModelEntry, ModelCatalogManager
+from agrifed_khaos.hitl import HITLQueueManager
 from agrifed_khaos.models import build_model, save_checkpoint_bundle
 from scripts.serve import create_app
 
@@ -131,6 +133,8 @@ def test_model_detail_template_batch_and_reset_ux_elements(tmp_path: Path) -> No
     # Batch UI components
     assert "batchZipInput" in html
     assert "btnRunBatch" in html
+    assert "batchSaveTraining" in html
+    assert "Ayudar a mejorar el modelo" in html
     assert "Procesando imágenes, esto puede tardar..." in html
     assert "/api/predict/batch" in html
 
@@ -138,3 +142,62 @@ def test_model_detail_template_batch_and_reset_ux_elements(tmp_path: Path) -> No
     assert "resetInferenceResultState" in html
     assert "btnDownloadReport" in html
     assert "downloadDiagnosisReport" in html
+
+
+def test_batch_zip_hitl_enqueuing(tmp_path: Path) -> None:
+    """Verify that batch ZIP predictions are enqueued in HITL when save_for_training=True."""
+    model_path = tmp_path / "test_model.pt"
+    _create_dummy_checkpoint(model_path)
+
+    catalog_path = tmp_path / "catalog.json"
+    cat_mgr = ModelCatalogManager(catalog_path=catalog_path, models_dir=tmp_path)
+    entry = LogicalModelEntry(
+        slug="hitl-test",
+        title="Modelo HITL Test",
+        domain="Olivo",
+        active_checkpoint=model_path.name,
+    )
+    cat_mgr.save_catalog([entry])
+
+    meta_path = tmp_path / "meta.json"
+    meta_path.write_text('{"classes": ["Healthy", "aculus_olearius", "olive_peacock_spot"]}')
+
+    hitl_dir = tmp_path / "hitl_queue"
+    hitl_mgr = HITLQueueManager(root_dir=hitl_dir)
+
+    app = create_app(str(model_path), str(meta_path))
+    app.state.catalog = cat_mgr
+    app.state.hitl = hitl_mgr
+
+    client = TestClient(app)
+
+    # Synthetic ZIP with 2 images
+    valid_zip_buf = io.BytesIO()
+    with zipfile.ZipFile(valid_zip_buf, "w") as zf:
+        for idx in range(2):
+            img = Image.new("RGB", (64, 64), color=(idx * 50, 100, 150))
+            b = io.BytesIO()
+            img.save(b, format="JPEG")
+            zf.writestr(f"leaf_{idx}.jpg", b.getvalue())
+
+    # 1. Post with save_for_training=False -> 0 pending
+    valid_zip_buf.seek(0)
+    r1 = client.post(
+        "/api/predict/batch?model_slug=hitl-test&save_for_training=false",
+        files={"file": ("batch_no_save.zip", valid_zip_buf, "application/zip")},
+    )
+    assert r1.status_code == 200
+    pending_0 = asyncio.run(hitl_mgr.list_pending(model_slug="hitl-test"))
+    assert len(pending_0) == 0
+
+    # 2. Post with save_for_training=True -> 2 pending in hitl queue
+    valid_zip_buf.seek(0)
+    r2 = client.post(
+        "/api/predict/batch?model_slug=hitl-test&save_for_training=true",
+        files={"file": ("batch_save.zip", valid_zip_buf, "application/zip")},
+    )
+    assert r2.status_code == 200
+    pending_1 = asyncio.run(hitl_mgr.list_pending(model_slug="hitl-test"))
+    assert len(pending_1) == 2
+    assert {it["filename"] for it in pending_1} == {"leaf_0.jpg", "leaf_1.jpg"}
+

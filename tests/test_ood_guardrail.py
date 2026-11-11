@@ -65,6 +65,57 @@ def test_compute_ood_guardrail_high_entropy() -> None:
     assert metrics["normalized_entropy"] > 0.90
 
 
+def test_compute_ood_guardrail_multiclass_fine_grained_uncertainty_is_not_ood() -> None:
+    # 17 classes where model is debating between varieties (fine-grained uncertainty, not OoD)
+    logits = torch.tensor([[-0.68, -4.92, -0.83, -4.16, 0.47, -3.14, -0.21, -2.17,
+                            0.63, -0.93, -4.73, -2.36, -2.17, -1.31, -4.47, -4.85, 0.05]])
+    probs = torch.softmax(logits, dim=-1)
+
+    metrics = compute_ood_guardrail(
+        logits=logits,
+        probs=probs,
+        num_classes=17,
+        temperature=1.0,
+    )
+
+    # Must NOT falsely classify in-domain fine-grained uncertainty as OoD
+    assert metrics["ood_flag"] is False
+    assert metrics["energy_score"] > 1.3
+    assert metrics["normalized_entropy"] < 0.85
+
+
+def test_compute_ood_guardrail_foreign_alien_object_triggers_ood() -> None:
+    # Completely foreign object where feature extractor suppresses all activations
+    logits = torch.full((1, 17), -4.0, dtype=torch.float32)
+    probs = torch.softmax(logits, dim=-1)
+
+    metrics = compute_ood_guardrail(
+        logits=logits,
+        probs=probs,
+        num_classes=17,
+        temperature=1.0,
+    )
+
+    assert metrics["ood_flag"] is True
+    assert metrics["energy_score"] < 0.0
+
+
+def test_compute_ood_guardrail_pure_uniform_noise_triggers_ood() -> None:
+    # Flat noise across all 17 classes
+    logits = torch.zeros((1, 17), dtype=torch.float32)
+    probs = torch.softmax(logits, dim=-1)
+
+    metrics = compute_ood_guardrail(
+        logits=logits,
+        probs=probs,
+        num_classes=17,
+        temperature=1.0,
+    )
+
+    assert metrics["ood_flag"] is True
+    assert metrics["normalized_entropy"] >= 0.90
+
+
 def test_compute_ood_guardrail_fallback_without_logits() -> None:
     # When logits are None, it gracefully approximates from probabilities
     probs = torch.tensor([0.9, 0.05, 0.05], dtype=torch.float32)
