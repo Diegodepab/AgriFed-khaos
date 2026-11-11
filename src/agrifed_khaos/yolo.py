@@ -268,9 +268,20 @@ def inspect_yolo_dataset(
     raw_class_box_counts: dict[int, int] = {}
     raw_class_img_counts: dict[int, int] = {}
 
+    images_data: list[dict[str, Any]] = []
+
     for img_p in image_files:
         lbl_p = lbl_d / f"{img_p.stem}.txt"
         boxes = parse_yolo_label(lbl_p)
+
+        try:
+            from PIL import Image
+            with Image.open(img_p) as pil_img:
+                w_px, h_px = pil_img.size
+        except Exception:
+            w_px, h_px = 640, 640
+
+        b_list: list[dict[str, Any]] = []
         if boxes:
             images_with_boxes += 1
             total_boxes += len(boxes)
@@ -280,13 +291,36 @@ def inspect_yolo_dataset(
                 seen_in_img.add(b.class_id)
                 if b.segmentation is not None:
                     has_segmentation_masks = True
+                xc, yc, bw, bh = b.x_center, b.y_center, b.width, b.height
+                x1 = (xc - bw / 2.0) * w_px
+                y1 = (yc - bh / 2.0) * h_px
+                x2 = (xc + bw / 2.0) * w_px
+                y2 = (yc + bh / 2.0) * h_px
+                b_list.append({
+                    "class_name": f"class_{b.class_id}",  # resolved to name below
+                    "class_id": b.class_id,
+                    "box_xyxy": [x1, y1, x2, y2],
+                    "box_xywhn": [round(xc, 6), round(yc, 6), round(bw, 6), round(bh, 6)],
+                })
             for c_id in seen_in_img:
                 raw_class_img_counts[c_id] = raw_class_img_counts.get(c_id, 0) + 1
         else:
             empty_images += 1
 
+        images_data.append({
+            "image_path": str(img_p),
+            "width": w_px,
+            "height": h_px,
+            "boxes": b_list,
+        })
+
     max_c_id = max(raw_class_box_counts.keys()) if raw_class_box_counts else 0
     class_map = load_yolo_class_names(yaml_p, max_class_id=max_c_id)
+
+    # Re-map class names in images_data
+    for img_rec in images_data:
+        for b in img_rec["boxes"]:
+            b["class_name"] = class_map.get(b["class_id"], f"class_{b['class_id']}")
 
     named_box_counts: dict[str, int] = {
         class_map.get(cid, f"class_{cid}"): count
@@ -297,6 +331,9 @@ def inspect_yolo_dataset(
         for cid, count in sorted(raw_class_img_counts.items())
     }
     classes_list = sorted(named_box_counts.keys())
+
+    from agrifed_khaos.coco import compute_detection_geometry_profile
+    detection_profile = compute_detection_geometry_profile(images_data, classes_list)
 
     return {
         "valid": True,
@@ -313,6 +350,7 @@ def inspect_yolo_dataset(
         "classes": classes_list,
         "class_box_counts": named_box_counts,
         "image_counts": named_img_counts,
+        "detection_profile": detection_profile,
         "recommended_arch": "yolov8n",
         "recommendation_details": {
             "recommended_arch": "yolov8n",

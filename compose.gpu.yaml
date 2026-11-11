@@ -1,6 +1,33 @@
+# Canonical Compose spec for the standalone GPU worker (agrifed-gpu)
+# Identical to docker-compose.gpu.yml for tooling that looks for compose*.yaml
 services:
-  agrifed:
-    gpus: all
+  agrifed-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    image: agrifed-gpu:latest
+    container_name: agrifed-gpu
+    restart: unless-stopped
+    runtime: nvidia
+    ports:
+      - "${AGRIFED_GPU_PORT:-8089}:8088"
+    volumes:
+      - ./models:/workspace/models
+      - ./data:/workspace/data
+      - ./src:/workspace/src
+      - ./scripts:/workspace/scripts
     environment:
-      NVIDIA_VISIBLE_DEVICES: all
-      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      - PYTHONUNBUFFERED=1
+      - AGRIFED_WORKSPACE=/workspace
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      # Politica de convivencia y gobernanza de recursos en GPU compartida (Tesla T4)
+      - AGRIFED_GPU_MEM_FRACTION=${AGRIFED_GPU_MEM_FRACTION:-0.75}
+      - AGRIFED_GPU_MIN_FREE_MB=${AGRIFED_GPU_MIN_FREE_MB:-6000}
+      - AGRIFED_GPU_WORKERS=${AGRIFED_GPU_WORKERS:-4}
+      - AGRIFED_GPU_NICE=${AGRIFED_GPU_NICE:-10}
+      - AGRIFED_GPU_CACHE_MAX_GB=${AGRIFED_GPU_CACHE_MAX_GB:-30.0}
+      - AGRIFED_GPU_TOKEN=${AGRIFED_GPU_TOKEN:-}
+      - TORCH_HOME=/workspace/data/torch_cache
+      - YOLO_CONFIG_DIR=/tmp/Ultralytics
+    shm_size: "4gb"
