@@ -162,6 +162,13 @@ def parse_args() -> argparse.Namespace:
         help="Training hardware device: auto, cpu, cuda (default: auto)",
     )
     parser.add_argument(
+        "--aug",
+        type=str,
+        choices=["basic", "randaugment", "in_the_wild", "none"],
+        default="basic",
+        help="Local data augmentation policy: basic (default), randaugment, in_the_wild, none",
+    )
+    parser.add_argument(
         "--server-url",
         type=str,
         default=None,
@@ -250,18 +257,9 @@ def main() -> None:
     else:
         img_size_tuple = (224, 224)
 
-    transform = transforms.Compose(
-        [
-            transforms.RandomResizedCrop(img_size_tuple, scale=(0.75, 1.0)),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomVerticalFlip(),
-            transforms.ColorJitter(brightness=0.15, contrast=0.15),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]
-    )
+    from agrifed_khaos.data import build_augmentation_transform, resolve_dataset_dir
 
-    from agrifed_khaos.data import resolve_dataset_dir
+    transform = build_augmentation_transform(args.aug, img_size=img_size_tuple)
 
     try:
         data_path = resolve_dataset_dir(args.data_dir, split="val")
@@ -633,6 +631,8 @@ def main() -> None:
             "label_smoothing": args.label_smoothing,
             "logit_adjust_tau": args.logit_adjust_tau if args.balanced_loss else None,
             "training_time_seconds": round(elapsed, 2),
+            "final_accuracy": round(acc, 2) if "acc" in locals() else None,
+            "final_loss": round(avg_loss, 4) if "avg_loss" in locals() else None,
         },
         "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
     }

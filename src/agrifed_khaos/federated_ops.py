@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -300,11 +301,34 @@ def resolve_validation_directory_for_model(
     explicit_val_dir: str | Path | None = None,
 ) -> tuple[Path | None, str]:
     """Find a validation dataset directory strictly compatible with the model's classes."""
-    candidates: list[Path] = []
-    if explicit_val_dir:
-        candidates.append(Path(explicit_val_dir))
+    def _clean(s: str) -> str:
+        return re.sub(r"[\s_\-]+", "", s.strip().lower())
 
-    candidates.extend(
+    norm_classes = {_clean(c) for c in classes}
+    if not norm_classes:
+        return None, "NO_CLASSES"
+
+    candidates_split: list[Path] = []
+    candidates_direct: list[Path] = []
+
+    if explicit_val_dir:
+        p_exp = Path(explicit_val_dir)
+        for sub in ("test", "val", "dataset/test", "dataset/val"):
+            if (p_exp / sub).is_dir():
+                candidates_split.append(p_exp / sub)
+        # Sibling inspection if pointing to a train directory
+        if p_exp.name.lower() in ("train", "val", "test") or "train" in p_exp.name.lower():
+            for sibling in ("test", "val"):
+                if (p_exp.parent / sibling).is_dir():
+                    candidates_split.append(p_exp.parent / sibling)
+                if (p_exp.parent / "dataset" / sibling).is_dir():
+                    candidates_split.append(p_exp.parent / "dataset" / sibling)
+            if p_exp.parent.is_dir():
+                candidates_direct.append(p_exp.parent)
+        candidates_direct.append(p_exp)
+
+    # Standard split paths
+    candidates_split.extend(
         [
             Path("/data/EnfermedadesHoja_v1.0/dataset/val"),
             Path("data/EnfermedadesHoja_v1.0/dataset/val"),
@@ -315,29 +339,80 @@ def resolve_validation_directory_for_model(
             Path("models/hitl_queue/verified"),
         ]
     )
-    # Search common uploaded dataset test/val splits
+
     uploads_dir = Path("data/uploads")
     if uploads_dir.is_dir():
         for split_cand in ("test", "val"):
-            candidates.extend(sorted(uploads_dir.glob(f"*/dataset/{split_cand}")))
-            candidates.extend(sorted(uploads_dir.glob(f"*/{split_cand}")))
+            candidates_split.extend(sorted(uploads_dir.glob(f"*/dataset/{split_cand}")))
+            candidates_split.extend(sorted(uploads_dir.glob(f"*/{split_cand}")))
+            candidates_split.extend(sorted(uploads_dir.glob(f"*/*/dataset/{split_cand}")))
+            candidates_split.extend(sorted(uploads_dir.glob(f"*/*/{split_cand}")))
 
-    norm_classes = {c.strip().lower() for c in classes}
+        # Search uploaded datasets directly (e.g. data/uploads/<upload_id>/<dataset_name>)
+        candidates_direct.extend(sorted(uploads_dir.glob("*/*")))
+        candidates_direct.extend(sorted(uploads_dir.glob("*")))
 
-    for cand in candidates:
+    # Priority 1: Exact matches in dedicated test/val splits
+    for cand in candidates_split:
         if not cand.is_dir():
             continue
-        subdirs = {
-            d.name.strip().lower()
-            for d in cand.iterdir()
-            if d.is_dir() and not d.name.startswith(".")
-        }
-        # Check if subdirs match the model classes exactly or contain all required classes
-        if norm_classes and subdirs == norm_classes:
-            return cand, "MATCH_EXACT"
-        if norm_classes and norm_classes.issubset(subdirs):
-            return cand, "MATCH_SUPERSET"
+        try:
+            subdirs = {
+                _clean(d.name)
+                for d in cand.iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            }
+            if subdirs == norm_classes:
+                return cand, "MATCH_EXACT_SPLIT"
+        except OSError:
+            continue
 
+    # Priority 2: Exact matches in direct dataset directories
+    for cand in candidates_direct:
+        if not cand.is_dir():
+            continue
+        try:
+            subdirs = {
+                _clean(d.name)
+                for d in cand.iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            }
+            if subdirs == norm_classes:
+                return cand, "MATCH_EXACT"
+        except OSError:
+            continue
+
+    # Priority 3: Superset matches in splits
+    for cand in candidates_split:
+        if not cand.is_dir():
+            continue
+        try:
+            subdirs = {
+                _clean(d.name)
+                for d in cand.iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            }
+            if norm_classes.issubset(subdirs):
+                return cand, "MATCH_SUPERSET_SPLIT"
+        except OSError:
+            continue
+
+    # Priority 4: Superset matches in direct datasets
+    for cand in candidates_direct:
+        if not cand.is_dir():
+            continue
+        try:
+            subdirs = {
+                _clean(d.name)
+                for d in cand.iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            }
+            if norm_classes.issubset(subdirs):
+                return cand, "MATCH_SUPERSET"
+        except OSError:
+            continue
+
+    # If no compatible directory found
     return None, "INCOMPATIBLE_OR_MISSING"
 
 
